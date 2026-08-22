@@ -31,7 +31,41 @@
   },
 
   "demo": {
-    "fidelity": "none",
-    "presets": []
+    "fidelity": "limited",
+    "bundle": "out/controls/KanbanBoard/bundle.js",
+    "styles": ["out/controls/KanbanBoard/css/KanbanBoard.css"],
+    "datasetFixture": "demo/records.json",
+    "limitations": [
+      "Moving a card changes nothing in Dataverse. The control calls webAPI.updateRecord(), which the demo harness mocks — there is no environment behind this origin to write to. The card still moves, because the control places it optimistically the moment you drop it and only retires that override once refreshed data agrees; on a real form the write is what makes the move stick. The movedRecordId output updates either way, so the value a form would react to is visible.",
+      "A refused move cannot be demonstrated. The harness’s mock resolves, so the rollback never runs — on a real form a write the user has no privilege for rejects, the card returns to the lane it came from, and the failure is named above the board. That path is the reason this control catches at all, and the demo is the one place you cannot see it.",
+      "The lanes are set explicitly in both presets rather than derived. A fixture record carries one value per column, so it cannot express an option’s number separately from its label — left to derive, the lanes here would be titled 1, 2 and 3. On a real view the Lanes property is empty and the lanes come from the data with their proper labels.",
+      "Load more never appears. The harness puts every fixture record on a single page and reports hasNextPage as false, so there is nothing further to fetch. The page size property does nothing either, because the harness’s setPageSize() is an empty function.",
+      "Clicking a card calls dataset.openDatasetItem(), which the harness logs as a mock call: there is no Dataverse behind this origin and no form to open. The openedRecordId output still updates."
+    ],
+    "presets": [
+      {
+        "slug": "default",
+        "name": "Sprint board",
+        "description": "Nine work items across three lanes, with one item not yet triaged.",
+        "props": {
+          "lanes": "1=New,2=Active,3=Resolved",
+          "laneWidth": 280,
+          "openOnCardClick": true,
+          "pageSize": 50
+        },
+        "isDefault": true
+      },
+      {
+        "slug": "narrow",
+        "name": "Narrow lanes, read-only cards",
+        "description": "The shape for a form section rather than a full page: tighter lanes, and card titles that do not open the record.",
+        "props": {
+          "lanes": "1=New,2=Active,3=Resolved",
+          "laneWidth": 200,
+          "openOnCardClick": false,
+          "pageSize": 50
+        }
+      }
+    ]
   }
 }
