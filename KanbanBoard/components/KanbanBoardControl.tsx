@@ -203,7 +203,18 @@ export function KanbanBoardControl(props: IProps): React.ReactElement | null {
                 </p>
             )}
 
-            <div className="KanbanBoard-lanes" aria-label={props.title}>
+            {/*
+                tabIndex and role are for the scrolling, not decoration. A div
+                with overflow is not focusable by default, so a keyboard user
+                has no way to reach lanes past the edge — and a bare div with
+                aria-label exposes no name at all without a role to hang it on.
+            */}
+            <div
+                className="KanbanBoard-lanes"
+                role="group"
+                aria-label={props.title}
+                tabIndex={0}
+            >
                 {lanes.map((lane) => (
                     <LaneColumn
                         key={String(lane.value)}

@@ -18,6 +18,16 @@
     flex-direction: column;
     gap: var(--spacingVerticalS, 8px);
     width: 100%;
+    /*
+      Never wider than what the host gave us.
+
+      width alone is not enough: it resolves against the parent, and if the
+      parent is content-sized the 100% grows with the content instead of
+      constraining it. max-width pins the box to the space available, which is
+      what gives .KanbanBoard-lanes something definite to scroll inside.
+    */
+    max-width: 100%;
+    min-width: 0;
 }
 
 .KanbanBoard-message {
@@ -50,6 +60,30 @@
     overflow-x: auto;
     align-items: flex-start;
     padding-bottom: var(--spacingVerticalXS, 4px);
+
+    /*
+      The row must not grow past the space it was given, or there is nothing to
+      scroll: the lanes simply extend and an ancestor clips them.
+
+      max-width does the work. min-width: 0 is belt and braces for a host that
+      lays this control out as a *row* flex item, where min-width: auto would
+      be the content-based minimum and would defeat the same thing. It is inert
+      in the layout this control builds for itself, where .KanbanBoard is a
+      column and min-width on its children behaves normally -- verified in a
+      browser rather than assumed, after assuming it was the whole fix.
+    */
+    max-width: 100%;
+    min-width: 0;
+}
+
+/*
+  A scrollable region has to be reachable by keyboard, so the lanes container is
+  focusable and says so. Without the ring, focus lands somewhere invisible,
+  which is worse than not being focusable at all.
+*/
+.KanbanBoard-lanes:focus-visible {
+    outline: 2px solid var(--colorStrokeFocus2, #000000);
+    outline-offset: 2px;
 }
 
 .KanbanBoard-lane {
