@@ -193,19 +193,29 @@ export function boardKey(cards: Card[]): string {
  */
 export function optionLanes(metadata: unknown, columnName: string): Lane[] {
     const column = findColumnNode(metadata, columnName);
-    const found = findOptionArrays(column ?? metadata);
 
     /*
-     * Inside the column's own node, the first option array is the right one —
-     * an attribute commonly carries the same options twice, once under
-     * `OptionSet` and again under `GlobalOptionSet`, and demanding a unique
-     * answer would reject exactly the case this exists for.
+     * No column, no lanes.
      *
-     * Outside it, uniqueness is the only safety available: `statecode` and
-     * `statuscode` both have option sets, and silently grouping a board by the
-     * wrong one is worse than falling back to derived lanes.
+     * An earlier version fell back to searching the whole document and taking
+     * the answer when exactly one option set turned up. That is a guess wearing
+     * a safety check: on a table where only `statecode` carries options it
+     * would confidently group the board by the wrong column. Derived lanes are
+     * the honest fallback, and the console says why.
      */
-    const chosen = column ? found[0] : found.length === 1 ? found[0] : undefined;
+    if (!column) {
+        return [];
+    }
+
+    /*
+     * The first option array inside the column's own node.
+     *
+     * Not the only one, deliberately: an attribute commonly carries the same
+     * options twice, under `OptionSet` and again under `GlobalOptionSet`.
+     * Inside a node that is already known to describe this column, either is
+     * the right answer.
+     */
+    const chosen = findOptionArray(column);
 
     if (!chosen) {
         return [];
@@ -279,6 +289,32 @@ export function describeShape(value: unknown, depth = 0): string {
  * where it is perfectly available.
  */
 function findColumnNode(root: unknown, columnName: string): unknown {
+    /*
+     * The route actually observed on a real form, tried first.
+     *
+     * `getEntityMetadata` resolves with a class instance whose `Attributes` is
+     * a prototype getter, and the collection it returns answers `get(name)`.
+     * Going straight there is one property read and one call instead of a walk
+     * over an entity's whole metadata, on every view switch.
+     *
+     * The walk below stays because this is the only level anyone has *seen*.
+     * The two versions before this one collapsed to a path that looked right
+     * and was not, and each cost an install-and-test cycle to disprove.
+     */
+    const direct = get(get(root, 'Attributes'), 'get');
+
+    if (typeof direct === 'function') {
+        try {
+            const found = (direct as (name: string) => unknown).call(get(root, 'Attributes'), columnName);
+
+            if (typeof found === 'object' && found !== null) {
+                return found;
+            }
+        } catch {
+            // Not that kind of collection. Fall through to the walk.
+        }
+    }
+
     let match: unknown = null;
 
     walk(root, (node) => {
@@ -311,14 +347,25 @@ function findColumnNode(root: unknown, columnName: string): unknown {
     return match;
 }
 
-/** Every array that looks like an option set, anywhere under `root`. */
-function findOptionArrays(root: unknown): Array<unknown[]> {
-    const found: Array<unknown[]> = [];
+/** The first array that looks like an option set, anywhere under `root`. */
+function findOptionArray(root: unknown): unknown[] | undefined {
+    let found: unknown[] | undefined;
 
     walk(root, (node) => {
-        for (const value of Object.values(node)) {
-            if (isOptionArray(value) && !found.includes(value)) {
-                found.push(value);
+        if (found) {
+            return;
+        }
+
+        for (const key of readableKeys(node)) {
+            try {
+                const value = node[key];
+
+                if (isOptionArray(value)) {
+                    found = value;
+                    return;
+                }
+            } catch {
+                // An accessor that throws when read.
             }
         }
     });
