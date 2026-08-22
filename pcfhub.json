@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+
+  "slug": "pcf-kanban-board",
+  "name": "Kanban Board",
+  "tagline": "A Dataverse view as a drag-and-drop board, grouped by a choice column.",
+  "category": "data",
+  "tags": [],
+
+  "control": {
+    "namespace": "PCFHub",
+    "constructor": "KanbanBoard",
+    "type": "dataset",
+    "framework": "react_virtual",
+    "manifestPath": "KanbanBoard/ControlManifest.Input.xml"
+  },
+
+  "links": {
+    "homepage": "https://github.com/pcfhub/pcf-kanban-board",
+    "support": "https://github.com/pcfhub/pcf-kanban-board/issues",
+    "license": "MIT"
+  },
+
+  "docs": {
+    "path": "docs"
+  },
+
+  "media": {
+    "logo": "media/logo.png",
+    "screenshots": []
+  },
+
+  "demo": {
+    "fidelity": "none",
+    "presets": []
+  }
+}
