@@ -2,6 +2,23 @@
 
 A Dataverse view as a drag-and-drop board, grouped by a choice column.
 
+## What ships
+
+Production pack, 2026-08-22, after deleting `obj/`, `out/`, `Solution/obj/` and
+`Solution/bin/` — the pack is incremental and will otherwise report success
+while leaving `npm run build`'s development bundle in `out/`.
+
+| | |
+| --- | --- |
+| `bundle.js` | **16,205 bytes** |
+| `KanbanBoard.css` | 8,500 bytes, shipped beside it |
+| `Solution.zip` / `Solution_managed.zip` | 25,337 bytes each, differing by checksum |
+| Locales | 1031, 1033, 1036, 1041, 3082 |
+
+Confirmed production rather than assumed: the bundle opens
+`var pcf_tools_…` with a license-reference header and no webpack development
+banner.
+
 ## What the build disagreed with
 
 **`WebAPI` had to become `required="false"`, or the control would not load in a

@@ -8,6 +8,8 @@ order: 1
 
 A Dataverse view as a drag-and-drop board, grouped by a choice column.
 
+::image{src=media/screenshot.png alt="A task board with six lanes, each headed by its choice option and coloured from the option set" zoom}
+
 Bind it to a view, tell it which column holds the status and which holds the
 card title, and every record becomes a card in the lane matching its choice
 value. Dragging a card to another lane writes the new value back to Dataverse.
