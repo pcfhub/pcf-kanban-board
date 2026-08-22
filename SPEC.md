@@ -92,7 +92,7 @@ So any code that goes looking through `EntityMetadata` has to walk prototype
 accessors, not just own properties, and guard each read because a getter runs
 code. `optionLanes()` does; the two versions before it did not.
 
-→ Worth promoting to the skill once verified on a second entity.
+→ Promoted to the skill: `control-patterns.md`, *Context APIs and their limits*.
 
 ## Platform behaviour worth knowing
 
