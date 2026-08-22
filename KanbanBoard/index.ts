@@ -334,11 +334,24 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
                          * The keys and their types are what the next version of
                          * optionLanes() has to be written from.
                          */
+                        /*
+                         * Two dumps, because the top level alone was not enough
+                         * the first time this fired: the interesting key sat
+                         * past the truncation, among ninety-odd others.
+                         *
+                         * The second line probes `Attributes` by name, which is
+                         * the whole question — whether the collection is
+                         * reachable and what it looks like inside.
+                         */
+                        const attributes = (metadata as { Attributes?: unknown } | null)?.Attributes;
+
                         console.warn(
                             `KanbanBoard: read metadata for ${entity}.${column} but found no option set in it. ` +
                             'Falling back to lanes derived from the loaded records. Set the Lanes property to ' +
                             'list them explicitly.\n\nShape returned:\n' +
-                            describeShape(metadata),
+                            describeShape(metadata) +
+                            '\n\nmetadata.Attributes:\n' +
+                            describeShape(attributes),
                         );
                     }
 

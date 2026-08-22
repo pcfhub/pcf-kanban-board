@@ -20,6 +20,27 @@ definitions rather than about the host.
 
 → Promoted to the skill: `control-patterns.md`, *Feature usage*.
 
+## Reading the option set: what has actually been tried
+
+Three attempts, and the sequence is the point — each looked obviously right.
+
+1. **Walk own properties for `Attributes` → `OptionSet` → `Options`.** Found
+   nothing. `getEntityMetadata` resolves with a class instance whose own
+   enumerable properties are private fields; `Object.keys` and `Object.values`
+   do not enumerate prototype getters, so the public API was invisible.
+2. **Walk own properties *and* prototype accessors, searching for anything
+   shaped like an option set.** Works. This is what ships.
+3. **Read `metadata.Attributes.get(column).OptionSet.Options` directly**, on the
+   reasoning that a search is expensive and the shape was now understood.
+   Found nothing on a real form, while (2) had just worked against the same
+   object. Reverted.
+
+The lesson is narrower than "searching is safer". It is that the *only* level
+anyone has observed is the top one, and every attempt to infer the levels below
+it has been wrong. (3) was made with that written down as the risk, and it was
+still made — so the walk is now load-bearing until someone dumps
+`metadata.Attributes` and sees what is in it.
+
 ## The lane default was wrong, and why
 
 The first version derived lanes only from the values present in the loaded
@@ -156,15 +177,11 @@ this repository, and the first one is load-bearing.
   demo harness's mock resolves, and no real environment has refused one yet.
 - **That the canvas lookup-JSON behaviour above is real.** Read from
   documentation; nobody has put a lookup role on this board and looked.
-- **That the direct read holds on any entity but the one it was seen on.**
-  `optionLanes()` now reads
-  `metadata.Attributes.get(column).OptionSet.Options` and does not search. Only
-  the first hop was ever observed; the rest is what the type definitions and the
-  Client API reference describe, so each hop tolerates two or three cheap
-  spellings and the whole thing returns `[]` on a miss. Confirmed working
-  against `cll_task.cll_status` on a real form, and against ten shapes offline.
-  A different entity failing here is the most likely regression, which is why
-  the console still prints `describeShape()` beside the fallback.
-
-Still open, separately: `overview.md` has no screenshot, and `media/` carries
-the template's placeholder logo.
+- **Where in `EntityMetadata` the option set actually lives.** Known: not at
+  `Attributes.get(column).OptionSet.Options`. That path was tried on a real
+  form and found nothing, while the recursive walk beside it found the lanes
+  from the same object — so the collection is reachable and the options are in
+  it, somewhere other than the obvious place. Nobody has looked at
+  `metadata.Attributes` directly yet; the failure dump now prints it, which is
+  what would settle this. Until then the walk stays and **must not be cut
+  again**: it is the only thing known to work.
