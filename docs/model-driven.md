@@ -29,14 +29,27 @@ bound to a column in *your* table — the control never assumes a schema name.
 | --- | --- | --- |
 | Lane column | The choice column that decides which lane a card is in | Yes |
 | Card title | The column shown as the card's headline | Yes |
-| Assignee | A column shown under the title, usually an owner or contact | No |
-| Badge | A short value shown as a chip, such as a priority | No |
+| Assignee | A **text** column shown under the title, such as a contact or an owner name | No |
+| Badge | A short **text** value shown as a chip, such as a priority or category | No |
 
 :::callout{type=warning}
 **Lane column must be a choice column.** The lanes are that column's options,
 and a move writes the option's numeric value. Bound to a text column the board
 shows every card as *Unassigned*, because a text value is not an option number
 and the control will not invent one it cannot write back.
+:::
+
+:::callout{type=warning}
+**Assignee and Badge are text columns.** Both are typed `SingleLine.Text`, so a
+lookup like `ownerid` or a choice like `prioritycode` will not appear in the
+picker for them. To show an owner on the card, bind a text column that carries
+the name.
+
+That is a deliberate limit rather than an oversight. A lookup role would be
+model-driven only, and in a canvas app a lookup read through the dataset returns
+**JSON** rather than a display name — so the same board that reads correctly on
+a form would print `{"id":…}` on every card. Keeping these roles text is what
+lets the read-only canvas board stay readable.
 :::
 
 ## Which columns the view needs

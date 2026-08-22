@@ -96,7 +96,7 @@
     <value>Assignee</value>
   </data>
   <data name="AssigneeField_Desc" xml:space="preserve">
-    <value>Optional. A column shown in smaller text under the title, usually an owner or a contact. Truncated with an ellipsis if it does not fit.</value>
+    <value>Optional. A text column shown in smaller text under the title, such as a contact or an owner name. Must be a text column — a lookup such as Owner cannot be bound here. Truncated with an ellipsis if it does not fit.</value>
   </data>
   <data name="BadgeField_Name" xml:space="preserve">
     <value>Badge</value>

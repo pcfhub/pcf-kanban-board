@@ -14,14 +14,19 @@ The default shape: a view of open work items, grouped by status.
 | --- | --- |
 | Lane column | `statuscode` |
 | Card title | `subject` |
-| Assignee | `ownerid` |
-| Badge | `prioritycode` |
+| Assignee | `cr123_ownername` |
+| Badge | `category` |
 | Lanes | *(empty — derived from the data)* |
 | Lane width | `280` |
 | Open on card click | On |
 
 Leaving **Lanes** empty is right here: an active sprint has records in every
 status, so every lane has something to derive from.
+
+Note that **Assignee** and **Badge** are text columns, not `ownerid` and
+`prioritycode`. Both roles are typed `SingleLine.Text` and a lookup or choice
+column will not appear in the picker for them — see
+[Model-driven apps](model-driven.md) for why.
 
 ## Making an empty lane visible
 

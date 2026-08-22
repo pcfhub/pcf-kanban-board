@@ -140,6 +140,35 @@ Two consequences, both live in this repo:
   the reason lanes are derived rather than read through `Utility` — is the one
   thing the demo cannot show. It is listed in `demo.limitations`.
 
+## A lookup read through a dataset returns JSON in canvas
+
+Why `assigneeField` and `badgeField` are `SingleLine.Text` rather than
+`Lookup.Owner` and `OptionSet`, which is what a card actually wants to show.
+
+`ownerid` is bindable in principle: the schema reference lists `Lookup.Owner`
+as a valid `property-set` type — "a single reference to either a team or a user
+record". Two things make it the wrong choice here.
+
+Lookup types are model-driven only; the framework's own lookup sample says so
+outright. And the `DataSet` reference gives the deciding detail, under *Lookup
+columns*: in **canvas apps**, a lookup included in the dataset retrieves the
+whole referred record, and `getFormattedValue` **returns the JSON string** while
+`getValue` returns the JSON object.
+
+This board renders `record.getFormattedValue(assignee.name)` straight onto the
+card. So a lookup role would read "Dana Whitfield" on a form and print a JSON
+blob on every card in canvas — clamped to one ellipsised line by the badge and
+assignee CSS, which would look like a rendering bug rather than a type mismatch.
+
+The whole `required="false"` decision was about degrading to a readable
+read-only board in canvas. Typing an optional decorative role as a lookup would
+undo that for the sake of the one host it already works on. Text columns keep
+both hosts honest; a maker who needs the live owner is asking for a
+model-driven-only feature that this role should not quietly become.
+
+**Not verified:** that canvas JSON shape, or that `Lookup.Owner` binds at all.
+Both are read from the documentation, not observed.
+
 ## Roles are found by alias and read by name
 
 Not discovered here — `pcf-tag-list` paid for this one — but repeated because
