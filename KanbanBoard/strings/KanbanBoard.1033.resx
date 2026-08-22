@@ -83,14 +83,26 @@
   <data name="StatusField_Name" xml:space="preserve">
     <value>Lane column</value>
   </data>
+  <data name="StatusField_Desc" xml:space="preserve">
+    <value>The choice column that decides which lane a card is in. Its options become the lanes, and dragging a card writes the new option to this column. Must be a choice column, and must be in the view.</value>
+  </data>
   <data name="TitleField_Name" xml:space="preserve">
     <value>Card title</value>
+  </data>
+  <data name="TitleField_Desc" xml:space="preserve">
+    <value>The column shown as the card headline, and the name used when a move fails. Keep it short: a card is about 280 pixels wide.</value>
   </data>
   <data name="AssigneeField_Name" xml:space="preserve">
     <value>Assignee</value>
   </data>
+  <data name="AssigneeField_Desc" xml:space="preserve">
+    <value>Optional. A column shown in smaller text under the title, usually an owner or a contact. Truncated with an ellipsis if it does not fit.</value>
+  </data>
   <data name="BadgeField_Name" xml:space="preserve">
     <value>Badge</value>
+  </data>
+  <data name="BadgeField_Desc" xml:space="preserve">
+    <value>Optional. A short value shown as a chip on the card, such as a priority or a category. Any text is accepted, but a long value is truncated — this is a label, not a description.</value>
   </data>
 
   <data name="Lanes_Name" xml:space="preserve">

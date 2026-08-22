@@ -43,24 +43,28 @@
       -->
       <property-set name="statusField"
                     display-name-key="StatusField_Name"
+                    description-key="StatusField_Desc"
                     of-type="OptionSet"
                     usage="bound"
                     required="true" />
 
       <property-set name="titleField"
                     display-name-key="TitleField_Name"
+                    description-key="TitleField_Desc"
                     of-type="SingleLine.Text"
                     usage="bound"
                     required="true" />
 
       <property-set name="assigneeField"
                     display-name-key="AssigneeField_Name"
+                    description-key="AssigneeField_Desc"
                     of-type="SingleLine.Text"
                     usage="bound"
                     required="false" />
 
       <property-set name="badgeField"
                     display-name-key="BadgeField_Name"
+                    description-key="BadgeField_Desc"
                     of-type="SingleLine.Text"
                     usage="bound"
                     required="false" />
