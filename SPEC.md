@@ -20,6 +20,38 @@ definitions rather than about the host.
 
 → Promoted to the skill: `control-patterns.md`, *Feature usage*.
 
+## A board cannot scroll sideways on CSS alone
+
+`overflow-x: auto` needs a definite width to scroll inside, and whether it has
+one depends on a host this control does not control.
+
+Measured in a browser across six host shapes, four 280px lanes in a 700px
+viewport:
+
+| Host | CSS only | With `allocatedWidth` ceiling |
+| --- | --- | --- |
+| block, flex row, grid | scrolls | scrolls |
+| `fit-content`, `inline-block`, `table` | **clipped** | scrolls |
+
+The three that fail are the shrink-to-fit shapes. They take their width *from*
+their content, so `width: 100%` and `max-width: 100%` resolve against a number
+the board itself produced — a circle, constraining nothing. The lanes extend,
+an ancestor clips them, and no scrollbar ever appears.
+
+Nothing written inside the control can break that circle, which is why two CSS
+fixes in a row did not: `min-width: 0` addressed a flex trap that only applies
+on the main axis and was inert here, and `max-width: 100%` was the circular
+one. The way out is a number from outside it —
+`context.mode.trackContainerResize(true)` in `init`, then
+`context.mode.allocatedWidth` as a pixel ceiling on the root.
+
+`trackContainerResize` is what populates `allocatedWidth` at all; without the
+call it is not provided. Guard the value: `-1` means no limit and `0` means not
+yet laid out, and neither is a width to pin anything to.
+
+→ Worth promoting to the skill: any dataset control wider than its container
+has this problem, and a table with many columns has it too.
+
 ## Reading the option set: what has actually been tried
 
 Three attempts, and the sequence is the point — each looked obviously right.

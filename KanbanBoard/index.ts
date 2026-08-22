@@ -84,11 +84,30 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
     private moveError: string | null = null;
 
     public init(
-        _context: ComponentFramework.Context<IInputs>,
+        context: ComponentFramework.Context<IInputs>,
         notifyOutputChanged: () => void,
     ): void {
         // No container: a virtual control never receives one.
         this.notifyOutputChanged = notifyOutputChanged;
+
+        /*
+         * Ask to be told how much width we were given.
+         *
+         * Without this, `allocatedWidth` is not populated at all. With it, the
+         * board can pin itself to the space the host allocated — which is the
+         * only way to scroll sideways inside a host that sizes itself to its
+         * content. Measured across host shapes: a block, flex-row or grid
+         * parent constrains the board and CSS alone is enough, while
+         * `fit-content`, `inline-block` and `table` parents take their width
+         * *from* the board, so `max-width: 100%` resolves against a number the
+         * board itself produced and constrains nothing.
+         *
+         * Feature-detected: it is typed as always present, which is a claim
+         * about the type definitions rather than about the host.
+         */
+        if (typeof context.mode.trackContainerResize === 'function') {
+            context.mode.trackContainerResize(true);
+        }
     }
 
     public updateView(context: ComponentFramework.Context<IInputs>): React.ReactElement {
@@ -119,6 +138,10 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
             errorMessage: dataset.errorMessage,
             hasNextPage: dataset.paging.hasNextPage,
             laneWidth: Math.max(160, Math.trunc(context.parameters.laneWidth.raw ?? 280)),
+            // -1 means "no limit" and 0 means "not laid out yet". Neither is a
+            // width to pin the board to, so both become null and the CSS is
+            // left to cope on its own.
+            allocatedWidth: context.mode.allocatedWidth > 0 ? context.mode.allocatedWidth : null,
             laneColors: context.parameters.laneColors.raw ?? true,
             openOnCardClick: context.parameters.openOnCardClick.raw ?? true,
             visible: context.mode.isVisible,

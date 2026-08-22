@@ -25,6 +25,12 @@ export interface IProps {
     errorMessage: string;
     hasNextPage: boolean;
     laneWidth: number;
+    /**
+     * Pixels the host says the control may occupy, or `null` when it will not
+     * say. Pins the board's width so the lane row has something definite to
+     * scroll inside — see the note in `init`.
+     */
+    allocatedWidth: number | null;
     /** Whether to show each lane's option colour. Off hides it everywhere. */
     laneColors: boolean;
     openOnCardClick: boolean;
@@ -149,9 +155,23 @@ export function KanbanBoardControl(props: IProps): React.ReactElement | null {
         props.onMove(recordId, toValue);
     };
 
+    /*
+     * The width the host allocated, applied as a ceiling.
+     *
+     * CSS alone cannot do this. A host that sizes itself to its content takes
+     * its width *from* this board, so `max-width: 100%` resolves against a
+     * number the board produced and constrains nothing — the lanes extend, an
+     * ancestor clips them, and no scrollbar ever appears. A pixel ceiling from
+     * the platform is outside that circle.
+     */
     const frame = (content: React.ReactElement): React.ReactElement => (
         <FluentProvider theme={props.theme ?? webLightTheme} dir={props.isRTL ? 'rtl' : 'ltr'}>
-            <div className="KanbanBoard">{content}</div>
+            <div
+                className="KanbanBoard"
+                style={props.allocatedWidth ? { maxWidth: `${props.allocatedWidth}px` } : undefined}
+            >
+                {content}
+            </div>
         </FluentProvider>
     );
 
