@@ -5,7 +5,7 @@
   "name": "Kanban Board",
   "tagline": "A Dataverse view as a drag-and-drop board, grouped by a choice column.",
   "category": "data",
-  "tags": [],
+  "tags": ["react", "dataset", "kanban", "board", "drag-and-drop", "write-back", "accessible"],
 
   "control": {
     "namespace": "PCFHub",

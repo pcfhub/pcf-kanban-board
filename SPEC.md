@@ -16,9 +16,28 @@ to take that back if the write is refused.
 Run locally on Windows, 2026-08-22:
 
 - `npm run check`, `npm run lint`, `npm run build` — all clean.
-- Bundle: **43.3 KiB** development, from `npm run build`. This is *not* the
-  shipping number — a production bundle comes from the msbuild solution pack and
-  is roughly half. Do not quote this figure as the installed size.
+- **Bundle: 12,190 bytes**, from the msbuild production pack. This is the
+  shipping figure — the one to quote.
+- The development bundle `npm run build` writes is **43.3 KiB**, about **3.6×**
+  larger. Measured after deleting `obj/`, `out/`, `Solution/obj/` and
+  `Solution/bin/`, because the pack is incremental and will otherwise report
+  both packs complete while leaving whatever `npm run build` last wrote in
+  `out/`. Confirmed by looking: the packed bundle opens
+  `var pcf_tools_…;(()=>{"use strict"…` with a license-reference header and no
+  webpack development banner.
+
+  Worth noting against the skill's "roughly double": 3.6× here. A virtual
+  control externalises React and Fluent, so what remains is almost entirely this
+  control's own code and the development wrapper is a proportionally larger
+  share of it. One measurement, not a correction.
+- Solution pack: `Solution.zip` 11,659 bytes and `Solution_managed.zip` 11,659
+  bytes — the same size, different contents (verified by checksum).
+- **No `release.artifacts` block is needed.** msbuild names the unmanaged zip
+  after the project file, so it lands as `Solution.zip`, matching neither of the
+  hub's default globs. The template's `release.yml` finds it by glob — every
+  `*.zip` that is not `*_managed.zip` — and renames it to
+  `Solution_unmanaged.zip`, which does match. That rename is project-name
+  agnostic, so nothing here has to be declared.
 - `npm run check` validates `demo.bundle` and `demo.styles` once `out/` exists.
   Confirmed by breaking the path on purpose: with
   `out/controls/PCFHub.KanbanBoard/bundle.js` the check names the namespace
