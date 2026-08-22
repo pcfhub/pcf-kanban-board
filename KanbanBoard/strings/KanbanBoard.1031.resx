@@ -70,123 +70,123 @@
 
 
   <data name="KanbanBoard_Name" xml:space="preserve">
-    <value>Kanban Board</value>
+    <value>Kanban-Board</value>
   </data>
   <data name="KanbanBoard_Desc" xml:space="preserve">
-    <value>A Dataverse view as a drag-and-drop board, grouped by a choice column.</value>
+    <value>Eine Dataverse-Ansicht als Drag-and-drop-Board, gruppiert nach einer Auswahlspalte.</value>
   </data>
 
   <data name="Records_DataSet_Name" xml:space="preserve">
-    <value>Records</value>
+    <value>Datensätze</value>
   </data>
 
   <data name="StatusField_Name" xml:space="preserve">
-    <value>Lane column</value>
+    <value>Spaltenbahn</value>
   </data>
   <data name="StatusField_Desc" xml:space="preserve">
-    <value>The choice column that decides which lane a card is in. Its options become the lanes, and dragging a card writes the new option to this column. Must be a choice column, and must be in the view.</value>
+    <value>Die Auswahlspalte, die bestimmt, in welcher Bahn eine Karte liegt. Ihre Optionen werden zu den Bahnen, und das Ziehen einer Karte schreibt die neue Option in diese Spalte. Muss eine Auswahlspalte sein und in der Ansicht enthalten sein.</value>
   </data>
   <data name="TitleField_Name" xml:space="preserve">
-    <value>Card title</value>
+    <value>Kartentitel</value>
   </data>
   <data name="TitleField_Desc" xml:space="preserve">
-    <value>The column shown as the card headline, and the name used when a move fails. Keep it short: a card is about 280 pixels wide.</value>
+    <value>Die Spalte, die als Überschrift der Karte angezeigt wird, und der Name, der bei einem fehlgeschlagenen Verschieben verwendet wird. Halten Sie ihn kurz: Eine Karte ist etwa 280 Pixel breit.</value>
   </data>
   <data name="AssigneeField_Name" xml:space="preserve">
-    <value>Assignee</value>
+    <value>Zugewiesen an</value>
   </data>
   <data name="AssigneeField_Desc" xml:space="preserve">
-    <value>Optional. A text column shown in smaller text under the title, such as a contact or an owner name. Must be a text column — a lookup such as Owner cannot be bound here. Truncated with an ellipsis if it does not fit.</value>
+    <value>Optional. Eine Textspalte, die in kleinerer Schrift unter dem Titel angezeigt wird, etwa ein Kontakt oder ein Besitzername. Muss eine Textspalte sein – ein Suchfeld wie Besitzer kann hier nicht gebunden werden. Wird mit Auslassungspunkten gekürzt, wenn sie nicht passt.</value>
   </data>
   <data name="BadgeField_Name" xml:space="preserve">
-    <value>Badge</value>
+    <value>Kennzeichen</value>
   </data>
   <data name="BadgeField_Desc" xml:space="preserve">
-    <value>Optional. A short value shown as a chip on the card, such as a priority or a category. Any text is accepted, but a long value is truncated — this is a label, not a description.</value>
+    <value>Optional. Ein kurzer Wert, der als Chip auf der Karte angezeigt wird, etwa eine Priorität oder eine Kategorie. Jeder Text wird akzeptiert, ein langer Wert wird jedoch gekürzt – dies ist eine Beschriftung, keine Beschreibung.</value>
   </data>
 
   <data name="Lanes_Name" xml:space="preserve">
-    <value>Lanes</value>
+    <value>Bahnen</value>
   </data>
   <data name="Lanes_Desc" xml:space="preserve">
-    <value>Optional. "1=New,2=Active,3=Resolved" fixes the lanes and their order, including lanes no record is currently in. Left empty, the lanes are the values present in the view.</value>
+    <value>Optional. „1=Neu,2=Aktiv,3=Gelöst“ legt die Bahnen und ihre Reihenfolge fest, einschließlich Bahnen ohne Datensätze. Bleibt das Feld leer, sind die Bahnen die in der Ansicht vorhandenen Werte.</value>
   </data>
 
   <data name="LaneWidth_Name" xml:space="preserve">
-    <value>Lane width</value>
+    <value>Bahnbreite</value>
   </data>
   <data name="LaneWidth_Desc" xml:space="preserve">
-    <value>Width of each lane in pixels.</value>
+    <value>Breite jeder Bahn in Pixeln.</value>
   </data>
 
   <data name="OpenOnCardClick_Name" xml:space="preserve">
-    <value>Open on card click</value>
+    <value>Bei Klick auf Karte öffnen</value>
   </data>
   <data name="OpenOnCardClick_Desc" xml:space="preserve">
-    <value>Clicking a card opens its record. The move menu and drag handle stay available either way.</value>
+    <value>Ein Klick auf eine Karte öffnet ihren Datensatz. Das Verschiebemenü und das Ziehen bleiben in beiden Fällen verfügbar.</value>
   </data>
 
   <data name="MovedRecordId_Name" xml:space="preserve">
-    <value>Moved record ID</value>
+    <value>ID des verschobenen Datensatzes</value>
   </data>
   <data name="MovedRecordId_Desc" xml:space="preserve">
-    <value>The ID of the card most recently moved to another lane.</value>
+    <value>Die ID der zuletzt in eine andere Bahn verschobenen Karte.</value>
   </data>
 
   <data name="PageSize_Name" xml:space="preserve">
-    <value>Page size</value>
+    <value>Seitengröße</value>
   </data>
   <data name="PageSize_Desc" xml:space="preserve">
-    <value>How many rows to request per page. The platform may clamp large values.</value>
+    <value>Wie viele Zeilen pro Seite angefordert werden. Die Plattform kann große Werte begrenzen.</value>
   </data>
 
   <data name="OpenedRecordId_Name" xml:space="preserve">
-    <value>Opened record ID</value>
+    <value>ID des geöffneten Datensatzes</value>
   </data>
   <data name="OpenedRecordId_Desc" xml:space="preserve">
-    <value>The ID of the row most recently opened.</value>
+    <value>Die ID der zuletzt geöffneten Zeile.</value>
   </data>
 
   <data name="KanbanBoard_Loading" xml:space="preserve">
-    <value>Loading cards…</value>
+    <value>Karten werden geladen…</value>
   </data>
   <data name="KanbanBoard_Empty" xml:space="preserve">
-    <value>No records.</value>
+    <value>Keine Datensätze.</value>
   </data>
   <data name="KanbanBoard_Error" xml:space="preserve">
-    <value>This view could not be loaded.</value>
+    <value>Diese Ansicht konnte nicht geladen werden.</value>
   </data>
   <data name="KanbanBoard_NoStatus" xml:space="preserve">
-    <value>Bind the Lane column to a choice column to group the cards.</value>
+    <value>Binden Sie die Spaltenbahn an eine Auswahlspalte, um die Karten zu gruppieren.</value>
   </data>
   <data name="KanbanBoard_NoTitle" xml:space="preserve">
-    <value>Bind the Card title to a column to label the cards.</value>
+    <value>Binden Sie den Kartentitel an eine Spalte, um die Karten zu beschriften.</value>
   </data>
   <data name="KanbanBoard_NoLanes" xml:space="preserve">
-    <value>No lanes to show. Set the Lanes property to list them explicitly.</value>
+    <value>Keine Bahnen vorhanden. Legen Sie sie mit der Eigenschaft „Bahnen“ ausdrücklich fest.</value>
   </data>
   <data name="KanbanBoard_Unassigned" xml:space="preserve">
-    <value>Unassigned</value>
+    <value>Nicht zugewiesen</value>
   </data>
   <data name="KanbanBoard_LoadMore" xml:space="preserve">
-    <value>Load more</value>
+    <value>Mehr laden</value>
   </data>
   <data name="KanbanBoard_CardCount" xml:space="preserve">
-    <value>{0} cards</value>
+    <value>{0} Karten</value>
   </data>
   <data name="KanbanBoard_NoTargets" xml:space="preserve">
-    <value>No other lanes to move to. Set the Lanes property to list every status, including ones no record is in yet.</value>
+    <value>Keine anderen Bahnen zum Verschieben. Legen Sie mit der Eigenschaft „Bahnen“ alle Status fest, auch solche ohne Datensätze.</value>
   </data>
   <data name="KanbanBoard_MoveTo" xml:space="preserve">
-    <value>Move {0} to…</value>
+    <value>{0} verschieben nach…</value>
   </data>
   <data name="KanbanBoard_Moving" xml:space="preserve">
-    <value>Moving…</value>
+    <value>Wird verschoben…</value>
   </data>
   <data name="KanbanBoard_MoveFailed" xml:space="preserve">
-    <value>{0} could not be moved, and was put back.</value>
+    <value>{0} konnte nicht verschoben werden und wurde zurückgesetzt.</value>
   </data>
   <data name="KanbanBoard_OpenRecord" xml:space="preserve">
-    <value>Open {0}</value>
+    <value>{0} öffnen</value>
   </data>
 </root>

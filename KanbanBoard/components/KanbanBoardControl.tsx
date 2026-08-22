@@ -230,6 +230,17 @@ function CardItem(props: ILaneProps & { card: Card }): React.ReactElement {
     const { card, lanes, getString } = props;
     const busy = props.moving.indexOf(card.id) >= 0;
 
+    /*
+     * Where this card could go: every lane except the unassigned one and the
+     * one it is already in.
+     *
+     * This is empty more often than it looks. Lanes are derived from the values
+     * present in the loaded records, so a view where every record shares a
+     * status produces exactly one lane — and then there is nowhere to move to,
+     * for any card on the board.
+     */
+    const targets = lanes.filter((lane) => lane.value !== null && lane.value !== card.lane);
+
     return (
         <li
             className={busy ? 'KanbanBoard-card is-moving' : 'KanbanBoard-card'}
@@ -283,16 +294,25 @@ function CardItem(props: ILaneProps & { card: Card }): React.ReactElement {
                     </MenuTrigger>
                     <MenuPopover>
                         <MenuList>
-                            {lanes
-                                .filter((lane) => lane.value !== null && lane.value !== card.lane)
-                                .map((lane) => (
+                            {targets.length === 0 ? (
+                                /*
+                                    An empty popover is a dead end: the button
+                                    responds, nothing is listed, and nothing
+                                    says why. Name the cause and the fix
+                                    instead, disabled so it reads as an
+                                    explanation rather than an action.
+                                */
+                                <MenuItem disabled>{getString("KanbanBoard_NoTargets")}</MenuItem>
+                            ) : (
+                                targets.map((lane) => (
                                     <MenuItem
                                         key={String(lane.value)}
                                         onClick={(): void => props.onDrop(card.id, lane.value as number)}
                                     >
                                         {lane.label}
                                     </MenuItem>
-                                ))}
+                                ))
+                            )}
                         </MenuList>
                     </MenuPopover>
                 </Menu>

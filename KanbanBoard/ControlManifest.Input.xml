@@ -154,6 +154,10 @@
       <platform-library name="React" version="16.14.0" />
       <platform-library name="Fluent" version="9.46.2" />
       <resx path="strings/KanbanBoard.1033.resx" version="1.0.0" />
+      <resx path="strings/KanbanBoard.3082.resx" version="1.0.0" />
+      <resx path="strings/KanbanBoard.1036.resx" version="1.0.0" />
+      <resx path="strings/KanbanBoard.1031.resx" version="1.0.0" />
+      <resx path="strings/KanbanBoard.1041.resx" version="1.0.0" />
     </resources>
 
     <!--

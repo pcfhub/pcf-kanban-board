@@ -20,13 +20,28 @@ it has no way to write back to.
 
 Working through the likely causes in order:
 
-1. **The app is a canvas app.** Cards cannot be moved there at all, and the drag
+1. **There is only one lane, so there is nowhere to move it to.** This is the
+   commonest cause and the least obvious, because the board looks fine: the
+   cards render, the ⋯ menu opens, and it lists nothing. Lanes are derived from
+   the values present in the loaded records, so a view where every record shares
+   a status produces exactly one lane — and a board with one lane cannot move
+   anything, by drag or by menu.
+
+   Set the **Lanes** property to declare every status explicitly, including the
+   ones nothing is in yet:
+
+   ```text
+   1=New,2=Active,3=Resolved
+   ```
+
+   The menu says this too, in place of an empty list.
+2. **The app is a canvas app.** Cards cannot be moved there at all, and the drag
    handles are not shown. See [Canvas apps](canvas.md).
-2. **It is a custom page in the studio preview.** Moves report *Method not
+3. **It is a custom page in the studio preview.** Moves report *Method not
    implemented* until the page is published.
-3. **The user lacks write access to the record.** The move runs as the signed-in
+4. **The user lacks write access to the record.** The move runs as the signed-in
    user. The card returns to its lane and a message appears above the board.
-4. **The card is already in that lane.** Dropping a card where it started is not
+5. **The card is already in that lane.** Dropping a card where it started is not
    a write.
 
 ## Why is there no lane for one of my choice options?

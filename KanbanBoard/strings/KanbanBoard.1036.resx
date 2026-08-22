@@ -70,123 +70,123 @@
 
 
   <data name="KanbanBoard_Name" xml:space="preserve">
-    <value>Kanban Board</value>
+    <value>Tableau Kanban</value>
   </data>
   <data name="KanbanBoard_Desc" xml:space="preserve">
-    <value>A Dataverse view as a drag-and-drop board, grouped by a choice column.</value>
+    <value>Une vue Dataverse sous forme de tableau glisser-déposer, regroupée par une colonne de choix.</value>
   </data>
 
   <data name="Records_DataSet_Name" xml:space="preserve">
-    <value>Records</value>
+    <value>Enregistrements</value>
   </data>
 
   <data name="StatusField_Name" xml:space="preserve">
-    <value>Lane column</value>
+    <value>Colonne de couloir</value>
   </data>
   <data name="StatusField_Desc" xml:space="preserve">
-    <value>The choice column that decides which lane a card is in. Its options become the lanes, and dragging a card writes the new option to this column. Must be a choice column, and must be in the view.</value>
+    <value>La colonne de choix qui détermine dans quel couloir se trouve une carte. Ses options deviennent les couloirs, et faire glisser une carte écrit la nouvelle option dans cette colonne. Doit être une colonne de choix et doit figurer dans la vue.</value>
   </data>
   <data name="TitleField_Name" xml:space="preserve">
-    <value>Card title</value>
+    <value>Titre de la carte</value>
   </data>
   <data name="TitleField_Desc" xml:space="preserve">
-    <value>The column shown as the card headline, and the name used when a move fails. Keep it short: a card is about 280 pixels wide.</value>
+    <value>La colonne affichée comme titre de la carte, et le nom utilisé lorsqu’un déplacement échoue. Gardez-la courte : une carte fait environ 280 pixels de large.</value>
   </data>
   <data name="AssigneeField_Name" xml:space="preserve">
-    <value>Assignee</value>
+    <value>Attribué à</value>
   </data>
   <data name="AssigneeField_Desc" xml:space="preserve">
-    <value>Optional. A text column shown in smaller text under the title, such as a contact or an owner name. Must be a text column — a lookup such as Owner cannot be bound here. Truncated with an ellipsis if it does not fit.</value>
+    <value>Facultatif. Une colonne de texte affichée en plus petit sous le titre, par exemple un contact ou le nom d’un propriétaire. Doit être une colonne de texte : une recherche telle que Propriétaire ne peut pas être liée ici. Tronquée par des points de suspension si elle ne tient pas.</value>
   </data>
   <data name="BadgeField_Name" xml:space="preserve">
     <value>Badge</value>
   </data>
   <data name="BadgeField_Desc" xml:space="preserve">
-    <value>Optional. A short value shown as a chip on the card, such as a priority or a category. Any text is accepted, but a long value is truncated — this is a label, not a description.</value>
+    <value>Facultatif. Une valeur courte affichée comme puce sur la carte, par exemple une priorité ou une catégorie. Tout texte est accepté, mais une valeur longue est tronquée : il s’agit d’une étiquette, pas d’une description.</value>
   </data>
 
   <data name="Lanes_Name" xml:space="preserve">
-    <value>Lanes</value>
+    <value>Couloirs</value>
   </data>
   <data name="Lanes_Desc" xml:space="preserve">
-    <value>Optional. "1=New,2=Active,3=Resolved" fixes the lanes and their order, including lanes no record is currently in. Left empty, the lanes are the values present in the view.</value>
+    <value>Facultatif. « 1=Nouveau,2=Actif,3=Résolu » fixe les couloirs et leur ordre, y compris ceux où aucun enregistrement ne se trouve. Laissé vide, les couloirs sont les valeurs présentes dans la vue.</value>
   </data>
 
   <data name="LaneWidth_Name" xml:space="preserve">
-    <value>Lane width</value>
+    <value>Largeur du couloir</value>
   </data>
   <data name="LaneWidth_Desc" xml:space="preserve">
-    <value>Width of each lane in pixels.</value>
+    <value>Largeur de chaque couloir en pixels.</value>
   </data>
 
   <data name="OpenOnCardClick_Name" xml:space="preserve">
-    <value>Open on card click</value>
+    <value>Ouvrir au clic sur la carte</value>
   </data>
   <data name="OpenOnCardClick_Desc" xml:space="preserve">
-    <value>Clicking a card opens its record. The move menu and drag handle stay available either way.</value>
+    <value>Cliquer sur une carte ouvre son enregistrement. Le menu de déplacement et le glisser restent disponibles dans les deux cas.</value>
   </data>
 
   <data name="MovedRecordId_Name" xml:space="preserve">
-    <value>Moved record ID</value>
+    <value>ID de l’enregistrement déplacé</value>
   </data>
   <data name="MovedRecordId_Desc" xml:space="preserve">
-    <value>The ID of the card most recently moved to another lane.</value>
+    <value>L’ID de la carte déplacée le plus récemment vers un autre couloir.</value>
   </data>
 
   <data name="PageSize_Name" xml:space="preserve">
-    <value>Page size</value>
+    <value>Taille de page</value>
   </data>
   <data name="PageSize_Desc" xml:space="preserve">
-    <value>How many rows to request per page. The platform may clamp large values.</value>
+    <value>Nombre de lignes à demander par page. La plateforme peut limiter les grandes valeurs.</value>
   </data>
 
   <data name="OpenedRecordId_Name" xml:space="preserve">
-    <value>Opened record ID</value>
+    <value>ID de l’enregistrement ouvert</value>
   </data>
   <data name="OpenedRecordId_Desc" xml:space="preserve">
-    <value>The ID of the row most recently opened.</value>
+    <value>L’ID de la ligne ouverte le plus récemment.</value>
   </data>
 
   <data name="KanbanBoard_Loading" xml:space="preserve">
-    <value>Loading cards…</value>
+    <value>Chargement des cartes…</value>
   </data>
   <data name="KanbanBoard_Empty" xml:space="preserve">
-    <value>No records.</value>
+    <value>Aucun enregistrement.</value>
   </data>
   <data name="KanbanBoard_Error" xml:space="preserve">
-    <value>This view could not be loaded.</value>
+    <value>Cette vue n’a pas pu être chargée.</value>
   </data>
   <data name="KanbanBoard_NoStatus" xml:space="preserve">
-    <value>Bind the Lane column to a choice column to group the cards.</value>
+    <value>Liez la colonne de couloir à une colonne de choix pour regrouper les cartes.</value>
   </data>
   <data name="KanbanBoard_NoTitle" xml:space="preserve">
-    <value>Bind the Card title to a column to label the cards.</value>
+    <value>Liez le titre de la carte à une colonne pour étiqueter les cartes.</value>
   </data>
   <data name="KanbanBoard_NoLanes" xml:space="preserve">
-    <value>No lanes to show. Set the Lanes property to list them explicitly.</value>
+    <value>Aucun couloir à afficher. Utilisez la propriété Couloirs pour les indiquer explicitement.</value>
   </data>
   <data name="KanbanBoard_Unassigned" xml:space="preserve">
-    <value>Unassigned</value>
+    <value>Non attribué</value>
   </data>
   <data name="KanbanBoard_LoadMore" xml:space="preserve">
-    <value>Load more</value>
+    <value>Charger plus</value>
   </data>
   <data name="KanbanBoard_CardCount" xml:space="preserve">
-    <value>{0} cards</value>
+    <value>{0} cartes</value>
   </data>
   <data name="KanbanBoard_NoTargets" xml:space="preserve">
-    <value>No other lanes to move to. Set the Lanes property to list every status, including ones no record is in yet.</value>
+    <value>Aucun autre couloir vers lequel déplacer. Utilisez la propriété Couloirs pour lister tous les statuts, y compris ceux où aucun enregistrement ne se trouve encore.</value>
   </data>
   <data name="KanbanBoard_MoveTo" xml:space="preserve">
-    <value>Move {0} to…</value>
+    <value>Déplacer {0} vers…</value>
   </data>
   <data name="KanbanBoard_Moving" xml:space="preserve">
-    <value>Moving…</value>
+    <value>Déplacement…</value>
   </data>
   <data name="KanbanBoard_MoveFailed" xml:space="preserve">
-    <value>{0} could not be moved, and was put back.</value>
+    <value>{0} n’a pas pu être déplacé et a été remis en place.</value>
   </data>
   <data name="KanbanBoard_OpenRecord" xml:space="preserve">
-    <value>Open {0}</value>
+    <value>Ouvrir {0}</value>
   </data>
 </root>
