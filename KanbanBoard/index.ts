@@ -101,6 +101,7 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
             lanes: this.lanes(context, cards, getString),
             hasStatus: status !== undefined,
             hasTitle: title !== undefined,
+            canMove: this.canWrite(context),
             moving: [...this.moving],
             moveError: this.moveError,
             loading: dataset.loading,
@@ -158,6 +159,23 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
      */
     private roleColumn(dataset: DataSet, alias: string): Column | undefined {
         return (dataset.columns ?? []).find((column) => column.alias === alias);
+    }
+
+    /**
+     * Whether this host can be written to at all.
+     *
+     * WebAPI is a Dataverse-dependent API and is absent in canvas apps. The
+     * manifest declares it `required="false"` precisely so the host leaves it
+     * out rather than refusing to load the component — see the comment there —
+     * which makes checking for it here the other half of that decision, not a
+     * defensive flourish.
+     *
+     * `context.webAPI` is typed as always present, so the optional access is
+     * deliberately narrower than the type: a required member is a claim about
+     * the type definitions, not about the host.
+     */
+    private canWrite(context: ComponentFramework.Context<IInputs>): boolean {
+        return typeof context.webAPI?.updateRecord === 'function';
     }
 
     /** Ask for a new page size, but only when it actually changed. See the note above. */
@@ -293,7 +311,11 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
         const title = this.roleColumn(dataset, ROLES.title);
         const record = dataset.records[recordId];
 
-        if (!status || !record) {
+        // The component hides the move affordances without a writable host, so
+        // reaching here is a caller error rather than a user action — but the
+        // check is the one that matters, since it is what stands between an
+        // absent API and a TypeError in a promise nobody is awaiting.
+        if (!status || !record || !this.canWrite(context)) {
             return;
         }
 

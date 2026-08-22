@@ -1,66 +1,168 @@
 # Kanban Board
 
-<!--
-  SPEC.md is where findings that outlive a commit message go.
-
-  It is not a design document written up front and it is not a changelog. It is
-  what building this control taught you that the next person would otherwise
-  rediscover: a platform API that turned out not to exist, a manifest shape that
-  compiled but was wrong, a number you measured rather than guessed.
-
-  The test for whether something belongs here: would somebody starting the next
-  control waste an afternoon without it?
-
-  Keep verified and unverified apart, explicitly. "The bundle is 8,773 bytes
-  after the production pack" and "the harness probably reports the column type"
-  are different kinds of sentence and should read differently.
-
-  Delete the headings that have nothing under them.
--->
-
 A Dataverse view as a drag-and-drop board, grouped by a choice column.
 
 ## What it does
 
-One paragraph. What it binds to, what the user can do with it, and the one
-decision that shaped the implementation.
+Binds a view, groups its records into lanes by a choice column, and writes the
+new value back through `webAPI.updateRecord` when a card is dragged. It is the
+first control in this collection that writes from a dataset, and the decision
+that shaped the implementation is that the write is **optimistic**: the card
+moves the instant it is dropped, and the control carries the bookkeeping needed
+to take that back if the write is refused.
 
 ## What was verified
 
-The commands that were actually run, and what they produced. Numbers, not
-adjectives.
+Run locally on Windows, 2026-08-22:
 
-| Step | Result |
-| --- | --- |
-| `npm run check` | |
-| `npm run lint` | |
-| `npm run build` | `out/controls/KanbanBoard/bundle.js`, ? KiB |
-| `msbuild` Release pack | production rebuild, ? bytes |
+- `npm run check`, `npm run lint`, `npm run build` — all clean.
+- Bundle: **43.3 KiB** development, from `npm run build`. This is *not* the
+  shipping number — a production bundle comes from the msbuild solution pack and
+  is roughly half. Do not quote this figure as the installed size.
+- `npm run check` validates `demo.bundle` and `demo.styles` once `out/` exists.
+  Confirmed by breaking the path on purpose: with
+  `out/controls/PCFHub.KanbanBoard/bundle.js` the check names the namespace
+  prefix as the mistake and refuses. The correct path is the constructor alone.
+- Every CSS class the component uses has a rule, and every rule has a user
+  (cross-checked mechanically, not by reading).
+- Both demo presets spell out all four manifest inputs, with no unknown keys and
+  exactly one `isDefault`.
 
-Remember that `npm run build` and the msbuild pack produce *different* bundles —
-only the pack compiles in production mode. Record both sizes if you have them.
+## What was not verified
 
-## What the build disagreed with
+Everything below needs a real model-driven form, and none of it can be settled
+from this repository.
 
-The draft that did not survive contact with `refreshTypes`, `tsc` or webpack.
-This is usually the most valuable section, because it is the part no
-documentation predicted.
+- **That `column.name` on an aliased property-set column is usable as the Web
+  API attribute name in `updateRecord`.** This is the load-bearing assumption of
+  the whole control: the write is
+  `updateRecord(entityType, id, { [statusColumn.name]: value })`. If the name a
+  dataset column reports is not the attribute logical name, the write fails and
+  the fallback is a plain text input naming the column explicitly — the same
+  escape hatch the lanes already have.
+- **That a choice column's `getValue()` returns the option's numeric value.**
+  The type union includes `number` and everything else about the design follows
+  from it.
+- **That the optimistic override reconciles rather than accumulating.**
+- **That a refused write rolls the card back.** The demo harness's Web API mock
+  resolves, so the rollback path has never executed.
 
-## Platform behaviour worth knowing
+## WebAPI must be `required="false"`, or canvas apps get a blank space
 
-Anything learned about `context` — an API that does not exist, metadata that is
-absent in canvas, a property bag field that behaves unlike its neighbours.
-Say how you know: read from the type definitions, observed in a build, or told
-to you by a failing import.
+The finding that changed the manifest.
 
-## Demo
+Dataverse-dependent APIs including the Web API are [not available to code
+components in canvas apps][limits]. The tempting reading is that `context.webAPI`
+is simply absent there and a control checks for it. That is true only with
+`required="false"`.
 
-Why this `fidelity` and not the next one up. If `limited`, what is stubbed and
-how you confirmed it. If `full`, what you checked to be sure nothing leaves the
-browser.
+With `required="true"`, the [documented behaviour][uses-feature] on a host that
+does not support the feature is a design-time warning and **component load
+failure at runtime**. Not a degraded board — no board. A control that is 90%
+useful without its write would have rendered nothing at all in canvas, and the
+symptom (a blank space) points nowhere near the cause (one XML attribute).
 
-## Still open
+So the manifest declares `required="false"` and `index.ts` feature-detects
+`context.webAPI?.updateRecord`, which is deliberately narrower than the type:
+`context.webAPI` is typed as always present, and that is a claim about the type
+definitions rather than about the host.
 
-Honest list. Missing media, an environment it has not been imported into, a
-claim that has not been verified. This section ageing badly is the point — it is
-the to-do list the next release works from.
+Custom pages are the exception worth knowing: they have runtime Web API support,
+but the studio preview reports *Method not implemented*, so the control looks
+broken in authoring and works once published.
+
+[limits]: https://learn.microsoft.com/power-apps/developer/component-framework/limitations
+[uses-feature]: https://learn.microsoft.com/power-apps/developer/component-framework/manifest-schema-reference/uses-feature
+
+## An optimistic write needs three things, not one
+
+`pcf-tag-list` writes and has no `.catch()` anywhere: a failed create or delete
+surfaces only as the dataset not changing. That is survivable for a chip that
+vanishes and reappears. It is not survivable for a card that has visibly moved
+lane, because the board is then asserting something about the data that is not
+true.
+
+What that costs, in full:
+
+1. **An override map.** `pending` holds record id to the lane value this control
+   asserted. Cards are placed from it in preference to the data.
+2. **A reconcile step.** Overrides retire in `updateView` when the refreshed
+   record reports the asserted value — *not* when the promise resolves. A
+   resolved `updateRecord` means Dataverse accepted the write, not that the
+   dataset has re-read it; clearing on resolve drops the override while the old
+   value is still on screen and the card visibly jumps back and then forward.
+   An override also retires when the record leaves the view entirely, which is
+   what happens on a filtered view when the card is moved out of it. Without
+   that second case the map grows for the lifetime of the control, and every
+   entry in it is a card being placed from memory rather than from data.
+3. **A rollback.** The `.catch()` removes the override so the card returns to
+   the lane the record is actually in, and names the failure above the board.
+   The card's title is read *before* the write is sent, because by the time a
+   rejection arrives the record may be gone from a refreshed dataset and a
+   failure message that cannot name the card is most of the way to useless.
+
+## The demo fixture cannot express a choice
+
+The fixture format carries **one value per column**, so there is no way to say
+that a record's status is option `2` *and* that option `2` is called "Active".
+`getFormattedValue` has nothing to return but the value itself.
+
+Two consequences, both live in this repo:
+
+- `laneValue()` accepts an integer-valued string as well as a number. On a real
+  host this is dead code — a choice column's raw value is a number — but without
+  it, a fixture written with numbers that the harness stringifies would put
+  every card in *Unassigned*, and the published demo would misrepresent the
+  control. It stays narrow on purpose: `"Active"` still parses to `null`,
+  because a role bound to a text column should look unbound rather than invent
+  lanes it cannot write back.
+- Both demo presets set the **Lanes** override, or the lanes would be titled 1,
+  2 and 3. So the derive-from-data default — the behaviour a real view uses, and
+  the reason lanes are derived rather than read through `Utility` — is the one
+  thing the demo cannot show. It is listed in `demo.limitations`.
+
+## Roles are found by alias and read by name
+
+Not discovered here — `pcf-tag-list` paid for this one — but repeated because
+this is only the second control in the collection to declare `property-set`
+roles, and the generated types give no help at all: `records` types as a bare
+`DataSet` and the roles are invisible to TypeScript.
+
+`column.alias` carries the manifest role name. `column.name` carries the maker's
+schema name. Find by `alias`, read by `name`. The lookup is made once, in
+`roleColumn()`, rather than spelled out at each call site.
+
+`demo/records.json` uses realistic names that differ from the aliases
+(`cr123_status` / `statusField`) specifically so the inversion fails in the demo
+rather than only against a real view. A fixture where the two are equal passes
+whichever way round the code is written, which is exactly how that bug shipped
+once already.
+
+## Bare `loadNextPage()` is the right call for a board
+
+A table passes `loadNextPage(true)` and then repairs what the platform ignores,
+because `loadOnlyNewPage` is documented, typed and not honoured. A board wants
+the behaviour the bare call already has: `sortedRecordIds` accumulates, the
+board grows, and the card you were reading stays where it was.
+
+So this control never slices `sortedRecordIds`, never tracks a page number, and
+reads `hasNextPage` only to decide whether to offer **Load more**. The paging
+repair that most of `_template`'s dataset variant exists to perform is simply
+not needed here — which is the clearest illustration of the template's own
+warning that a dataset control which is not a table replaces most of `index.ts`
+rather than adjusting it.
+
+## Cards with no status get a lane rather than disappearing
+
+Dropping them would be the tidier board and a silent loss of records the maker
+can see in the view. The *Unassigned* lane is not a drop target: writing `null`
+back to a choice column is a different intention from moving a card, and not one
+a drag should be able to express by accident. Cards can be dragged out of it.
+
+## Keyboard parity is not optional here
+
+HTML5 drag-and-drop has no keyboard equivalent, so a drag-only board cannot be
+operated from a keyboard at all — not "is awkward", cannot. Every card carries a
+*Move to…* menu that calls the same handler as a drop. It also turns out to be
+the dependable path on touch, where dragging is unreliable across mobile
+browsers.

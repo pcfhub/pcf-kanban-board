@@ -159,11 +159,28 @@
       Utility — a second prompt for something a text property can answer is not
       a trade worth making.
 
+      **required="false", and that is the whole difference between a board that
+      degrades and one that will not start.**
+
+      WebAPI is a Dataverse-dependent API and is not available in canvas apps
+      (Power Apps component framework "Limitations"). The documented behaviour
+      of required="true" on a host that does not support the feature is not a
+      null accessor to check — it is a design-time warning and *component load
+      failure at runtime* (manifest schema reference, uses-feature). So
+      required="true" would mean a board that renders nothing at all in a canvas
+      app rather than one that shows the cards and declines to move them.
+
+      Reading a view is most of what this control does. With required="false"
+      the host leaves context.webAPI absent instead of refusing to load, index.ts
+      feature-detects it, and canvas gets a read-only board. Moving a card needs
+      a model-driven app, or a published custom page — custom pages have runtime
+      WebAPI support, though the studio preview reports "Method not implemented".
+
       openDatasetItem() needs no feature: it is a method on the dataset itself,
       not on context.navigation.
     -->
     <feature-usage>
-      <uses-feature name="WebAPI" required="true" />
+      <uses-feature name="WebAPI" required="false" />
     </feature-usage>
   </control>
 </manifest>

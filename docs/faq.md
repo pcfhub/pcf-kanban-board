@@ -6,21 +6,68 @@ order: 8
 
 # FAQ
 
-<!--
-  Grow this page from real questions — issues, comments, the same email twice.
-  Inventing questions nobody asked produces a page nobody reads.
--->
+## Every card is in the Unassigned lane
 
-## Why does the control not appear in the component list?
+The **Lane column** role is bound to something that is not a choice column, or
+to a column the view does not select.
 
-The usual cause and the fix.
+The lanes are an option set's options and a move writes an option's numeric
+value, so the control only groups by a value it recognises as one. A text column
+holding the word *Active* is not an option, and the board will not invent a lane
+it has no way to write back to.
 
-## Does it work offline / on mobile / in a phone layout?
+## A card will not move
 
-Answer plainly, and link to [Limitations](limitations.md) rather than repeating
-it.
+Working through the likely causes in order:
 
-## How do I report a bug?
+1. **The app is a canvas app.** Cards cannot be moved there at all, and the drag
+   handles are not shown. See [Canvas apps](canvas.md).
+2. **It is a custom page in the studio preview.** Moves report *Method not
+   implemented* until the page is published.
+3. **The user lacks write access to the record.** The move runs as the signed-in
+   user. The card returns to its lane and a message appears above the board.
+4. **The card is already in that lane.** Dropping a card where it started is not
+   a write.
 
-Open an issue at <https://github.com/pcfhub/pcf-kanban-board/issues>, with the
-platform version and the control version from the solution.
+## Why is there no lane for one of my choice options?
+
+Lanes are derived from the values present in the loaded records, so an option
+nothing is currently set to has nothing to derive from. Set the **Lanes**
+property to declare them explicitly — see [Examples](examples.md).
+
+## Can I reorder cards inside a lane?
+
+No. A drop changes which lane a card is in and nothing else. Card order within a
+lane is the view's order, so sort the view to control it.
+
+## Can I group by something other than a choice column?
+
+No. Grouping and writing are the same operation here, and an option value is
+what the control knows how to write. Grouping by an owner or a date would mean
+writing a lookup or a date from a drag, which is a different control.
+
+## Does it work on a phone?
+
+The board renders, and the lanes scroll sideways. Dragging with touch is
+unreliable across mobile browsers, so the **Move to…** menu on each card is the
+dependable path there — it is the same menu that makes the board usable from a
+keyboard.
+
+## Why does the control ask for Web API permission?
+
+Because moving a card writes to Dataverse. That is the only permission it asks
+for; there is no device access, no external service, and no metadata call. See
+[Installation](installation.md).
+
+## Can I use it without letting anyone move cards?
+
+Not by a property. On a form where the records are read-only to the user, the
+moves fail and roll back, which is worse than not offering them. A canvas app is
+read-only by nature, and a model-driven form where the whole control is disabled
+also hides the move affordances.
+
+## What happens if two people move the same card?
+
+The last write wins, which is Dataverse's behaviour rather than the control's.
+Each board refreshes after its own move and will show the other person's change
+the next time it reads the view.

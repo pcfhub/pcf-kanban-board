@@ -6,31 +6,44 @@ order: 1
 
 # Kanban Board
 
-<!--
-  The landing page for the component on PCFHub. Answer, in this order: what it
-  does, who it is for, and what makes it different from doing it another way.
-
-  Frontmatter above is read by the hub:
-    title        the page heading and the nav label
-    description  the meta description and the search snippet
-    order        position in the sidebar
-    appliesTo    a semver range — see migration.md
-    draft        `true` keeps the page out of the hub entirely
--->
-
 A Dataverse view as a drag-and-drop board, grouped by a choice column.
 
-::image{src=media/screenshot.png alt="Kanban Board on a form" zoom}
+Bind it to a view, tell it which column holds the status and which holds the
+card title, and every record becomes a card in the lane matching its choice
+value. Dragging a card to another lane writes the new value back to Dataverse.
 
 ## Why this one
 
-- What it does that the built-in control does not.
-- The constraint it was built around.
+- **It writes.** Most board-shaped controls render a view and leave the update
+  to a flow or a form script. This one calls the Web API directly, so moving a
+  card is the whole interaction rather than the first half of one.
+- **The move is optimistic, and honest about it.** The card lands where you
+  dropped it immediately rather than after a round trip — and if the write is
+  refused, it goes back to the lane it came from and says so. A card sitting in
+  a lane its record is not in is the failure worth designing against.
+- **It works without a mouse.** Every card carries a *Move to…* menu, because
+  HTML5 drag-and-drop has no keyboard equivalent and a board that only supports
+  dragging cannot be operated from the keyboard at all.
 
 ## What it works with
 
 :::callout{type=info}
-Say plainly which hosts are supported — model-driven forms, canvas apps, custom
-pages — and which are not. This is the paragraph that saves a reader twenty
-minutes.
+**Model-driven apps: fully supported.** The board renders and cards can be
+moved.
+
+**Canvas apps: read-only.** The board renders, but cards cannot be moved.
+Dataverse-dependent APIs including the Web API are
+[not available to code components in canvas apps][limits], so the drag handles
+and the *Move to…* menu are not shown there at all.
+
+**Custom pages: moves work in the published app.** Custom pages have runtime
+Web API support, but the studio preview reports *Method not implemented* — the
+error can be dismissed, and the board behaves correctly once the page is
+published.
 :::
+
+[limits]: https://learn.microsoft.com/power-apps/developer/component-framework/limitations
+
+The control declares `WebAPI` as `required="false"` precisely so that a host
+without it leaves the board read-only rather than refusing to load it. See
+[Limitations](limitations.md) for what that means in practice.

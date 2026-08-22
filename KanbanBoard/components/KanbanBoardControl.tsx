@@ -16,6 +16,8 @@ export interface IProps {
     lanes: Lane[];
     hasStatus: boolean;
     hasTitle: boolean;
+    /** False on a host with no WebAPI — canvas — where a move cannot be written. */
+    canMove: boolean;
     moving: string[];
     moveError: string | null;
     loading: boolean;
@@ -181,7 +183,7 @@ function LaneColumn(props: ILaneProps): React.ReactElement {
      * moving a card, and not one a drag should be able to express by accident.
      * Cards can be dragged *out* of it.
      */
-    const droppable = lane.value !== null && !props.disabled;
+    const droppable = lane.value !== null && !props.disabled && props.canMove;
 
     return (
         <section
@@ -231,7 +233,7 @@ function CardItem(props: ILaneProps & { card: Card }): React.ReactElement {
     return (
         <li
             className={busy ? 'KanbanBoard-card is-moving' : 'KanbanBoard-card'}
-            draggable={!props.disabled}
+            draggable={!props.disabled && props.canMove}
             onDragStart={(event): void => {
                 event.dataTransfer.setData('text/plain', card.id);
                 event.dataTransfer.effectAllowed = 'move';
@@ -260,7 +262,14 @@ function CardItem(props: ILaneProps & { card: Card }): React.ReactElement {
                     this control is usable without a mouse. HTML5 drag-and-drop
                     has no keyboard equivalent, so a board that only supported
                     dragging would be unreachable for anyone using one.
+
+                    Hidden entirely rather than disabled where the host cannot
+                    write — canvas has no WebAPI. A permanently greyed menu
+                    invites the reader to work out what they have configured
+                    wrongly, when the answer is that this host does not do this
+                    at all.
                 */}
+                {props.canMove && (
                 <Menu>
                     <MenuTrigger disableButtonEnhancement>
                         <Button
@@ -287,6 +296,7 @@ function CardItem(props: ILaneProps & { card: Card }): React.ReactElement {
                         </MenuList>
                     </MenuPopover>
                 </Menu>
+                )}
             </div>
 
             {card.assignee && <div className="KanbanBoard-cardAssignee">{card.assignee}</div>}

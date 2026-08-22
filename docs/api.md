@@ -1,6 +1,6 @@
 ---
 title: API reference
-description: Properties and outputs, generated from the control manifest.
+description: Properties, column roles and outputs, generated from the control manifest.
 order: 5
 ---
 
@@ -17,14 +17,10 @@ order: 5
   kind: input | bound | output | dataset | dataset_column
   Omit `kind` to render every property in one table.
 
-  There is no `kind=bound` section here because a dataset control binds a
-  collection, not a column.
-
-  There is no `kind=dataset_column` section either, because the manifest this
-  ships with declares no `property-set` roles — the directive would render an
-  empty table, which reads as "this control has no dataset columns" rather than
-  as a section nobody wrote. **If you add roles to the manifest, add the section
-  back**, or the roles you declared are documented nowhere.
+  There is no `kind=bound` section: a dataset control binds a collection, not a
+  column. `kind=dataset_column` *is* here, because this control declares
+  property-set roles — it is the section that documents them, and without it the
+  roles are described nowhere.
 -->
 
 ## Input properties
@@ -35,28 +31,44 @@ order: 5
 
 ::props-table{kind=dataset}
 
+## Column roles
+
+The board assigns meaning to specific columns rather than rendering whatever the
+view supplies, so each role below is bound to a column in your own table.
+
+::props-table{kind=dataset_column}
+
+:::callout{type=warning}
+**Every column bound to a role must be in the view.** The roles are read through
+the dataset, so a role bound to a column the view does not select arrives empty.
+:::
+
+**Lane column** must be a choice column. Its options are the lanes, and moving a
+card writes the option's numeric value — so a role bound to a text column leaves
+every card *Unassigned* rather than grouping by the text.
+
 ## Outputs
 
 ::props-table{kind=output}
 
-## Columns
+Both outputs are set **before** the platform call they describe, so a form can
+observe the intent even on a host where the call does nothing. `movedRecordId`
+is set when the move is attempted, not when it succeeds; if the write is
+refused, the card returns to its original lane and the output still names it.
 
-<!--
-  Delete this section if you declare property-set roles — the generated
-  dataset_column table replaces it. Keep it if the control renders the view's
-  own columns, because then there is nothing for a table to list and a reader
-  needs telling why.
--->
+## The lanes property
 
-The columns are the view's.
+Left empty, the lanes are the distinct values present in the loaded records,
+ordered by option value. That is right most of the time and has one thing it
+cannot do: show a lane no record is currently in.
 
-This control declares no `property-set` roles, so it renders whatever
-`dataset.columns` reports — the columns the maker put in the view, in the view's
-own `order`, at the view's own widths — and skips the ones marked hidden. There
-is nothing to configure per column.
+Set it to fix both the set and the order:
 
-| Metadata | Effect |
-| --- | --- |
-| `isPrimary` | That cell becomes the open-record button, and its value names the row for a screen reader. Falls back to the first visible column. |
-| `disableSorting` | No sort control on that column, and no `aria-sort`. |
-| `visualSizeFactor` | Distributed as percentage widths. When every factor is 0 — which canvas reports — the browser lays the table out instead. |
+```text
+1=New,2=Active,3=Resolved
+```
+
+Each entry is an option value, `=`, and the label to show. The order is yours,
+not numeric. Entries whose left side is not a whole number are ignored, so a
+malformed lane is dropped rather than collecting every unparsed card into one
+heap.
