@@ -97,17 +97,42 @@ export function parseLanes(spec: string): Lane[] {
         }
 
         const value = Number(entry.slice(0, at).trim());
-        const label = entry.slice(at + 1).trim();
+        const { label, color } = splitColor(entry.slice(at + 1).trim());
 
         if (!Number.isInteger(value) || label === '' || seen.has(value)) {
             continue;
         }
 
         seen.add(value);
-        lanes.push({ value, label, color: null });
+        lanes.push({ value, label, color });
     }
 
     return lanes;
+}
+
+/**
+ * A label and its optional trailing colour: `"Active #e8d33a"` or
+ * `"Active#e8d33a"`.
+ *
+ * Declaring the lanes replaces the option set as their source, and the colour
+ * lives on the option set — so without this, setting `lanes` silently costs the
+ * colours, and a canvas board can never have any at all because the option set
+ * is unreachable there.
+ *
+ * The colour is taken only from the **end** of the label and only when it is a
+ * complete hex colour, so `"Blocked #2"` keeps its label intact — `#2` is not
+ * three or six digits. A label genuinely ending in a hex-shaped token, like
+ * `"Build #abc"`, would lose it; that is the cost of not inventing another
+ * separator, and it is documented rather than guarded against.
+ */
+function splitColor(text: string): { label: string; color: string | null } {
+    const match = /^(.*?)\s*(#(?:[0-9a-f]{3}|[0-9a-f]{6}))$/i.exec(text);
+
+    if (!match || match[1].trim() === '') {
+        return { label: text, color: null };
+    }
+
+    return { label: match[1].trim(), color: match[2] };
 }
 
 /**

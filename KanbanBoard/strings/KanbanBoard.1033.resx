@@ -109,7 +109,7 @@
     <value>Lanes</value>
   </data>
   <data name="Lanes_Desc" xml:space="preserve">
-    <value>Optional. Left empty, the lanes are the Lane column’s own options, including ones no record is in yet. Set it — "1=New,2=Active,3=Resolved" — to fix the lanes and their order yourself. Required in canvas apps, where the options cannot be read.</value>
+    <value>Optional. Left empty, the lanes are the Lane column’s own options, including ones no record is in yet. Set it — "1=New,2=Active,3=Resolved" — to fix the lanes and their order yourself. Required in canvas apps, where the options cannot be read. A lane can carry a colour as hex at the end of its label: “1=New #6b7280”.</value>
   </data>
 
   <data name="LaneColors_Name" xml:space="preserve">

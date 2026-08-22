@@ -78,8 +78,21 @@ not numeric. Entries whose left side is not a whole number are ignored, so a
 malformed lane is dropped rather than collecting every unparsed card into one
 heap.
 
-Setting it also removes the lane colours, since those come from the option set
-and this replaces it as the source of the lanes.
+A lane can carry its own colour, as a hex value at the end of the label:
+
+```text
+1=New #6b7280,2=Active #e8d33a,3=Resolved #22a14a
+```
+
+Declaring the lanes replaces the option set as their source, and the colours
+live on the option set — so without this, setting **Lanes** would silently cost
+the colours, and a canvas app could never have any, since the option set cannot
+be read there at all.
+
+The colour is taken only from the end of a label and only when it is a complete
+`#rgb` or `#rrggbb`. So `Blocked #2` keeps its label whole. A label that really
+does end in a hex-shaped word — `Build #abc` — would lose it; rename the lane if
+that happens.
 
 ## Lane colours
 

@@ -43,16 +43,23 @@ there anyway, and a lane no card can be moved into is decoration.
 Set the **Lanes** property to declare lanes explicitly if you need them in
 canvas, or to fix their order and hide options the board should not offer.
 
-## Lane colours need the option set
+## Lane colours come from the option set, or from you
 
-The colour bar above a lane is the colour Dataverse holds for that option, so it
-appears only where the lanes came from the option set — a model-driven board
-with **Lanes** left empty. In a canvas app, or with **Lanes** set, there is no
-colour to show and no bar appears.
+With **Lanes** left empty on a model-driven board, each lane shows the colour
+Dataverse holds for that option, with nothing to configure. Those colours are
+assigned automatically when a choice is created, which is why they can be
+switched off rather than only on.
 
-Colours cannot be chosen in the control. They are the ones on the choice column,
-and Dataverse assigns them automatically when a choice is created — which is why
-they can be switched off rather than only on.
+Everywhere else — a canvas app, or a board with **Lanes** set — the option set
+is not the source of the lanes, so there is no colour to read from it. Declare
+one per lane instead:
+
+```text
+1=New #6b7280,2=Active #e8d33a
+```
+
+What the control cannot do is choose colours for you. There is no palette and no
+default assignment: a lane is either given a colour or shows no bar.
 
 ## No swimlanes, no sorting, no selection
 

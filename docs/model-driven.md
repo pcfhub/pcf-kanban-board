@@ -77,8 +77,10 @@ left out of it gets no lane.
 Each lane also shows its option’s **colour** as a bar above the header. Dataverse
 assigns those colours automatically when a choice is created, so they are
 usually present whether or not anyone picked them — turn **Lane colours** off if
-they are noise rather than meaning. Setting **Lanes** yourself removes the
-colours too, because the option set is no longer what the lanes come from.
+they are noise rather than meaning.
+
+Setting **Lanes** yourself replaces the option set as the source, so the colours
+go with it unless you declare them: `1=New #6b7280,2=Active #e8d33a`.
 
 ## The command bar
 

@@ -1,6 +1,6 @@
 {
   "name": "pcf-kanban-board",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A Dataverse view as a drag-and-drop board, grouped by a choice column.",
   "license": "MIT",
   "private": true,

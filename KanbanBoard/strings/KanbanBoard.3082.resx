@@ -109,7 +109,7 @@
     <value>Carriles</value>
   </data>
   <data name="Lanes_Desc" xml:space="preserve">
-    <value>Opcional. Si se deja vacío, los carriles son las propias opciones de la columna de carril, incluidas aquellas en las que no hay ningún registro. Indíquelo — "1=Nuevo,2=Activo,3=Resuelto" — para fijar usted mismo los carriles y su orden. Obligatorio en aplicaciones de lienzo, donde no se pueden leer las opciones.</value>
+    <value>Opcional. Si se deja vacío, los carriles son las propias opciones de la columna de carril, incluidas aquellas en las que no hay ningún registro. Indíquelo — "1=Nuevo,2=Activo,3=Resuelto" — para fijar usted mismo los carriles y su orden. Obligatorio en aplicaciones de lienzo, donde no se pueden leer las opciones. Un carril puede llevar un color como valor hexadecimal al final de su etiqueta: “1=Nuevo #6b7280”.</value>
   </data>
 
   <data name="LaneColors_Name" xml:space="preserve">

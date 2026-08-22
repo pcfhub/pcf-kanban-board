@@ -109,7 +109,7 @@
     <value>Bahnen</value>
   </data>
   <data name="Lanes_Desc" xml:space="preserve">
-    <value>Optional. Bleibt das Feld leer, sind die Bahnen die Optionen der Spaltenbahn selbst, einschließlich solcher ohne Datensätze. Legen Sie es fest — „1=Neu,2=Aktiv,3=Gelöst“ —, um Bahnen und Reihenfolge selbst zu bestimmen. In Canvas-Apps erforderlich, da dort die Optionen nicht gelesen werden können.</value>
+    <value>Optional. Bleibt das Feld leer, sind die Bahnen die Optionen der Spaltenbahn selbst, einschließlich solcher ohne Datensätze. Legen Sie es fest — „1=Neu,2=Aktiv,3=Gelöst“ —, um Bahnen und Reihenfolge selbst zu bestimmen. In Canvas-Apps erforderlich, da dort die Optionen nicht gelesen werden können. Eine Bahn kann eine Farbe als Hex-Wert am Ende ihrer Beschriftung tragen: „1=Neu #6b7280“.</value>
   </data>
 
   <data name="LaneColors_Name" xml:space="preserve">
