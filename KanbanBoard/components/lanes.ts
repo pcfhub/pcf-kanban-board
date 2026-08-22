@@ -235,7 +235,7 @@ export function describeShape(value: unknown, depth = 0): string {
         return typeof value;
     }
 
-    const keys = Object.keys(value as Record<string, unknown>);
+    const keys = readableKeys(value as object);
 
     if (keys.length === 0) {
         return '{}';
@@ -243,7 +243,13 @@ export function describeShape(value: unknown, depth = 0): string {
 
     const shown = keys.slice(0, 12);
     const body = shown
-        .map((k) => `${k}: ${describeShape((value as Record<string, unknown>)[k], depth + 1)}`)
+        .map((k) => {
+            try {
+                return `${k}: ${describeShape((value as Record<string, unknown>)[k], depth + 1)}`;
+            } catch {
+                return `${k}: <threw>`;
+            }
+        })
         .join(', ');
 
     return `{ ${body}${keys.length > shown.length ? `, …+${keys.length - shown.length}` : ''} }`;
@@ -325,16 +331,27 @@ function isOptionArray(value: unknown): value is unknown[] {
 }
 
 /**
- * Visit every plain object under `root`, breadth-first and bounded.
+ * Visit every object under `root`, breadth-first and bounded.
  *
- * Metadata can contain cycles and is large enough that an unbounded walk is a
- * real cost on every view switch, so this tracks what it has seen and stops at
- * a fixed number of nodes.
+ * **Prototype accessors are followed, and that is the whole reason this works.**
+ * What `getEntityMetadata` resolves with is a class instance, not a plain bag:
+ * its own enumerable properties are private fields — `_entityDescriptor`,
+ * `_entityType`, `_attributes` (which holds the column *names* that were asked
+ * for, not their metadata) — while the public `Attributes` is a getter on the
+ * prototype. `Object.keys` and `Object.values` do not enumerate prototype
+ * getters, so a walk built on them sees the private fields, misses the public
+ * API entirely, and reports that the entity has no attributes.
+ *
+ * Reading a getter can run code, so every read is guarded: a throwing accessor
+ * is skipped rather than failing the search.
+ *
+ * Metadata can also contain cycles and is large, so this tracks what it has
+ * seen and stops after a fixed number of nodes.
  */
 function walk(root: unknown, visit: (node: Record<string, unknown>) => void): void {
     const seen = new Set<unknown>();
     const queue: unknown[] = [root];
-    let budget = 5000;
+    let budget = 20000;
 
     while (queue.length > 0 && budget > 0) {
         const node = queue.shift();
@@ -351,9 +368,56 @@ function walk(root: unknown, visit: (node: Record<string, unknown>) => void): vo
             continue;
         }
 
-        visit(node as Record<string, unknown>);
-        queue.push(...Object.values(node as Record<string, unknown>));
+        const record = node as Record<string, unknown>;
+
+        visit(record);
+
+        for (const key of readableKeys(node)) {
+            try {
+                const value = record[key];
+
+                if (typeof value === 'object' && value !== null) {
+                    queue.push(value);
+                }
+            } catch {
+                // An accessor that throws when read. Nothing to follow.
+            }
+        }
     }
+}
+
+/**
+ * Every key worth reading on `node`: its own, plus the accessors its prototype
+ * chain declares.
+ *
+ * Stops before `Object.prototype`, whose members are not data, and skips
+ * anything already declared nearer the instance so a getter is read once.
+ */
+function readableKeys(node: object): string[] {
+    const keys = new Set<string>(Object.keys(node));
+
+    let proto: object | null = Object.getPrototypeOf(node) as object | null;
+
+    while (proto && proto !== Object.prototype) {
+        for (const key of Object.getOwnPropertyNames(proto)) {
+            if (key === 'constructor') {
+                continue;
+            }
+
+            const descriptor = Object.getOwnPropertyDescriptor(proto, key);
+
+            // Getters only. A plain method on the prototype is behaviour, and
+            // calling arbitrary methods to see what falls out is a different
+            // and much worse idea.
+            if (descriptor && typeof descriptor.get === 'function') {
+                keys.add(key);
+            }
+        }
+
+        proto = Object.getPrototypeOf(proto) as object | null;
+    }
+
+    return [...keys];
 }
 
 /** An option's label, which is either a string or a localised label object. */

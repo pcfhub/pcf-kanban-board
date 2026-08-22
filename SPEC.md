@@ -63,6 +63,37 @@ a shape `optionLanes()` does not recognise, now warns to the console naming the
 entity and column, because "one lane" looks identical whether the feature is off,
 the call failed, or the traversal missed.
 
+## What getEntityMetadata actually resolves with
+
+Not a plain object. It is a **class instance**: its own enumerable properties
+are private fields, and the public API is getters on the prototype.
+
+Observed on a real form, `getEntityMetadata("cll_task", ["cll_status"])`:
+
+```text
+{ _entityDescriptor: { Initialized, Id, EntityLogicalName, EntitySetName,
+                       PrimaryIdAttribute, ObjectTypeCode, …+50 },
+  _entityType: string, _attributes: [string ×1], _activityTypeMask: number,
+  _autoRouteToOwnerQueue: boolean, …+38 }
+```
+
+Two things to take from that. `_attributes` holds the column **names that were
+asked for**, not their metadata — so the `attributes` argument is a request, not
+a result. And `Attributes`, the public collection, does not appear at all,
+because `Object.keys` and `Object.values` do not enumerate prototype getters.
+
+That is what defeated two attempts at reading the option set. Walking the object
+found the private fields, missed the public API entirely, and concluded the
+entity had no attributes — while `metadata.Attributes` would have returned the
+collection perfectly well, since property *access* traverses the prototype chain
+even though enumeration does not.
+
+So any code that goes looking through `EntityMetadata` has to walk prototype
+accessors, not just own properties, and guard each read because a getter runs
+code. `optionLanes()` does; the two versions before it did not.
+
+→ Worth promoting to the skill once verified on a second entity.
+
 ## Platform behaviour worth knowing
 
 **A lookup column inside a dataset returns JSON in canvas.** Read from the
