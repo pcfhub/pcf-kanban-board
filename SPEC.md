@@ -125,16 +125,14 @@ this repository, and the first one is load-bearing.
   demo harness's mock resolves, and no real environment has refused one yet.
 - **That the canvas lookup-JSON behaviour above is real.** Read from
   documentation; nobody has put a lookup role on this board and looked.
-- **That the option-set traversal in `optionLanes()` matches what
-  `getEntityMetadata` actually returns.** `EntityMetadata` is typed
-  `{ [key: string]: any }`, so the compiler checks none of it and the docs do
-  not pin the shape down either. The code accepts a collection with `get()`, an
-  array keyed by `LogicalName`, or a plain object, and treats a label as either
-  a string or a `UserLocalizedLabel`. If every branch misses it returns `[]`
-  and the board falls back to derived lanes — a smaller board, not a broken
-  one — so the failure mode is safe but silent. **This is the first thing to
-  check on a real form**, because it is the difference between a board that
-  works out of the box and one that needs Lanes set every time.
+- **That `optionLanes()` finds the option set in what `getEntityMetadata`
+  returns on this tenant.** Tested against nine candidate shapes offline —
+  `Attributes` as an array, keyed by logical name, or reachable only through a
+  `get()` method; options under `OptionSet.Options`, `attributeDescriptor`, or
+  duplicated across `OptionSet` and `GlobalOptionSet`; labels plain, or wrapped
+  in `UserLocalizedLabel` or `LocalizedLabels`. Six found, and the three that
+  should refuse did. That is coverage of the shapes I could think of, not proof
+  about the one Dataverse sends.
 
 Still open, separately: `overview.md` has no screenshot, and `media/` carries
 the template's placeholder logo.

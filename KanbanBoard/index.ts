@@ -6,6 +6,7 @@ import {
     Lane,
     ROLES,
     deriveLanes,
+    describeShape,
     laneValue,
     optionLanes,
     parseLanes,
@@ -320,14 +321,23 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
                     const lanes = optionLanes(metadata, column);
 
                     if (lanes.length === 0) {
-                        // Loud, because the fallback is silent and looks like
-                        // the feature is off rather than like a shape this code
-                        // did not recognise. See optionLanes() and SPEC.md.
+                        /*
+                         * Loud, and printing the *shape* rather than the whole
+                         * object.
+                         *
+                         * The fallback is invisible — one lane looks the same
+                         * whether the feature is off, the call failed, or the
+                         * search missed — and the first version of this warning
+                         * dumped the metadata object, which a console renders
+                         * collapsed and which nobody can paste anywhere useful.
+                         * The keys and their types are what the next version of
+                         * optionLanes() has to be written from.
+                         */
                         console.warn(
                             `KanbanBoard: read metadata for ${entity}.${column} but found no option set in it. ` +
                             'Falling back to lanes derived from the loaded records. Set the Lanes property to ' +
-                            'list them explicitly.',
-                            metadata,
+                            'list them explicitly.\n\nShape returned:\n' +
+                            describeShape(metadata),
                         );
                     }
 

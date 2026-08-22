@@ -155,52 +155,205 @@ export function boardKey(cards: Card[]): string {
 }
 
 /**
- * Lanes from a choice column's option set, as returned by
- * `context.utils.getEntityMetadata(entityName, [columnName])`.
+ * Lanes from a choice column's option set, out of whatever
+ * `context.utils.getEntityMetadata(entityName, [columnName])` returned.
  *
  * This is the only way to learn about a lane no record is in — a dataset
  * `Column` carries `name`, `displayName`, `dataType`, `alias`, `order`,
  * `visualSizeFactor`, `isHidden`, `isPrimary` and `disableSorting`, and nothing
- * about options. Deriving lanes from the loaded records therefore cannot show
- * an empty one, which on a new board means every card sits in one lane with
- * nowhere to move to.
+ * about options.
  *
- * **Written defensively on purpose.** `EntityMetadata` is typed
- * `{ [key: string]: any }`, so nothing here is checked by the compiler and the
- * exact traversal is not pinned down by the documentation either. Each step
- * accepts the shapes that are plausible — a collection with `get()`, an array,
- * or a plain object — and the whole thing returns `[]` rather than throwing if
- * none of them match, so a surprise degrades to derived lanes instead of an
- * empty board.
+ * **It searches for a shape rather than walking a path**, and that is a
+ * deliberate second attempt. `EntityMetadata` is typed `{ [key: string]: any }`,
+ * the documentation describes the Client API's shape rather than this one, and a
+ * first version that walked `Attributes` → `OptionSet` → `Options` found
+ * nothing against a real form. Guessing a longer path is the same bet again.
  *
- * Verify this against a real form before trusting it. See SPEC.md.
+ * What is *not* a guess is the target. The type definitions pin it down:
+ * `OptionSetMetadata` is `{ Options: OptionMetadata[] }` and `OptionMetadata` is
+ * `{ Label: string; Value: number; Color: string }`. So this looks for an array
+ * whose members have a numeric `Value` and a `Label`, wherever it sits.
+ *
+ * Scoped, not blind: it first finds the node describing this column — an object
+ * whose `LogicalName` or `name` matches — and searches inside that. Only if the
+ * column cannot be found does it search the whole document, and then only
+ * accepts an unambiguous answer, because `statecode` and `statuscode` both carry
+ * option sets and picking the wrong one silently would be worse than falling
+ * back to derived lanes.
  */
 export function optionLanes(metadata: unknown, columnName: string): Lane[] {
-    const attribute = pick(get(metadata, 'Attributes'), columnName, 'LogicalName');
+    const column = findColumnNode(metadata, columnName);
+    const found = findOptionArrays(column ?? metadata);
 
-    if (!attribute) {
-        return [];
-    }
+    /*
+     * Inside the column's own node, the first option array is the right one —
+     * an attribute commonly carries the same options twice, once under
+     * `OptionSet` and again under `GlobalOptionSet`, and demanding a unique
+     * answer would reject exactly the case this exists for.
+     *
+     * Outside it, uniqueness is the only safety available: `statecode` and
+     * `statuscode` both have option sets, and silently grouping a board by the
+     * wrong one is worse than falling back to derived lanes.
+     */
+    const chosen = column ? found[0] : found.length === 1 ? found[0] : undefined;
 
-    const optionSet = get(attribute, 'OptionSet');
-    const raw = callable(optionSet, 'getOptions') ?? get(optionSet, 'Options') ?? optionSet;
-
-    if (!Array.isArray(raw)) {
+    if (!chosen) {
         return [];
     }
 
     const lanes: Lane[] = [];
 
-    for (const option of raw) {
+    for (const option of chosen) {
         const value = get(option, 'Value');
-        const label = labelOf(option);
 
         if (typeof value === 'number' && Number.isInteger(value)) {
-            lanes.push({ value, label: label || String(value) });
+            lanes.push({ value, label: labelOf(option) || String(value) });
         }
     }
 
     return lanes;
+}
+
+/**
+ * A compact description of what came back, for the console when the search
+ * finds nothing.
+ *
+ * Prints structure rather than content: the keys at each level, and the type of
+ * each. Enough to write the next version of `optionLanes()` from, without
+ * dumping an entity's entire metadata into a log.
+ */
+export function describeShape(value: unknown, depth = 0): string {
+    if (depth > 4) {
+        return '…';
+    }
+
+    if (Array.isArray(value)) {
+        return value.length === 0 ? '[]' : `[${describeShape(value[0], depth + 1)} ×${value.length}]`;
+    }
+
+    if (typeof value !== 'object' || value === null) {
+        return typeof value;
+    }
+
+    const keys = Object.keys(value as Record<string, unknown>);
+
+    if (keys.length === 0) {
+        return '{}';
+    }
+
+    const shown = keys.slice(0, 12);
+    const body = shown
+        .map((k) => `${k}: ${describeShape((value as Record<string, unknown>)[k], depth + 1)}`)
+        .join(', ');
+
+    return `{ ${body}${keys.length > shown.length ? `, …+${keys.length - shown.length}` : ''} }`;
+}
+
+/**
+ * The node describing `columnName`, by whichever key the platform used.
+ *
+ * Two ways to be found, because metadata collections come in two flavours. Most
+ * are plain objects or arrays and turn up in the walk. Some expose their
+ * contents *only* through a `get(name)` method, and those are invisible to
+ * `Object.values` — a walk alone would report the column missing on a shape
+ * where it is perfectly available.
+ */
+function findColumnNode(root: unknown, columnName: string): unknown {
+    let match: unknown = null;
+
+    walk(root, (node) => {
+        if (match) {
+            return;
+        }
+
+        for (const key of ['LogicalName', 'logicalName', 'name', 'Name']) {
+            if (get(node, key) === columnName) {
+                match = node;
+                return;
+            }
+        }
+
+        const getter = node.get;
+
+        if (typeof getter === 'function') {
+            try {
+                const found = (getter as (name: string) => unknown).call(node, columnName);
+
+                if (typeof found === 'object' && found !== null) {
+                    match = found;
+                }
+            } catch {
+                // A `get` that is not this kind of getter. Keep walking.
+            }
+        }
+    });
+
+    return match;
+}
+
+/** Every array that looks like an option set, anywhere under `root`. */
+function findOptionArrays(root: unknown): Array<unknown[]> {
+    const found: Array<unknown[]> = [];
+
+    walk(root, (node) => {
+        for (const value of Object.values(node)) {
+            if (isOptionArray(value) && !found.includes(value)) {
+                found.push(value);
+            }
+        }
+    });
+
+    return found;
+}
+
+/**
+ * An array of `{ Value: number, Label: … }`.
+ *
+ * Every member must qualify, not just the first: an array of mixed shapes is
+ * something else that happens to start like an option set.
+ */
+function isOptionArray(value: unknown): value is unknown[] {
+    if (!Array.isArray(value) || value.length === 0) {
+        return false;
+    }
+
+    return value.every((entry) => {
+        const optionValue = get(entry, 'Value');
+
+        return typeof optionValue === 'number' && get(entry, 'Label') !== undefined;
+    });
+}
+
+/**
+ * Visit every plain object under `root`, breadth-first and bounded.
+ *
+ * Metadata can contain cycles and is large enough that an unbounded walk is a
+ * real cost on every view switch, so this tracks what it has seen and stops at
+ * a fixed number of nodes.
+ */
+function walk(root: unknown, visit: (node: Record<string, unknown>) => void): void {
+    const seen = new Set<unknown>();
+    const queue: unknown[] = [root];
+    let budget = 5000;
+
+    while (queue.length > 0 && budget > 0) {
+        const node = queue.shift();
+        budget -= 1;
+
+        if (typeof node !== 'object' || node === null || seen.has(node)) {
+            continue;
+        }
+
+        seen.add(node);
+
+        if (Array.isArray(node)) {
+            queue.push(...node);
+            continue;
+        }
+
+        visit(node as Record<string, unknown>);
+        queue.push(...Object.values(node as Record<string, unknown>));
+    }
 }
 
 /** An option's label, which is either a string or a localised label object. */
@@ -211,9 +364,19 @@ function labelOf(option: unknown): string {
         return label;
     }
 
-    const localised = get(get(label, 'UserLocalizedLabel'), 'Label');
+    for (const path of [['UserLocalizedLabel', 'Label'], ['LocalizedLabels', '0', 'Label']]) {
+        let node: unknown = label;
 
-    return typeof localised === 'string' ? localised : '';
+        for (const step of path) {
+            node = Array.isArray(node) ? node[Number(step)] : get(node, step);
+        }
+
+        if (typeof node === 'string') {
+            return node;
+        }
+    }
+
+    return '';
 }
 
 /** One member of an untyped bag, without asserting the bag has a shape. */
@@ -223,37 +386,4 @@ function get(source: unknown, key: string): unknown {
     }
 
     return (source as Record<string, unknown>)[key];
-}
-
-/** Call `name` on `source` if it is a function, otherwise `undefined`. */
-function callable(source: unknown, name: string): unknown {
-    const fn = get(source, name);
-
-    return typeof fn === 'function' ? (fn as () => unknown).call(source) : undefined;
-}
-
-/**
- * Find `wanted` in a collection that may be a Dataverse metadata collection
- * (`get(name)`), an array of objects keyed by `keyField`, or a plain object.
- */
-function pick(collection: unknown, wanted: string, keyField: string): unknown {
-    const viaGet = get(collection, 'get');
-
-    if (typeof viaGet === 'function') {
-        try {
-            const found = (viaGet as (k: string) => unknown).call(collection, wanted);
-
-            if (found) {
-                return found;
-            }
-        } catch {
-            // Fall through to the other shapes.
-        }
-    }
-
-    if (Array.isArray(collection)) {
-        return collection.find((entry) => get(entry, keyField) === wanted);
-    }
-
-    return get(collection, wanted);
 }
