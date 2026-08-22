@@ -30,8 +30,15 @@ Run locally on Windows, 2026-08-22:
   control externalises React and Fluent, so what remains is almost entirely this
   control's own code and the development wrapper is a proportionally larger
   share of it. One measurement, not a correction.
-- Solution pack: `Solution.zip` 11,659 bytes and `Solution_managed.zip` 11,659
-  bytes — the same size, different contents (verified by checksum).
+- Solution pack: `Solution.zip` and `Solution_managed.zip`, 12,181 bytes each —
+  the same size, different contents (verified by checksum).
+- The bundle is **unchanged across two packs** taken either side of the manifest,
+  resx and CSS edits: 12,190 bytes both times, byte for byte. Worth knowing what
+  that proves — `bundle.js` carries `index.ts` and the components and nothing
+  else. The stylesheet ships beside it as its own 6,569-byte file, and the
+  manifest strings go to `ControlManifest.xml` and the resx. So a CSS or
+  localisation change cannot move the bundle figure, and the solution zip is the
+  only number that responds to one (11,659 → 12,181 bytes here).
 - **No `release.artifacts` block is needed.** msbuild names the unmanaged zip
   after the project file, so it lands as `Solution.zip`, matching neither of the
   hub's default globs. The template's `release.yml` finds it by glob — every
