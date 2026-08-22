@@ -9,53 +9,114 @@ Documentation lives on [PCFHub](https://pcfhub.dev/components/pcf-kanban-board),
 from the `docs/` directory in this repository. Edit the Markdown here; the hub
 recompiles it.
 
-<!--
-  This README is for someone standing in the repository — a maintainer, or
-  somebody deciding whether to install the control. The hub publishes `docs/`,
-  not this file, so do not duplicate the documentation here.
-
-  The three sections below are the ones worth writing by hand. Everything after
-  them is the same in every repository and needs no edits.
--->
-
 ## What it does
 
-<!--
-  A few paragraphs, not a feature list. Answer what the built-in control does
-  not do, then spend the rest on the one or two decisions a reader would
-  otherwise question — the binding shape, a behaviour that looks like a bug
-  until you know why, a constraint you chose to accept.
+Binds a Dataverse view and groups its records into lanes by a choice column.
+Dragging a card into another lane writes the new option back to the record.
 
-  This is the section that saves an issue being opened.
--->
+The subgrid this replaces can show the same rows, but it cannot show them
+*arranged* by status, and changing a status through it means opening a record.
+That is the whole of the difference: the board makes the status visible as
+position, and moving a card is the edit.
+
+Three decisions a reader would otherwise question.
+
+**The lanes come from the choice column's option set, not from the data.**
+Deriving them from the loaded records is cheaper and needs no permission, but it
+cannot show a lane nothing is in yet — and a board whose empty columns are
+missing is a board nobody can move a card *into*. So the control reads the
+option set through `context.utils.getEntityMetadata`, which costs an
+install-time permission prompt and is the reason there are two. The `lanes`
+property overrides it when you want fewer lanes, a different order, or labels of
+your own.
+
+**The write is optimistic, and it rolls back.** The card lands where it was
+dropped before the round trip finishes, because nobody waits on a drag. That
+means the board briefly asserts something the data does not yet say, so the
+control keeps the moves it has claimed but not seen confirmed, retires them as
+refreshed data agrees, and puts a card back where it came from if the write is
+refused. A card sitting in a lane its record is not in is the failure worth
+designing against.
+
+**Canvas apps get a read-only board.** The Web API and the metadata call are
+both Dataverse-dependent and absent there. Both features are declared
+`required="false"` rather than `required="true"` — the difference is that the
+control renders and declines to move cards, instead of failing to load and
+leaving a blank space whose cause is one XML attribute.
+
+Every card also carries a **Move to…** menu. HTML5 drag-and-drop has no keyboard
+equivalent, so a board that only supported dragging could not be operated
+without a mouse at all.
 
 ## Properties
 
-<!--
-  The whole configuration surface, including the defaults. `docs/api.md`
-  generates its tables from the manifest; this one is hand-written, so keep it
-  short enough to stay true.
+Bind the dataset to a view, then bind the four column roles. **Lane column** and
+**Card title** are required; every column bound to a role must be in the view.
 
-  Follow it with the notes that do not fit a table: which languages the .resx
-  ship, whether the control bundles a framework or uses the platform's, and any
-  property whose accepted values need spelling out.
--->
-
-| Property | Type | Usage | Default | What it controls |
+| Role | `property-set` | Type | Required | What it is |
 | --- | --- | --- | --- | --- |
-| `value` | SingleLine.Text | bound, **required** | — | The column this control reads and writes |
+| Lane column | `statusField` | OptionSet | **yes** | The choice column that decides the lane. Its options are the lanes, and a move writes one. |
+| Card title | `titleField` | SingleLine.Text | **yes** | The card headline, and the name used when a move fails. |
+| Assignee | `assigneeField` | SingleLine.Text | no | A second line under the title. Text, not a lookup — see below. |
+| Badge | `badgeField` | SingleLine.Text | no | A short value shown as a chip. |
+
+The first column is what a maker sees in the property pane; the second is the
+name in the manifest, which is what a column carries in `alias` and what the
+code looks it up by.
+
+| Property | Type | Default | What it controls |
+| --- | --- | --- | --- |
+| `lanes` | SingleLine.Text | — | `1=New,2=Active,3=Resolved`. Overrides the option set: fixes the lanes and their order, and an option left out gets no lane. Required in canvas apps. |
+| `laneWidth` | Whole.None | `280` | Lane width in pixels. Floors at 160. |
+| `laneColors` | TwoOptions | `true` | Show each lane's option colour as a bar. No effect where the lanes did not come from the option set. |
+| `openOnCardClick` | TwoOptions | `true` | Card titles open the record. The move menu stays either way. |
+| `pageSize` | Whole.None | `50` | Records per fetch. The board loads more rather than paging; the platform clamps large values. |
+
+| Output | Type | Set when |
+| --- | --- | --- |
+| `movedRecordId` | SingleLine.Text | A card is dropped into another lane |
+| `openedRecordId` | SingleLine.Text | A card title is clicked |
+
+Both outputs are set **before** the platform call they describe, so a form can
+observe the intent even where the call does nothing — the canvas case for
+opening a record, and the failure case for a move.
+
+Notes that do not fit a table:
+
+- **Assignee and Badge are text columns.** A lookup such as `ownerid` cannot be
+  bound. In canvas, a lookup read through a dataset returns JSON rather than a
+  display name, so a lookup role would print `{"id":…}` on every card there.
+- **React and Fluent come from the platform**, not the bundle —
+  `control-type="virtual"` with `<platform-library>` entries. The shipping
+  bundle is 16 KB.
+- **Localised into five languages**: English (1033), Spanish (3082), French
+  (1036), German (1031) and Japanese (1041).
+- **Two permissions** are requested at install: `WebAPI` to write a move, and
+  `Utility` to read the option set. Both are optional features, so a host
+  without them loads the control anyway.
 
 ## On the hub
 
-<!--
-  What `demo.fidelity` is, and *why* it is that and not the next one up. A
-  `limited` demo should say which interactions do not work there; a `full` one
-  is worth explaining, because it follows from the control not reaching Web API,
-  device or navigation — which is also one fewer permission prompt for the maker
-  installing it.
+`demo.fidelity` is **`limited`**, and there are five separate reasons rather
+than one — which is why it is not `mocked`.
 
-  Mention what the presets cover. Delete this section if fidelity is `none`.
--->
+The write is mocked: the harness has no environment to update, so a card moves
+because the control places it optimistically and nothing is written. A *refused*
+move cannot be shown at all, because the mock resolves — and that rollback is
+the reason this control catches at all, so the one path most worth seeing is the
+one the demo cannot reach.
+
+Lane colours never appear, and the lanes are declared rather than derived: a
+fixture record carries one value per column with no metadata behind it, so there
+is no option set to read a colour or a label from. Both presets therefore set
+`lanes` explicitly, which means the demo also cannot show the default behaviour
+— reading the lanes from the column — that a real board uses.
+
+Load more never appears either; the harness puts every record on one page.
+
+Two presets: **Sprint board**, nine work items across three lanes with one not
+yet triaged, and **Narrow lanes, read-only cards**, the shape for a form section
+rather than a full page.
 
 ## Install
 
