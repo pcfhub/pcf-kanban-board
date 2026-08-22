@@ -9,7 +9,7 @@ import {
     MenuTrigger,
     webLightTheme,
 } from '@fluentui/react-components';
-import { Card, Lane, boardKey, cardsInLane } from './lanes';
+import { Card, Lane, boardKey, cardsInLane, withUnassigned } from './lanes';
 
 export interface IProps {
     cards: Card[];
@@ -32,6 +32,16 @@ export interface IProps {
     theme?: Record<string, string>;
     title: string;
     getString: (id: string) => string;
+    /** Label for the lane holding cards with no status value. */
+    unassignedLabel: string;
+    /** Identifies the option set being read, so the fetch re-runs only when it changes. */
+    lanesKey: string;
+    /**
+     * Fetches the lanes from the status column's option set, or `null` when
+     * there is nothing to fetch — the maker set an override, or the host has no
+     * `context.utils` (canvas).
+     */
+    loadLanes: (() => Promise<Lane[]>) | null;
     onMove: (recordId: string, toValue: number) => void;
     onOpenRecord: (id: string) => void;
     onLoadMore: () => void;
@@ -69,14 +79,68 @@ function useOptimisticLanes(
     return [overlay, place];
 }
 
+/**
+ * The lanes read from the option set, once they arrive.
+ *
+ * Held in React rather than on the control instance, because the fetch is
+ * asynchronous and `updateView` is not. Storing the answer outside React and
+ * calling `notifyOutputChanged()` does not repaint: that announces changed
+ * *outputs*, and fetching lanes changes none, so the platform never calls
+ * `updateView` again and the lanes never appear. `setState` has no such
+ * condition.
+ *
+ * Keyed on `lanesKey` — the entity and column — so switching view refetches and
+ * a re-render does not.
+ */
+function useOptionLanes(
+    lanesKey: string,
+    loadLanes: (() => Promise<Lane[]>) | null,
+): Lane[] | null {
+    const [fetched, setFetched] = React.useState<Lane[] | null>(null);
+
+    React.useEffect(() => {
+        setFetched(null);
+
+        if (!loadLanes) {
+            return undefined;
+        }
+
+        let alive = true;
+
+        void loadLanes().then((lanes) => {
+            // An empty result means the traversal found no option set, and
+            // derived lanes are a better board than none. index.ts has already
+            // warned about it.
+            if (alive && lanes.length > 0) {
+                setFetched(lanes);
+            }
+        });
+
+        // A view switched mid-flight must not be repainted by the old answer.
+        return () => {
+            alive = false;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [lanesKey]);
+
+    return fetched;
+}
+
 export function KanbanBoardControl(props: IProps): React.ReactElement | null {
-    const { cards, lanes, getString, laneWidth } = props;
+    const { cards, getString, laneWidth } = props;
     const [overlay, place] = useOptimisticLanes(cards);
+    const fromOptions = useOptionLanes(props.lanesKey, props.loadLanes);
 
     const placed = React.useMemo(
         () => cards.map((card) => (card.id in overlay ? { ...card, lane: overlay[card.id] } : card)),
         [cards, overlay],
     );
+
+    // The option set when it answered, otherwise whatever index.ts could work
+    // out synchronously — the maker's override, or lanes derived from the cards.
+    const lanes = fromOptions
+        ? withUnassigned(fromOptions, placed, props.unassignedLabel)
+        : props.lanes;
 
     const move = (recordId: string, toValue: number): void => {
         place(recordId, toValue);

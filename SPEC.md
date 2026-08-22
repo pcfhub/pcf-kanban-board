@@ -42,6 +42,27 @@ Now: the option set where it can be read, derived lanes where it cannot, and
 `required="false"` for the same reason `WebAPI` is — a host that lacks it should
 leave it absent, not refuse to load the component.
 
+**And the first attempt at that still showed one lane on a real form**, which is
+worth recording because the cause was not the metadata call.
+
+`getEntityMetadata` is asynchronous and `updateView` is not, so the answer was
+stored on the control instance and `notifyOutputChanged()` was called to get a
+repaint. That does not repaint. The call announces that *outputs* changed — and
+fetching lanes changes no output — so the platform has no reason to call
+`updateView` again. The lanes arrived and nothing rendered them.
+
+**A virtual control cannot push a render from outside React.** The fix is to
+stop trying: `index.ts` hands the component a `loadLanes` function instead of a
+result, and the component holds the answer in `useState`, where a repaint has no
+precondition. `pcf-data-table` mirrors its selection in React for the same
+underlying reason, described there as a harness quirk — it is more general than
+that.
+
+The fallback is also no longer silent. A metadata call that rejects, or returns
+a shape `optionLanes()` does not recognise, now warns to the console naming the
+entity and column, because "one lane" looks identical whether the feature is off,
+the call failed, or the traversal missed.
+
 ## Platform behaviour worth knowing
 
 **A lookup column inside a dataset returns JSON in canvas.** Read from the

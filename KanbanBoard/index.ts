@@ -82,28 +82,6 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
 
     private moveError: string | null = null;
 
-    /**
-     * The lanes read from the status column's option set, once they arrive.
-     *
-     * This is what lets an empty lane exist. Lanes derived from the loaded
-     * records can only show a status some card already has, so a view where
-     * every record shares one status produces one lane and nowhere to move to —
-     * which is what a board looks like before anyone has moved anything, not an
-     * edge case.
-     */
-    private optionLanes: Lane[] | null = null;
-
-    /**
-     * The entity and column already asked about, successful or not.
-     *
-     * `getEntityMetadata` is a promise and `updateView` is synchronous, so the
-     * answer arrives by way of `notifyOutputChanged()` and another
-     * `updateView`. Without this the second pass would ask again and each
-     * answer would trigger another pass — a request loop rather than a render
-     * loop, which is slower to notice and worse.
-     */
-    private optionsRequested = '';
-
     public init(
         _context: ComponentFramework.Context<IInputs>,
         notifyOutputChanged: () => void,
@@ -123,8 +101,6 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
         // Retire settled overrides before building the cards, so a confirmed
         // move is read from the data rather than from this control's memory.
         this.reconcile(dataset, status);
-
-        this.ensureOptionLanes(context, dataset, status);
 
         const cards = this.cards(dataset, status, title);
         const getString = (id: string): string => context.resources.getString(id);
@@ -152,6 +128,9 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
             theme: context.fluentDesignLanguage?.tokenTheme,
             title: dataset.getTitle(),
             getString,
+            unassignedLabel: getString('KanbanBoard_Unassigned'),
+            lanesKey: status ? `${dataset.getTargetEntityType()}:${status.name}` : '',
+            loadLanes: this.laneLoader(context, dataset, status),
             onMove: (recordId: string, toValue: number): void =>
                 this.moveCard(context, dataset, recordId, toValue),
             onOpenRecord: (id: string): void => this.openRecord(dataset, id),
@@ -299,53 +278,70 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
     }
 
     /**
-     * Ask the platform for the status column's options, once.
+     * A function the component can call to fetch the status column's options,
+     * or `null` when there is nothing to fetch.
      *
-     * Model-driven only — `context.utils` is a Dataverse-dependent surface and
-     * is absent in canvas, which is why the manifest declares `Utility` as
-     * `required="false"`. That costs nothing a canvas app had: without
-     * `WebAPI` the board is read-only there anyway, and a lane nobody can move
-     * a card into is decoration.
+     * **This is handed over rather than resolved here, and that is the whole
+     * point.** `getEntityMetadata` is asynchronous and `updateView` is not, so
+     * an earlier version stored the answer on this instance and called
+     * `notifyOutputChanged()` to get a repaint. That does not work: the call
+     * announces that *outputs* changed, and these outputs did not, so the
+     * platform has no reason to call `updateView` again. The lanes arrived and
+     * nothing re-rendered.
      *
-     * Failure is deliberately silent. Derived lanes are a working board, just a
-     * smaller one, and an error banner about metadata would be noise on a host
-     * that was never going to answer.
+     * React's own state does not have that problem. The component holds the
+     * result and `setState` repaints unconditionally, whatever the host does —
+     * which is also why `pcf-data-table` mirrors its selection in React rather
+     * than trusting a repaint.
+     *
+     * Model-driven only: `context.utils` is Dataverse-dependent and absent in
+     * canvas, which is why the manifest declares `Utility` as
+     * `required="false"`. It costs canvas nothing — without `WebAPI` the board
+     * is read-only there, and a lane nobody can move a card into is decoration.
      */
-    private ensureOptionLanes(
+    private laneLoader(
         context: ComponentFramework.Context<IInputs>,
         dataset: DataSet,
         status: Column | undefined,
-    ): void {
-        if (!status) {
-            return;
+    ): (() => Promise<Lane[]>) | null {
+        const override = (context.parameters.lanes.raw ?? '').trim();
+
+        if (override !== '' || !status || typeof context.utils?.getEntityMetadata !== 'function') {
+            return null;
         }
 
         const entity = dataset.getTargetEntityType();
-        const key = `${entity}:${status.name}`;
+        const column = status.name;
 
-        if (this.optionsRequested === key || typeof context.utils?.getEntityMetadata !== 'function') {
-            return;
-        }
+        return (): Promise<Lane[]> =>
+            context.utils
+                .getEntityMetadata(entity, [column])
+                .then((metadata: unknown) => {
+                    const lanes = optionLanes(metadata, column);
 
-        this.optionsRequested = key;
+                    if (lanes.length === 0) {
+                        // Loud, because the fallback is silent and looks like
+                        // the feature is off rather than like a shape this code
+                        // did not recognise. See optionLanes() and SPEC.md.
+                        console.warn(
+                            `KanbanBoard: read metadata for ${entity}.${column} but found no option set in it. ` +
+                            'Falling back to lanes derived from the loaded records. Set the Lanes property to ' +
+                            'list them explicitly.',
+                            metadata,
+                        );
+                    }
 
-        void context.utils
-            .getEntityMetadata(entity, [status.name])
-            .then((metadata: unknown) => {
-                const lanes = optionLanes(metadata, status.name);
+                    return lanes;
+                })
+                .catch((error: unknown) => {
+                    console.warn(
+                        `KanbanBoard: could not read metadata for ${entity}.${column}. ` +
+                        'Falling back to lanes derived from the loaded records.',
+                        error,
+                    );
 
-                // Only take the answer if it has something in it: an empty
-                // result means the traversal missed, and derived lanes are a
-                // better board than no lanes.
-                if (lanes.length > 0) {
-                    this.optionLanes = lanes;
-                    this.notifyOutputChanged();
-                }
-            })
-            .catch(() => {
-                // Stays on derived lanes. `optionsRequested` is already set, so
-                // this is not retried on every render.
-            });
+                    return [];
+                });
     }
 
     /**
@@ -362,17 +358,17 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
         const spec = (context.parameters.lanes.raw ?? '').trim();
 
         /*
-         * Three sources, in order of how much they know.
+         * The lanes that can be worked out *synchronously*: the maker's
+         * override if there is one, otherwise the values the loaded cards
+         * happen to have.
          *
-         * The maker's override wins outright — it is the only one that can say
-         * "these four, in this order, and not the fifth". Then the option set,
-         * which knows every lane including the empty ones. Derived lanes are
-         * the floor: all a canvas app can have, and all any host has until the
-         * metadata call comes back.
+         * The option set is the better answer and cannot be had from here — it
+         * arrives from a promise, so the component fetches it through
+         * `loadLanes` and prefers it over this once it lands. What this returns
+         * is the floor: what a canvas app gets permanently, and what any host
+         * shows for the moment before the metadata call comes back.
          */
-        const declared = spec !== ''
-            ? parseLanes(spec)
-            : this.optionLanes ?? deriveLanes(cards);
+        const declared = spec !== '' ? parseLanes(spec) : deriveLanes(cards);
 
         return withUnassigned(declared, cards, getString('KanbanBoard_Unassigned'));
     }
