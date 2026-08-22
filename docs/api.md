@@ -58,11 +58,16 @@ refused, the card returns to its original lane and the output still names it.
 
 ## The lanes property
 
-Left empty, the lanes are the distinct values present in the loaded records,
-ordered by option value. That is right most of the time and has one thing it
-cannot do: show a lane no record is currently in.
+Left empty, the board asks the platform for the choice column's options and
+shows every lane, in the order the option set defines — including lanes nothing
+is in yet. That is the default because it needs no configuration and is what a
+board should do.
 
-Set it to fix both the set and the order:
+Where that call is unavailable — canvas apps, which have no
+`context.utils` — the lanes fall back to the distinct values present in the
+loaded records, ordered by value. That cannot show an empty lane.
+
+Set the property to fix both the set and the order yourself:
 
 ```text
 1=New,2=Active,3=Resolved

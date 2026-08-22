@@ -109,7 +109,7 @@
     <value>Carriles</value>
   </data>
   <data name="Lanes_Desc" xml:space="preserve">
-    <value>Opcional. "1=Nuevo,2=Activo,3=Resuelto" fija los carriles y su orden, incluidos los carriles en los que no hay ningún registro. Si se deja vacío, los carriles son los valores presentes en la vista.</value>
+    <value>Opcional. Si se deja vacío, los carriles son las propias opciones de la columna de carril, incluidas aquellas en las que no hay ningún registro. Indíquelo — "1=Nuevo,2=Activo,3=Resuelto" — para fijar usted mismo los carriles y su orden. Obligatorio en aplicaciones de lienzo, donde no se pueden leer las opciones.</value>
   </data>
 
   <data name="LaneWidth_Name" xml:space="preserve">

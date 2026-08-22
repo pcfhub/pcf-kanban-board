@@ -20,15 +20,18 @@ it has no way to write back to.
 
 Working through the likely causes in order:
 
-1. **There is only one lane, so there is nowhere to move it to.** This is the
-   commonest cause and the least obvious, because the board looks fine: the
-   cards render, the ⋯ menu opens, and it lists nothing. Lanes are derived from
-   the values present in the loaded records, so a view where every record shares
-   a status produces exactly one lane — and a board with one lane cannot move
-   anything, by drag or by menu.
+1. **There is only one lane, so there is nowhere to move it to.** The board
+   looks fine — cards render, the ⋯ menu opens — and the menu lists nothing.
 
-   Set the **Lanes** property to declare every status explicitly, including the
-   ones nothing is in yet:
+   On a model-driven form this should not happen: the board reads the choice
+   column's options and shows every lane. If it does, the metadata call did not
+   answer, and the board fell back to deriving lanes from the records it loaded
+   — which on a view where every record shares a status is exactly one lane.
+
+   In a **canvas app** it is expected, because the metadata call does not exist
+   there. Cards cannot be moved in canvas either way.
+
+   The fix in both cases is to declare the lanes yourself:
 
    ```text
    1=New,2=Active,3=Resolved
@@ -46,9 +49,15 @@ Working through the likely causes in order:
 
 ## Why is there no lane for one of my choice options?
 
-Lanes are derived from the values present in the loaded records, so an option
-nothing is currently set to has nothing to derive from. Set the **Lanes**
-property to declare them explicitly — see [Examples](examples.md).
+In a model-driven app there should be: the board reads the column's option set,
+so an option nothing is set to still gets a lane. If one is missing, either the
+metadata call did not answer and the board is deriving lanes from the records
+instead, or the **Lanes** property is set and does not list that option —
+setting it fixes the lanes completely, so an option left out of it has no lane
+by design.
+
+In a canvas app the metadata call does not exist, so lanes are always derived.
+See [Examples](examples.md).
 
 ## Can I reorder cards inside a lane?
 

@@ -62,6 +62,18 @@ The view's own column order, widths and hidden flags are ignored — a board has
 no columns to lay out. What the view *does* control is which records appear and
 what order the cards sit in within each lane.
 
+## Where the lanes come from
+
+By default the board reads the **Lane column**'s option set through
+`context.utils.getEntityMetadata` and shows every option as a lane, in the
+order the option set defines. Nothing needs configuring, and a lane nothing is
+in yet still appears — which is what makes a new board usable before anyone has
+moved a card.
+
+Set the **Lanes** property when you want fewer lanes than the column has, a
+different order, or labels of your own. It fixes the set completely: an option
+left out of it gets no lane.
+
 ## The command bar
 
 The subgrid's command bar, view selector and quick find are all off. The

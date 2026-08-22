@@ -109,7 +109,7 @@
     <value>Lanes</value>
   </data>
   <data name="Lanes_Desc" xml:space="preserve">
-    <value>Optional. "1=New,2=Active,3=Resolved" fixes the lanes and their order, including lanes no record is currently in. Left empty, the lanes are the values present in the view.</value>
+    <value>Optional. Left empty, the lanes are the Lane column’s own options, including ones no record is in yet. Set it — "1=New,2=Active,3=Resolved" — to fix the lanes and their order yourself. Required in canvas apps, where the options cannot be read.</value>
   </data>
 
   <data name="LaneWidth_Name" xml:space="preserve">

@@ -29,11 +29,19 @@ value. Bound to a text column, every card shows as *Unassigned*: a label is not
 an option number, and the control will not invent a lane it has no way to write
 back.
 
-## A lane with no cards does not appear on its own
+## In a canvas app, a lane with no cards does not appear
 
-Lanes are derived from the values actually present in the loaded records, so an
-empty lane has nothing to derive from. Set the **Lanes** property to declare
-them explicitly — that is what it is for.
+In a model-driven app the board reads the choice column's options and shows
+every lane, including the ones nothing is in yet. That call —
+`context.utils.getEntityMetadata` — is Dataverse-dependent and absent in canvas
+apps, so a canvas board falls back to deriving lanes from the records it loaded
+and an empty lane has nothing to derive from.
+
+It costs a canvas app nothing it had: without the Web API the board is read-only
+there anyway, and a lane no card can be moved into is decoration.
+
+Set the **Lanes** property to declare lanes explicitly if you need them in
+canvas, or to fix their order and hide options the board should not offer.
 
 ## No swimlanes, no sorting, no selection
 

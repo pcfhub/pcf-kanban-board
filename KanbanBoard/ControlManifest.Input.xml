@@ -86,11 +86,18 @@
       needs to show, so this is the escape hatch: "1=New,2=Active,3=Resolved"
       fixes both the set and the order.
 
-      A plain text input rather than a metadata lookup. Reading the option set
-      through context.utils.getEntityMetadata would give every lane in the
-      maker's own order, and costs a second install-time permission prompt plus
-      a code path that does not exist in canvas or in the hub's demo harness.
-      The trade is deliberate; see SPEC.md.
+      Left empty the board now reads the option set through
+      context.utils.getEntityMetadata, so every lane appears including the empty
+      ones and a new board is usable without configuring anything. This property
+      is the override: fewer lanes than the column has, a different order, or
+      labels of your own.
+
+      That metadata call was rejected once, on the grounds that it costs a
+      second install-time permission prompt and does not exist in canvas. The
+      second half was wrong. WebAPI does not exist in canvas either, so the
+      board is read-only there whatever this control does — declining the call
+      bought canvas nothing and cost model-driven the behaviour that makes the
+      board work at all. See SPEC.md.
     -->
     <property name="lanes"
               display-name-key="Lanes_Name"
@@ -189,6 +196,7 @@
     -->
     <feature-usage>
       <uses-feature name="WebAPI" required="false" />
+      <uses-feature name="Utility" required="false" />
     </feature-usage>
   </control>
 </manifest>

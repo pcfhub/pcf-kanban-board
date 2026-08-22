@@ -109,7 +109,7 @@
     <value>Couloirs</value>
   </data>
   <data name="Lanes_Desc" xml:space="preserve">
-    <value>Facultatif. « 1=Nouveau,2=Actif,3=Résolu » fixe les couloirs et leur ordre, y compris ceux où aucun enregistrement ne se trouve. Laissé vide, les couloirs sont les valeurs présentes dans la vue.</value>
+    <value>Facultatif. Laissé vide, les couloirs sont les options de la colonne de couloir elle-même, y compris celles où aucun enregistrement ne se trouve. Renseignez-le — « 1=Nouveau,2=Actif,3=Résolu » — pour fixer vous-même les couloirs et leur ordre. Obligatoire dans les applications canevas, où les options ne peuvent pas être lues.</value>
   </data>
 
   <data name="LaneWidth_Name" xml:space="preserve">

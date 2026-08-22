@@ -153,3 +153,107 @@ export function cardsInLane(cards: Card[], lane: Lane): Card[] {
 export function boardKey(cards: Card[]): string {
     return cards.map((card) => `${card.id}:${card.lane ?? ''}`).join('|');
 }
+
+/**
+ * Lanes from a choice column's option set, as returned by
+ * `context.utils.getEntityMetadata(entityName, [columnName])`.
+ *
+ * This is the only way to learn about a lane no record is in — a dataset
+ * `Column` carries `name`, `displayName`, `dataType`, `alias`, `order`,
+ * `visualSizeFactor`, `isHidden`, `isPrimary` and `disableSorting`, and nothing
+ * about options. Deriving lanes from the loaded records therefore cannot show
+ * an empty one, which on a new board means every card sits in one lane with
+ * nowhere to move to.
+ *
+ * **Written defensively on purpose.** `EntityMetadata` is typed
+ * `{ [key: string]: any }`, so nothing here is checked by the compiler and the
+ * exact traversal is not pinned down by the documentation either. Each step
+ * accepts the shapes that are plausible — a collection with `get()`, an array,
+ * or a plain object — and the whole thing returns `[]` rather than throwing if
+ * none of them match, so a surprise degrades to derived lanes instead of an
+ * empty board.
+ *
+ * Verify this against a real form before trusting it. See SPEC.md.
+ */
+export function optionLanes(metadata: unknown, columnName: string): Lane[] {
+    const attribute = pick(get(metadata, 'Attributes'), columnName, 'LogicalName');
+
+    if (!attribute) {
+        return [];
+    }
+
+    const optionSet = get(attribute, 'OptionSet');
+    const raw = callable(optionSet, 'getOptions') ?? get(optionSet, 'Options') ?? optionSet;
+
+    if (!Array.isArray(raw)) {
+        return [];
+    }
+
+    const lanes: Lane[] = [];
+
+    for (const option of raw) {
+        const value = get(option, 'Value');
+        const label = labelOf(option);
+
+        if (typeof value === 'number' && Number.isInteger(value)) {
+            lanes.push({ value, label: label || String(value) });
+        }
+    }
+
+    return lanes;
+}
+
+/** An option's label, which is either a string or a localised label object. */
+function labelOf(option: unknown): string {
+    const label = get(option, 'Label');
+
+    if (typeof label === 'string') {
+        return label;
+    }
+
+    const localised = get(get(label, 'UserLocalizedLabel'), 'Label');
+
+    return typeof localised === 'string' ? localised : '';
+}
+
+/** One member of an untyped bag, without asserting the bag has a shape. */
+function get(source: unknown, key: string): unknown {
+    if (typeof source !== 'object' || source === null) {
+        return undefined;
+    }
+
+    return (source as Record<string, unknown>)[key];
+}
+
+/** Call `name` on `source` if it is a function, otherwise `undefined`. */
+function callable(source: unknown, name: string): unknown {
+    const fn = get(source, name);
+
+    return typeof fn === 'function' ? (fn as () => unknown).call(source) : undefined;
+}
+
+/**
+ * Find `wanted` in a collection that may be a Dataverse metadata collection
+ * (`get(name)`), an array of objects keyed by `keyField`, or a plain object.
+ */
+function pick(collection: unknown, wanted: string, keyField: string): unknown {
+    const viaGet = get(collection, 'get');
+
+    if (typeof viaGet === 'function') {
+        try {
+            const found = (viaGet as (k: string) => unknown).call(collection, wanted);
+
+            if (found) {
+                return found;
+            }
+        } catch {
+            // Fall through to the other shapes.
+        }
+    }
+
+    if (Array.isArray(collection)) {
+        return collection.find((entry) => get(entry, keyField) === wanted);
+    }
+
+    return get(collection, wanted);
+}

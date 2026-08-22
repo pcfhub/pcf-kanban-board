@@ -20,6 +20,28 @@ definitions rather than about the host.
 
 → Promoted to the skill: `control-patterns.md`, *Feature usage*.
 
+## The lane default was wrong, and why
+
+The first version derived lanes only from the values present in the loaded
+records, with the `lanes` property as the escape hatch. The metadata call was
+rejected on the grounds that it costs a second install-time permission prompt
+and does not exist in canvas.
+
+The second half of that was wrong, and it is the half the decision rested on.
+`WebAPI` does not exist in canvas either, so the board is read-only there
+whatever this control does — a lane nobody can move a card into is decoration.
+Declining `Utility` bought canvas nothing and cost model-driven the behaviour
+that makes a board a board.
+
+What it looked like in practice, on a real form: every task in one status, so
+one derived lane, so no drop target and a move menu that opened empty. Not an
+edge case — that is what a board looks like before anyone has moved anything.
+
+Now: the option set where it can be read, derived lanes where it cannot, and
+`lanes` as an override for a subset or a custom order. `Utility` is declared
+`required="false"` for the same reason `WebAPI` is — a host that lacks it should
+leave it absent, not refuse to load the component.
+
 ## Platform behaviour worth knowing
 
 **A lookup column inside a dataset returns JSON in canvas.** Read from the
@@ -82,6 +104,16 @@ this repository, and the first one is load-bearing.
   demo harness's mock resolves, and no real environment has refused one yet.
 - **That the canvas lookup-JSON behaviour above is real.** Read from
   documentation; nobody has put a lookup role on this board and looked.
+- **That the option-set traversal in `optionLanes()` matches what
+  `getEntityMetadata` actually returns.** `EntityMetadata` is typed
+  `{ [key: string]: any }`, so the compiler checks none of it and the docs do
+  not pin the shape down either. The code accepts a collection with `get()`, an
+  array keyed by `LogicalName`, or a plain object, and treats a label as either
+  a string or a `UserLocalizedLabel`. If every branch misses it returns `[]`
+  and the board falls back to derived lanes — a smaller board, not a broken
+  one — so the failure mode is safe but silent. **This is the first thing to
+  check on a real form**, because it is the difference between a board that
+  works out of the box and one that needs Lanes set every time.
 
 Still open, separately: `overview.md` has no screenshot, and `media/` carries
 the template's placeholder logo.
