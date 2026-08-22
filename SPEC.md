@@ -49,8 +49,8 @@ one. The way out is a number from outside it —
 call it is not provided. Guard the value: `-1` means no limit and `0` means not
 yet laid out, and neither is a width to pin anything to.
 
-→ Worth promoting to the skill: any dataset control wider than its container
-has this problem, and a table with many columns has it too.
+→ Promoted to the skill: `control-patterns.md`, *Scrolling wider than the
+container*, plus two review-checklist items.
 
 ## Reading the option set: what has actually been tried
 
