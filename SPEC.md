@@ -156,14 +156,15 @@ this repository, and the first one is load-bearing.
   demo harness's mock resolves, and no real environment has refused one yet.
 - **That the canvas lookup-JSON behaviour above is real.** Read from
   documentation; nobody has put a lookup role on this board and looked.
-- **That `optionLanes()` finds the option set in what `getEntityMetadata`
-  returns on this tenant.** Tested against nine candidate shapes offline —
-  `Attributes` as an array, keyed by logical name, or reachable only through a
-  `get()` method; options under `OptionSet.Options`, `attributeDescriptor`, or
-  duplicated across `OptionSet` and `GlobalOptionSet`; labels plain, or wrapped
-  in `UserLocalizedLabel` or `LocalizedLabels`. Six found, and the three that
-  should refuse did. That is coverage of the shapes I could think of, not proof
-  about the one Dataverse sends.
+- **That the direct read holds on any entity but the one it was seen on.**
+  `optionLanes()` now reads
+  `metadata.Attributes.get(column).OptionSet.Options` and does not search. Only
+  the first hop was ever observed; the rest is what the type definitions and the
+  Client API reference describe, so each hop tolerates two or three cheap
+  spellings and the whole thing returns `[]` on a miss. Confirmed working
+  against `cll_task.cll_status` on a real form, and against ten shapes offline.
+  A different entity failing here is the most likely regression, which is why
+  the console still prints `describeShape()` beside the fallback.
 
 Still open, separately: `overview.md` has no screenshot, and `media/` carries
 the template's placeholder logo.

@@ -165,65 +165,46 @@ export function boardKey(cards: Card[]): string {
 }
 
 /**
- * Lanes from a choice column's option set, out of whatever
- * `context.utils.getEntityMetadata(entityName, [columnName])` returned.
+ * Lanes from a choice column's option set.
  *
- * This is the only way to learn about a lane no record is in — a dataset
- * `Column` carries `name`, `displayName`, `dataType`, `alias`, `order`,
- * `visualSizeFactor`, `isHidden`, `isPrimary` and `disableSorting`, and nothing
- * about options.
+ * Reads the route observed on a real form and nothing else:
  *
- * **It searches for a shape rather than walking a path**, and that is a
- * deliberate second attempt. `EntityMetadata` is typed `{ [key: string]: any }`,
- * the documentation describes the Client API's shape rather than this one, and a
- * first version that walked `Attributes` → `OptionSet` → `Options` found
- * nothing against a real form. Guessing a longer path is the same bet again.
+ *   metadata.Attributes.get(columnName).OptionSet.Options
  *
- * What is *not* a guess is the target. The type definitions pin it down:
- * `OptionSetMetadata` is `{ Options: OptionMetadata[] }` and `OptionMetadata` is
- * `{ Label: string; Value: number; Color: string }`. So this looks for an array
- * whose members have a numeric `Value` and a `Label`, wherever it sits.
+ * **The first hop is the one that is not obvious.** `getEntityMetadata`
+ * resolves with a class instance, not a plain object: its own enumerable
+ * properties are private fields — `_entityDescriptor`, `_entityType`,
+ * `_attributes` (the column names that were *asked for*, not their metadata) —
+ * and `Attributes` is a getter on the prototype. So `Object.keys` and
+ * `Object.values` cannot see it, and two earlier versions of this function
+ * walked the object, found the private fields, and concluded the entity had no
+ * attributes. Reading it by name works, because property access traverses the
+ * prototype chain even though enumeration does not.
  *
- * Scoped, not blind: it first finds the node describing this column — an object
- * whose `LogicalName` or `name` matches — and searches inside that. Only if the
- * column cannot be found does it search the whole document, and then only
- * accepts an unambiguous answer, because `statecode` and `statuscode` both carry
- * option sets and picking the wrong one silently would be worse than falling
- * back to derived lanes.
+ * Each hop tolerates the two or three cheap variations of its shape rather than
+ * insisting on one spelling, because only the first hop was ever observed
+ * directly — the rest is what the type definitions and the Client API reference
+ * describe. What it does *not* do any more is search: a recursive walk for
+ * anything that looked like an option set found the right answer here and could
+ * find the wrong one elsewhere, and it cost more bytes than the certainty was
+ * worth.
+ *
+ * Returns `[]` on any miss, which the caller reports and falls back to lanes
+ * derived from the loaded records. That path is a smaller board, not a broken
+ * one — but it is invisible, so the caller logs `describeShape()` beside it.
  */
 export function optionLanes(metadata: unknown, columnName: string): Lane[] {
-    const column = findColumnNode(metadata, columnName);
+    const attribute = attributeOf(metadata, columnName);
+    const optionSet = get(attribute, 'OptionSet') ?? get(attribute, 'attributeDescriptor');
+    const options = get(optionSet, 'Options') ?? optionSet;
 
-    /*
-     * No column, no lanes.
-     *
-     * An earlier version fell back to searching the whole document and taking
-     * the answer when exactly one option set turned up. That is a guess wearing
-     * a safety check: on a table where only `statecode` carries options it
-     * would confidently group the board by the wrong column. Derived lanes are
-     * the honest fallback, and the console says why.
-     */
-    if (!column) {
-        return [];
-    }
-
-    /*
-     * The first option array inside the column's own node.
-     *
-     * Not the only one, deliberately: an attribute commonly carries the same
-     * options twice, under `OptionSet` and again under `GlobalOptionSet`.
-     * Inside a node that is already known to describe this column, either is
-     * the right answer.
-     */
-    const chosen = findOptionArray(column);
-
-    if (!chosen) {
+    if (!Array.isArray(options)) {
         return [];
     }
 
     const lanes: Lane[] = [];
 
-    for (const option of chosen) {
+    for (const option of options) {
         const value = get(option, 'Value');
 
         if (typeof value === 'number' && Number.isInteger(value)) {
@@ -239,12 +220,44 @@ export function optionLanes(metadata: unknown, columnName: string): Lane[] {
 }
 
 /**
- * A compact description of what came back, for the console when the search
- * finds nothing.
+ * The metadata for one column, out of the `Attributes` collection.
  *
- * Prints structure rather than content: the keys at each level, and the type of
- * each. Enough to write the next version of `optionLanes()` from, without
- * dumping an entity's entire metadata into a log.
+ * A Dataverse metadata collection answers `get(name)`. The array and
+ * keyed-object forms cost a line each and cover a collection that arrived as
+ * plain data instead.
+ */
+function attributeOf(metadata: unknown, columnName: string): unknown {
+    const attributes = get(metadata, 'Attributes');
+    const getter = get(attributes, 'get');
+
+    if (typeof getter === 'function') {
+        try {
+            const found = (getter as (name: string) => unknown).call(attributes, columnName);
+
+            if (found) {
+                return found;
+            }
+        } catch {
+            // Not that kind of collection.
+        }
+    }
+
+    if (Array.isArray(attributes)) {
+        return attributes.find((entry) => get(entry, 'LogicalName') === columnName);
+    }
+
+    return get(attributes, columnName);
+}
+
+/**
+ * A compact description of what came back, for the console when the read finds
+ * nothing.
+ *
+ * Kept even though nothing calls it on the happy path, because it is what
+ * turned two blind install-and-test cycles into one. It reports structure
+ * rather than content — keys and their types — and **includes prototype
+ * getters**, or it would describe a different object than the one the read
+ * failed on: private fields, and none of the public API.
  */
 export function describeShape(value: unknown, depth = 0): string {
     if (depth > 4) {
@@ -259,7 +272,7 @@ export function describeShape(value: unknown, depth = 0): string {
         return typeof value;
     }
 
-    const keys = readableKeys(value as object);
+    const keys = readableKeys(value);
 
     if (keys.length === 0) {
         return '{}';
@@ -267,11 +280,11 @@ export function describeShape(value: unknown, depth = 0): string {
 
     const shown = keys.slice(0, 12);
     const body = shown
-        .map((k) => {
+        .map((key) => {
             try {
-                return `${k}: ${describeShape((value as Record<string, unknown>)[k], depth + 1)}`;
+                return `${key}: ${describeShape((value as Record<string, unknown>)[key], depth + 1)}`;
             } catch {
-                return `${k}: <threw>`;
+                return `${key}: <threw>`;
             }
         })
         .join(', ');
@@ -279,181 +292,7 @@ export function describeShape(value: unknown, depth = 0): string {
     return `{ ${body}${keys.length > shown.length ? `, …+${keys.length - shown.length}` : ''} }`;
 }
 
-/**
- * The node describing `columnName`, by whichever key the platform used.
- *
- * Two ways to be found, because metadata collections come in two flavours. Most
- * are plain objects or arrays and turn up in the walk. Some expose their
- * contents *only* through a `get(name)` method, and those are invisible to
- * `Object.values` — a walk alone would report the column missing on a shape
- * where it is perfectly available.
- */
-function findColumnNode(root: unknown, columnName: string): unknown {
-    /*
-     * The route actually observed on a real form, tried first.
-     *
-     * `getEntityMetadata` resolves with a class instance whose `Attributes` is
-     * a prototype getter, and the collection it returns answers `get(name)`.
-     * Going straight there is one property read and one call instead of a walk
-     * over an entity's whole metadata, on every view switch.
-     *
-     * The walk below stays because this is the only level anyone has *seen*.
-     * The two versions before this one collapsed to a path that looked right
-     * and was not, and each cost an install-and-test cycle to disprove.
-     */
-    const direct = get(get(root, 'Attributes'), 'get');
-
-    if (typeof direct === 'function') {
-        try {
-            const found = (direct as (name: string) => unknown).call(get(root, 'Attributes'), columnName);
-
-            if (typeof found === 'object' && found !== null) {
-                return found;
-            }
-        } catch {
-            // Not that kind of collection. Fall through to the walk.
-        }
-    }
-
-    let match: unknown = null;
-
-    walk(root, (node) => {
-        if (match) {
-            return;
-        }
-
-        for (const key of ['LogicalName', 'logicalName', 'name', 'Name']) {
-            if (get(node, key) === columnName) {
-                match = node;
-                return;
-            }
-        }
-
-        const getter = node.get;
-
-        if (typeof getter === 'function') {
-            try {
-                const found = (getter as (name: string) => unknown).call(node, columnName);
-
-                if (typeof found === 'object' && found !== null) {
-                    match = found;
-                }
-            } catch {
-                // A `get` that is not this kind of getter. Keep walking.
-            }
-        }
-    });
-
-    return match;
-}
-
-/** The first array that looks like an option set, anywhere under `root`. */
-function findOptionArray(root: unknown): unknown[] | undefined {
-    let found: unknown[] | undefined;
-
-    walk(root, (node) => {
-        if (found) {
-            return;
-        }
-
-        for (const key of readableKeys(node)) {
-            try {
-                const value = node[key];
-
-                if (isOptionArray(value)) {
-                    found = value;
-                    return;
-                }
-            } catch {
-                // An accessor that throws when read.
-            }
-        }
-    });
-
-    return found;
-}
-
-/**
- * An array of `{ Value: number, Label: … }`.
- *
- * Every member must qualify, not just the first: an array of mixed shapes is
- * something else that happens to start like an option set.
- */
-function isOptionArray(value: unknown): value is unknown[] {
-    if (!Array.isArray(value) || value.length === 0) {
-        return false;
-    }
-
-    return value.every((entry) => {
-        const optionValue = get(entry, 'Value');
-
-        return typeof optionValue === 'number' && get(entry, 'Label') !== undefined;
-    });
-}
-
-/**
- * Visit every object under `root`, breadth-first and bounded.
- *
- * **Prototype accessors are followed, and that is the whole reason this works.**
- * What `getEntityMetadata` resolves with is a class instance, not a plain bag:
- * its own enumerable properties are private fields — `_entityDescriptor`,
- * `_entityType`, `_attributes` (which holds the column *names* that were asked
- * for, not their metadata) — while the public `Attributes` is a getter on the
- * prototype. `Object.keys` and `Object.values` do not enumerate prototype
- * getters, so a walk built on them sees the private fields, misses the public
- * API entirely, and reports that the entity has no attributes.
- *
- * Reading a getter can run code, so every read is guarded: a throwing accessor
- * is skipped rather than failing the search.
- *
- * Metadata can also contain cycles and is large, so this tracks what it has
- * seen and stops after a fixed number of nodes.
- */
-function walk(root: unknown, visit: (node: Record<string, unknown>) => void): void {
-    const seen = new Set<unknown>();
-    const queue: unknown[] = [root];
-    let budget = 20000;
-
-    while (queue.length > 0 && budget > 0) {
-        const node = queue.shift();
-        budget -= 1;
-
-        if (typeof node !== 'object' || node === null || seen.has(node)) {
-            continue;
-        }
-
-        seen.add(node);
-
-        if (Array.isArray(node)) {
-            queue.push(...node);
-            continue;
-        }
-
-        const record = node as Record<string, unknown>;
-
-        visit(record);
-
-        for (const key of readableKeys(node)) {
-            try {
-                const value = record[key];
-
-                if (typeof value === 'object' && value !== null) {
-                    queue.push(value);
-                }
-            } catch {
-                // An accessor that throws when read. Nothing to follow.
-            }
-        }
-    }
-}
-
-/**
- * Every key worth reading on `node`: its own, plus the accessors its prototype
- * chain declares.
- *
- * Stops before `Object.prototype`, whose members are not data, and skips
- * anything already declared nearer the instance so a getter is read once.
- */
+/** Own keys, plus the accessors the prototype chain declares. */
 function readableKeys(node: object): string[] {
     const keys = new Set<string>(Object.keys(node));
 
@@ -461,16 +300,9 @@ function readableKeys(node: object): string[] {
 
     while (proto && proto !== Object.prototype) {
         for (const key of Object.getOwnPropertyNames(proto)) {
-            if (key === 'constructor') {
-                continue;
-            }
-
             const descriptor = Object.getOwnPropertyDescriptor(proto, key);
 
-            // Getters only. A plain method on the prototype is behaviour, and
-            // calling arbitrary methods to see what falls out is a different
-            // and much worse idea.
-            if (descriptor && typeof descriptor.get === 'function') {
+            if (key !== 'constructor' && descriptor && typeof descriptor.get === 'function') {
                 keys.add(key);
             }
         }
@@ -484,10 +316,9 @@ function readableKeys(node: object): string[] {
 /**
  * A colour if it is one, otherwise `null`.
  *
- * Validated rather than trusted. The value goes into an inline style, and
- * `EntityMetadata` is untyped — so anything that is not plainly a hex colour is
- * dropped instead of handed to the browser to interpret. Dataverse returns
- * `#rrggbb`; the short form is accepted because it costs nothing to.
+ * Validated rather than trusted. The value goes into an inline style and
+ * `EntityMetadata` is untyped, so anything that is not plainly a hex colour is
+ * dropped instead of handed to the browser to interpret.
  */
 function hexColor(value: unknown): string | null {
     if (typeof value !== 'string') {
@@ -499,7 +330,7 @@ function hexColor(value: unknown): string | null {
     return /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(trimmed) ? trimmed : null;
 }
 
-/** An option's label, which is either a string or a localised label object. */
+/** An option's label, plain or wrapped in a localised label object. */
 function labelOf(option: unknown): string {
     const label = get(option, 'Label');
 
@@ -507,19 +338,16 @@ function labelOf(option: unknown): string {
         return label;
     }
 
-    for (const path of [['UserLocalizedLabel', 'Label'], ['LocalizedLabels', '0', 'Label']]) {
-        let node: unknown = label;
+    const user = get(get(label, 'UserLocalizedLabel'), 'Label');
 
-        for (const step of path) {
-            node = Array.isArray(node) ? node[Number(step)] : get(node, step);
-        }
-
-        if (typeof node === 'string') {
-            return node;
-        }
+    if (typeof user === 'string') {
+        return user;
     }
 
-    return '';
+    const localised = get(label, 'LocalizedLabels');
+    const first = Array.isArray(localised) ? get(localised[0], 'Label') : undefined;
+
+    return typeof first === 'string' ? first : '';
 }
 
 /** One member of an untyped bag, without asserting the bag has a shape. */
