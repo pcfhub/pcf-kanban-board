@@ -80,6 +80,47 @@
     <value>Records</value>
   </data>
 
+  <data name="StatusField_Name" xml:space="preserve">
+    <value>Lane column</value>
+  </data>
+  <data name="TitleField_Name" xml:space="preserve">
+    <value>Card title</value>
+  </data>
+  <data name="AssigneeField_Name" xml:space="preserve">
+    <value>Assignee</value>
+  </data>
+  <data name="BadgeField_Name" xml:space="preserve">
+    <value>Badge</value>
+  </data>
+
+  <data name="Lanes_Name" xml:space="preserve">
+    <value>Lanes</value>
+  </data>
+  <data name="Lanes_Desc" xml:space="preserve">
+    <value>Optional. "1=New,2=Active,3=Resolved" fixes the lanes and their order, including lanes no record is currently in. Left empty, the lanes are the values present in the view.</value>
+  </data>
+
+  <data name="LaneWidth_Name" xml:space="preserve">
+    <value>Lane width</value>
+  </data>
+  <data name="LaneWidth_Desc" xml:space="preserve">
+    <value>Width of each lane in pixels.</value>
+  </data>
+
+  <data name="OpenOnCardClick_Name" xml:space="preserve">
+    <value>Open on card click</value>
+  </data>
+  <data name="OpenOnCardClick_Desc" xml:space="preserve">
+    <value>Clicking a card opens its record. The move menu and drag handle stay available either way.</value>
+  </data>
+
+  <data name="MovedRecordId_Name" xml:space="preserve">
+    <value>Moved record ID</value>
+  </data>
+  <data name="MovedRecordId_Desc" xml:space="preserve">
+    <value>The ID of the card most recently moved to another lane.</value>
+  </data>
+
   <data name="PageSize_Name" xml:space="preserve">
     <value>Page size</value>
   </data>
@@ -95,31 +136,40 @@
   </data>
 
   <data name="KanbanBoard_Loading" xml:space="preserve">
-    <value>Loading records…</value>
+    <value>Loading cards…</value>
   </data>
   <data name="KanbanBoard_Empty" xml:space="preserve">
     <value>No records.</value>
   </data>
-  <data name="KanbanBoard_NoColumns" xml:space="preserve">
-    <value>No columns are selected for this table.</value>
-  </data>
   <data name="KanbanBoard_Error" xml:space="preserve">
     <value>This view could not be loaded.</value>
   </data>
-  <data name="KanbanBoard_Previous" xml:space="preserve">
-    <value>Previous page</value>
+  <data name="KanbanBoard_NoStatus" xml:space="preserve">
+    <value>Bind the Lane column to a choice column to group the cards.</value>
   </data>
-  <data name="KanbanBoard_Next" xml:space="preserve">
-    <value>Next page</value>
+  <data name="KanbanBoard_NoTitle" xml:space="preserve">
+    <value>Bind the Card title to a column to label the cards.</value>
   </data>
-  <data name="KanbanBoard_PageStatus" xml:space="preserve">
-    <value>Page {0}</value>
+  <data name="KanbanBoard_NoLanes" xml:space="preserve">
+    <value>No lanes to show. Set the Lanes property to list them explicitly.</value>
   </data>
-  <data name="KanbanBoard_RangeStatus" xml:space="preserve">
-    <value>{0}–{1} of {2}</value>
+  <data name="KanbanBoard_Unassigned" xml:space="preserve">
+    <value>Unassigned</value>
   </data>
-  <data name="KanbanBoard_SortBy" xml:space="preserve">
-    <value>Sort by {0}</value>
+  <data name="KanbanBoard_LoadMore" xml:space="preserve">
+    <value>Load more</value>
+  </data>
+  <data name="KanbanBoard_CardCount" xml:space="preserve">
+    <value>{0} cards</value>
+  </data>
+  <data name="KanbanBoard_MoveTo" xml:space="preserve">
+    <value>Move {0} to…</value>
+  </data>
+  <data name="KanbanBoard_Moving" xml:space="preserve">
+    <value>Moving…</value>
+  </data>
+  <data name="KanbanBoard_MoveFailed" xml:space="preserve">
+    <value>{0} could not be moved, and was put back.</value>
   </data>
   <data name="KanbanBoard_OpenRecord" xml:space="preserve">
     <value>Open {0}</value>

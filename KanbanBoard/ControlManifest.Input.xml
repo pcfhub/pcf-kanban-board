@@ -15,78 +15,129 @@
     <external-service-usage enabled="false" />
 
     <!--
-      A dataset control binds a collection rather than a column.
+      Roles, deliberately — the opposite decision from pcf-data-table and
+      pcf-compact-list, and for the reason the template gives: this control
+      assigns meaning to specific columns, the way a chip has a label and a
+      colour. A card has a lane, a headline, and optionally a person and a
+      badge. It does not render "whatever the view supplies", so there is
+      nothing for it to read off dataset.columns generically.
 
-      This one declares **no `property-set` roles**, which is a decision worth
-      making deliberately rather than inheriting:
+      The arity is fixed here permanently. Roles can be added in a later
+      version; they cannot be removed without breaking every maker who bound
+      one. Four is the considered ceiling: statusField and titleField are what
+      a board *is*, and the other two are the difference between a usable card
+      and a coloured rectangle.
 
-        Declare roles when the control assigns meaning to specific columns — a
-        chip has a label and a colour, a map pin has a latitude and a longitude.
-        Each role is a named slot in this file, so the arity is fixed at whatever
-        you write here.
-
-        Declare none, and read `dataset.columns`, when the control renders
-        whatever it is given. A table is the clearest case: there is no way to
-        declare "however many columns the view has", and the metadata a layout
-        needs — order, visualSizeFactor, isPrimary, isHidden, disableSorting —
-        exists on real view columns and nowhere else.
-
-      If you add roles, add `::props-table{kind=dataset_column}` to docs/api.md.
-      With none, leave it out: the directive renders an empty table, which reads
-      as "this control has no dataset columns" rather than as a missing section.
-
-      And if you add roles, **change demo/records.json so each column's `alias`
-      differs from its `name`.** A role is found on the column by `alias` and
-      read off the record by `name`, and getting that backwards renders nothing
-      at all against a real view. The fixture here sets both to the same string,
-      which is correct with no roles and is exactly what let that bug reach
-      production in pcf-tag-list: the demo looked right because either order
-      worked against it. Realistic values — `"name": "cr123_tagname"` with
-      `"alias": "labelField"` — make the mistake fail where you can see it.
-
-        <data-set name="records" display-name-key="Records_DataSet_Name">
-          <property-set name="labelField" display-name-key="LabelField_Name"
-                        of-type="SingleLine.Text" usage="bound" required="true" />
-        </data-set>
-
-      The other attribute worth knowing is `cds-data-set-options`, which decides
-      whether a model-driven subgrid keeps its own chrome. Off by default; add it
-      to show any of the three:
-
-        <data-set name="records" display-name-key="Records_DataSet_Name"
-                  cds-data-set-options="displayCommandBar:true;displayViewSelector:true;displayQuickFind:true" />
-
-      It belongs on `<data-set>`, not on `<control>` — it configures the host's
-      furniture, which sounds like a control-level concern and is not.
-
-      Turn the **command bar** on if the control calls `setSelectedRecordIds()`:
-      without it, selection is a value the control reports and nothing acts on.
-      The **view selector** is only sensible if the control renders whatever
-      columns arrive, since switching view changes them. A control with fixed
-      property-set roles usually wants all three off, because its layout does not
-      survive the user picking a different view.
-
-      Two traps. The attribute's value is typed as a plain string, so a
-      misspelled option compiles clean and silently does nothing. And the
-      Microsoft reference marks the attribute `Required: Yes`, which the tooling
-      contradicts — it is optional in fact, and absent means off.
-
-      Model-driven only; canvas apps ignore it.
+      Found on the column by `alias`, read off the record by `name`. Getting
+      that backwards renders nothing at all against a real view while passing a
+      fixture whose alias and name are the same string — which is why
+      demo/records.json here uses realistic, different values.
     -->
-    <data-set name="records" display-name-key="Records_DataSet_Name" />
+    <data-set name="records" display-name-key="Records_DataSet_Name">
+      <!--
+        The lane the card sits in, and the only column this control writes.
 
+        of-type="OptionSet" rather than a text column: the lanes are the
+        option set's values, and moving a card writes the option's *number*.
+        Binding this to text would make the write meaningless.
+      -->
+      <property-set name="statusField"
+                    display-name-key="StatusField_Name"
+                    of-type="OptionSet"
+                    usage="bound"
+                    required="true" />
+
+      <property-set name="titleField"
+                    display-name-key="TitleField_Name"
+                    of-type="SingleLine.Text"
+                    usage="bound"
+                    required="true" />
+
+      <property-set name="assigneeField"
+                    display-name-key="AssigneeField_Name"
+                    of-type="SingleLine.Text"
+                    usage="bound"
+                    required="false" />
+
+      <property-set name="badgeField"
+                    display-name-key="BadgeField_Name"
+                    of-type="SingleLine.Text"
+                    usage="bound"
+                    required="false" />
+    </data-set>
+
+    <!--
+      No `cds-data-set-options`, following the template's own rule: a control
+      with fixed roles wants the subgrid chrome off, because its layout does not
+      survive the maker picking a different view. The command bar would also
+      have nothing to act on — this control never calls setSelectedRecordIds().
+    -->
+
+    <!--
+      The lanes, when deriving them is not enough.
+
+      Left empty, the lanes are the distinct values actually present in the
+      bound records — which is right most of the time and cannot invent a lane
+      that no record is in. An empty "Done" column is exactly what a board
+      needs to show, so this is the escape hatch: "1=New,2=Active,3=Resolved"
+      fixes both the set and the order.
+
+      A plain text input rather than a metadata lookup. Reading the option set
+      through context.utils.getEntityMetadata would give every lane in the
+      maker's own order, and costs a second install-time permission prompt plus
+      a code path that does not exist in canvas or in the hub's demo harness.
+      The trade is deliberate; see SPEC.md.
+    -->
+    <property name="lanes"
+              display-name-key="Lanes_Name"
+              description-key="Lanes_Desc"
+              of-type="SingleLine.Text"
+              usage="input"
+              required="false" />
+
+    <property name="laneWidth"
+              display-name-key="LaneWidth_Name"
+              description-key="LaneWidth_Desc"
+              of-type="Whole.None"
+              usage="input"
+              required="false"
+              default-value="280" />
+
+    <property name="openOnCardClick"
+              display-name-key="OpenOnCardClick_Name"
+              description-key="OpenOnCardClick_Desc"
+              of-type="TwoOptions"
+              usage="input"
+              required="false"
+              default-value="true" />
+
+    <!--
+      A board loads more, it does not turn pages, so this is how many cards
+      arrive per fetch rather than how many are on screen. The platform clamps
+      large values.
+    -->
     <property name="pageSize"
               display-name-key="PageSize_Name"
               description-key="PageSize_Desc"
               of-type="Whole.None"
               usage="input"
               required="false"
-              default-value="25" />
+              default-value="50" />
 
     <!--
-      Notified *before* the record is opened, so the value is observable even on
-      a host where opening does nothing — which is the canvas case.
+      Two outputs, because "which card moved" and "which card was opened" are
+      different questions a form reacts to differently.
+
+      Both are notified *before* the platform call they describe, so the value
+      is observable even on a host where the call does nothing — the canvas
+      case for openDatasetItem, and the failure case for updateRecord.
     -->
+    <property name="movedRecordId"
+              display-name-key="MovedRecordId_Name"
+              description-key="MovedRecordId_Desc"
+              of-type="SingleLine.Text"
+              usage="output" />
+
     <property name="openedRecordId"
               display-name-key="OpenedRecordId_Name"
               description-key="OpenedRecordId_Desc"
@@ -102,16 +153,17 @@
     </resources>
 
     <!--
-      Uncomment only the features actually used. Each one becomes a permission
-      prompt for the maker installing the control.
+      WebAPI only, and it is genuinely used: moving a card calls
+      updateRecord(). That is one install-time permission prompt this control
+      has earned, and the reason the lanes are derived rather than read through
+      Utility — a second prompt for something a text property can answer is not
+      a trade worth making.
 
-      Note that `openDatasetItem()` needs none of these — it is a method on the
-      dataset itself, not on context.navigation.
-
+      openDatasetItem() needs no feature: it is a method on the dataset itself,
+      not on context.navigation.
+    -->
     <feature-usage>
-      <uses-feature name="Utility" required="true" />
       <uses-feature name="WebAPI" required="true" />
     </feature-usage>
-    -->
   </control>
 </manifest>

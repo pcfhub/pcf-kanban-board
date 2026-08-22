@@ -1,26 +1,16 @@
 import * as React from 'react';
 import { IInputs, IOutputs } from './generated/ManifestTypes';
 import { KanbanBoardControl, IProps } from './components/KanbanBoardControl';
+import { Card, Lane, ROLES, deriveLanes, parseLanes, withUnassigned } from './components/lanes';
 
 type DataSet = ComponentFramework.PropertyTypes.DataSet;
-type SortDirection = ComponentFramework.PropertyHelper.DataSetApi.Types.SortDirection;
-
-/** `SortDirection` is a numeric union, not an enum object — there is nothing to import. */
-const ASCENDING = 0 as SortDirection;
-const DESCENDING = 1 as SortDirection;
+type Column = ComponentFramework.PropertyHelper.DataSetApi.Column;
 
 /** The platform's ceiling on a page. Not in the type definitions. */
 const MAX_PAGE_SIZE = 250;
 
 /**
- * A virtual (React) dataset control.
- *
- * **What `--type dataset` scaffolds is a table**, with sortable headers, a pager
- * and an open-record button. That is the right default and its comments are the
- * traps a dataset control hits — but a dataset control that is *not* a table
- * replaces most of this file rather than adjusting it. A board, a calendar or a
- * chart keeps the paging and mutator discipline below and little else. Knowing
- * that now is cheaper than discovering it after the manifest is written.
+ * A board over a Dataverse view, grouped by a choice column.
  *
  * Everything that talks to the platform lives in this file. The component never
  * sees `context` or the dataset — every call reaches it as a callback prop.
@@ -28,23 +18,33 @@ const MAX_PAGE_SIZE = 250;
  * can be read against the type definitions in a single pass, which is the only
  * way to be sure about an API this narrow.
  *
- * The rule the rest of this class is shaped by: **`updateView` runs on every
- * change to any bound value, including the ones this control caused itself.**
- * A dataset has mutators — `setPageSize`, `refresh`, `loadNextPage` — and
- * calling any of them unguarded from `updateView` is an infinite loop, not a
- * slow render.
+ * Three things shape the rest of this class.
  *
- * The second is why the pager reads none of `hasPreviousPage`, `firstPageNumber`
- * or the raw length of `sortedRecordIds`. Observed on a real model-driven form:
- * `loadNextPage(true)` ignores its argument and returns the whole page range,
- * `hasPreviousPage` stays false so Previous never unlocks, and `firstPageNumber`
- * disagrees with the ids badly enough to print a range past its own total. The
- * page number is this control's own counter, and `currentPage()` cuts the
- * accumulated array back down. Both are commented where they are.
+ * **`updateView` runs on every change to any bound value, including the ones
+ * this control caused itself.** A dataset has mutators — `setPageSize`,
+ * `refresh`, `loadNextPage` — and calling any of them unguarded from
+ * `updateView` is an infinite loop, not a slow render. Every mutator below is
+ * in an event handler or a promise callback; `applyPageSize` is the one
+ * exception and it is guarded on this control's own field.
+ *
+ * **This control writes.** Moving a card calls `webAPI.updateRecord`, and the
+ * card moves on screen before the write resolves — nobody waits a round trip to
+ * see a drag land. That optimism has to be paid for: `pending` holds the moves
+ * this control has asserted but not yet seen confirmed, `reconcile()` retires
+ * them as the refreshed data catches up, and the `.catch()` puts a card back
+ * when the write is refused. A card left sitting in a lane the record is not in
+ * is worse than a drag that visibly fails.
+ *
+ * **A board loads more, it does not turn pages.** `loadNextPage()` with no
+ * argument returns the whole loaded range, so `sortedRecordIds` accumulates and
+ * the board simply grows — the behaviour a table has to defend against and the
+ * one a board wants. So this control never slices, never tracks a page number,
+ * and reads `hasNextPage` only to decide whether Load more is offered.
  */
 export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOutputs> {
     private notifyOutputChanged!: () => void;
     private openedRecordId = '';
+    private movedRecordId = '';
 
     /**
      * The page size this control has already asked the platform for.
@@ -56,7 +56,22 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
      */
     private appliedPageSize = 0;
 
-    private page = 1;
+    /**
+     * Moves asserted locally and not yet confirmed by the data: record id to
+     * the lane value this control asked for.
+     *
+     * Retired in `reconcile()`, not on the promise resolving. A resolved
+     * `updateRecord` means Dataverse accepted the write, not that the dataset
+     * has re-read it — clearing on resolve would drop the override while the
+     * old value was still on screen, and the card would jump back and then
+     * forward again.
+     */
+    private readonly pending = new Map<string, number>();
+
+    /** Cards with a write in flight, so the component can show them as busy. */
+    private readonly moving = new Set<string>();
+
+    private moveError: string | null = null;
 
     public init(
         _context: ComponentFramework.Context<IInputs>,
@@ -71,17 +86,29 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
 
         this.applyPageSize(context, dataset);
 
+        const status = this.roleColumn(dataset, ROLES.status);
+        const title = this.roleColumn(dataset, ROLES.title);
+
+        // Retire settled overrides before building the cards, so a confirmed
+        // move is read from the data rather than from this control's memory.
+        this.reconcile(dataset, status);
+
+        const cards = this.cards(dataset, status, title);
+        const getString = (id: string): string => context.resources.getString(id);
+
         const props: IProps = {
-            dataset,
-            // `isHidden` and `order` are the maker's decisions in the view
-            // designer; a table that ignores either looks broken to whoever set
-            // them.
-            columns: (dataset.columns ?? [])
-                .filter((column) => !column.isHidden)
-                .sort((a, b) => a.order - b.order),
-            pageIds: this.currentPage(dataset.sortedRecordIds ?? []),
-            page: this.page,
-            pageSize: this.appliedPageSize,
+            cards,
+            lanes: this.lanes(context, cards, getString),
+            hasStatus: status !== undefined,
+            hasTitle: title !== undefined,
+            moving: [...this.moving],
+            moveError: this.moveError,
+            loading: dataset.loading,
+            error: dataset.error,
+            errorMessage: dataset.errorMessage,
+            hasNextPage: dataset.paging.hasNextPage,
+            laneWidth: Math.max(160, Math.trunc(context.parameters.laneWidth.raw ?? 280)),
+            openOnCardClick: context.parameters.openOnCardClick.raw ?? true,
             visible: context.mode.isVisible,
             disabled: context.mode.isControlDisabled,
             isRTL: context.userSettings.isRTL,
@@ -89,11 +116,12 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
             // cast is needed — but absent in PCFHub's demo harness, which is
             // why the component falls back to Fluent's own light theme.
             theme: context.fluentDesignLanguage?.tokenTheme,
-            getString: (id: string): string => context.resources.getString(id),
-            onSort: (columnName: string): void => this.sortBy(dataset, columnName),
-            onNextPage: (): void => this.nextPage(dataset),
-            onPreviousPage: (): void => this.previousPage(dataset),
+            title: dataset.getTitle(),
+            getString,
+            onMove: (recordId: string, toValue: number): void =>
+                this.moveCard(context, dataset, recordId, toValue),
             onOpenRecord: (id: string): void => this.openRecord(dataset, id),
+            onLoadMore: (): void => this.loadMore(dataset),
         };
 
         return React.createElement(KanbanBoardControl, props);
@@ -105,17 +133,36 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
      * value would be unobservable. Emit the empty string instead.
      */
     public getOutputs(): IOutputs {
-        return { openedRecordId: this.openedRecordId };
+        return {
+            movedRecordId: this.movedRecordId,
+            openedRecordId: this.openedRecordId,
+        };
     }
 
     public destroy(): void {
         // The platform unmounts the React tree for a virtual control, and this
-        // control holds no listeners, timers or observers of its own.
+        // control holds no listeners, timers or observers of its own. The
+        // in-flight writes are deliberately not cancelled: `updateRecord` has
+        // already reached Dataverse and there is nothing to take back.
+    }
+
+    /**
+     * A `property-set` column, found by **alias**.
+     *
+     * `column.alias` carries the role name from the manifest; `column.name`
+     * carries the maker's real schema name. Reading the record by `alias` — or
+     * matching the column by `name` — renders nothing at all against a real
+     * view while passing any fixture whose two values happen to be equal. It is
+     * the most expensive mistake available in this pattern, so it is made once,
+     * here.
+     */
+    private roleColumn(dataset: DataSet, alias: string): Column | undefined {
+        return (dataset.columns ?? []).find((column) => column.alias === alias);
     }
 
     /** Ask for a new page size, but only when it actually changed. See the note above. */
     private applyPageSize(context: ComponentFramework.Context<IInputs>, dataset: DataSet): void {
-        const raw = context.parameters.pageSize.raw ?? 25;
+        const raw = context.parameters.pageSize.raw ?? 50;
         const wanted = Math.min(Math.max(Math.trunc(raw), 1), MAX_PAGE_SIZE);
 
         if (wanted === this.appliedPageSize) {
@@ -128,117 +175,193 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
     }
 
     /**
-     * The records belonging to the page the pager says it is on.
+     * Drop the overrides the data has caught up with.
      *
-     * **This is the one place a dataset control should slice
-     * `sortedRecordIds`, and the usual rule is never to do it.** On a platform
-     * that honours `loadOnlyNewPage`, that array already *is* the current page,
-     * and slicing hides records the platform paged for. A single-page demo
-     * fixture tempts you into it and the temptation is wrong.
+     * Two ways an override retires: the record now reports the value this
+     * control asked for, or the record has left the view entirely — which is
+     * what happens when the board is bound to a filtered view and the card was
+     * moved out of it. Without the second case the map grows for the lifetime
+     * of the control, and every entry in it is a card the board is placing from
+     * memory rather than from data.
      *
-     * Except that the flag is not honoured. Observed on a real model-driven
-     * form: `loadNextPage(true)` from page 1 of a 6-record view at page size 3
-     * returned all six ids, and page 2 rendered under page 1. The argument is
-     * documented, typed, passed and ignored.
-     *
-     * So the slice is a repair for one specific platform behaviour, written to
-     * disappear the moment that behaviour changes: when the array is no longer
-     * than a page it already is the page, and nothing is cut. Slicing by page
-     * offset rather than taking the tail is what makes it right going backwards
-     * as well as forwards.
-     *
-     * A control that *wants* the accumulation — a "load more" list, where the
-     * point is that earlier records stay on screen — should not call this.
+     * Reads only. Called from `updateView`, so a mutator here would loop.
      */
-    private currentPage(ids: string[]): string[] {
-        if (ids.length <= this.appliedPageSize) {
-            return ids;
+    private reconcile(dataset: DataSet, status: Column | undefined): void {
+        if (this.pending.size === 0 || !status) {
+            return;
         }
 
-        const start = (this.page - 1) * this.appliedPageSize;
-        const slice = ids.slice(start, start + this.appliedPageSize);
+        for (const [id, wanted] of [...this.pending]) {
+            const record = dataset.records[id];
 
-        // Never empty the table: showing the wrong page is recoverable by
-        // clicking, showing nothing looks like data loss.
-        return slice.length > 0 ? slice : ids.slice(-this.appliedPageSize);
+            if (!record) {
+                this.pending.delete(id);
+                continue;
+            }
+
+            if (record.getValue(status.name) === wanted) {
+                this.pending.delete(id);
+            }
+        }
     }
 
     /**
-     * Sorting is server-side, applied across every page — which is the reason
-     * not to sort in the browser: a client-side sort reorders the rows on
-     * screen, 25 out of 240, a wrong answer that looks completely right.
+     * Every loaded record as a card, with any pending move applied.
      *
-     * `dataset.sorting` is an array you mutate in place and it is the whole
-     * ORDER BY, so replace rather than append.
+     * `sortedRecordIds` is passed through whole and never sliced: with bare
+     * `loadNextPage()` the accumulation *is* the board.
      */
-    private sortBy(dataset: DataSet, columnName: string): void {
-        const current = dataset.sorting.find((status) => status.name === columnName);
-        const direction: SortDirection = current?.sortDirection === ASCENDING ? DESCENDING : ASCENDING;
+    private cards(dataset: DataSet, status: Column | undefined, title: Column | undefined): Card[] {
+        if (!status || !title) {
+            return [];
+        }
 
-        dataset.sorting.length = 0;
-        dataset.sorting.push({ name: columnName, sortDirection: direction });
+        const assignee = this.roleColumn(dataset, ROLES.assignee);
+        const badge = this.roleColumn(dataset, ROLES.badge);
+        const built: Card[] = [];
 
-        // A new order makes "page 4" meaningless.
-        this.page = 1;
-        dataset.paging.reset();
-        dataset.refresh();
+        for (const id of dataset.sortedRecordIds ?? []) {
+            const record = dataset.records[id];
+
+            if (!record) {
+                continue;
+            }
+
+            // A choice column's raw value is its option number. Anything else —
+            // an unset column, or a role bound to a column that is not a choice
+            // — is left unassigned rather than coerced into lane NaN.
+            const raw = record.getValue(status.name);
+            const actual = typeof raw === 'number' ? raw : null;
+            const override = this.pending.get(id);
+
+            built.push({
+                id,
+                title: record.getFormattedValue(title.name),
+                assignee: assignee ? record.getFormattedValue(assignee.name) : null,
+                badge: badge ? record.getFormattedValue(badge.name) : null,
+                lane: override ?? actual,
+                laneLabel: record.getFormattedValue(status.name),
+            });
+        }
+
+        return built;
     }
 
     /**
-     * `hasNextPage` has behaved, and it is the only available answer to "is
-     * there more" — a local counter cannot supply that one.
+     * The override if the maker set one, otherwise whatever the cards show.
+     *
+     * A card whose pending lane is not among the declared lanes would vanish
+     * mid-move, so the unassigned lane is appended from the cards either way.
      */
-    private nextPage(dataset: DataSet): void {
+    private lanes(
+        context: ComponentFramework.Context<IInputs>,
+        cards: Card[],
+        getString: (id: string) => string,
+    ): Lane[] {
+        const spec = (context.parameters.lanes.raw ?? '').trim();
+        const declared = spec === '' ? deriveLanes(cards) : parseLanes(spec);
+
+        return withUnassigned(declared, cards, getString('KanbanBoard_Unassigned'));
+    }
+
+    /**
+     * Move a card, optimistically.
+     *
+     * The order matters and is not incidental. The override goes in and the
+     * output is notified *before* the write is sent, so the card lands where it
+     * was dropped and a form can observe the intent even on a host where the
+     * write fails. The `.catch()` is what makes that honest: it takes the
+     * override back out, so the card returns to the lane the record is actually
+     * in rather than sitting somewhere it never went.
+     *
+     * `pcf-tag-list` has no `.catch()` at all and a failed write there surfaces
+     * only as the dataset not changing — survivable for a chip that vanishes
+     * and reappears, not for a card that has visibly moved.
+     *
+     * `refresh()` runs either way, from `finally`. On success it is what
+     * eventually retires the override; on failure it repaints from data that
+     * never changed, which costs a fetch and removes any doubt about what the
+     * board is showing.
+     */
+    private moveCard(
+        context: ComponentFramework.Context<IInputs>,
+        dataset: DataSet,
+        recordId: string,
+        toValue: number,
+    ): void {
+        const status = this.roleColumn(dataset, ROLES.status);
+        const title = this.roleColumn(dataset, ROLES.title);
+        const record = dataset.records[recordId];
+
+        if (!status || !record) {
+            return;
+        }
+
+        // Dropping a card back where it started is not a write.
+        const current = this.pending.get(recordId) ?? record.getValue(status.name);
+
+        if (current === toValue) {
+            return;
+        }
+
+        // Read now, not in the catch: by the time a rejection arrives the
+        // record may be gone from a refreshed dataset, and a failure message
+        // that cannot name the card is most of the way to useless.
+        const label = title ? record.getFormattedValue(title.name) : recordId;
+
+        this.pending.set(recordId, toValue);
+        this.moving.add(recordId);
+        this.moveError = null;
+        this.movedRecordId = recordId;
+        this.notifyOutputChanged();
+
+        void context.webAPI
+            .updateRecord(dataset.getTargetEntityType(), recordId, { [status.name]: toValue })
+            .catch((error: unknown) => {
+                this.pending.delete(recordId);
+                this.moveError = `${context.resources
+                    .getString('KanbanBoard_MoveFailed')
+                    .replace('{0}', label)} ${this.describe(error)}`;
+                this.notifyOutputChanged();
+            })
+            .finally(() => {
+                this.moving.delete(recordId);
+                dataset.refresh();
+            });
+    }
+
+    /**
+     * A rejected `updateRecord` is typed as `unknown` and is not reliably an
+     * `Error` — the platform rejects with its own shape. Take a message where
+     * there is one and stringify otherwise, rather than printing
+     * `[object Object]` at the user.
+     */
+    private describe(error: unknown): string {
+        if (typeof error === 'object' && error !== null && 'message' in error) {
+            return String((error as { message: unknown }).message);
+        }
+
+        return String(error);
+    }
+
+    /**
+     * `loadNextPage()` with **no argument**, which is the whole difference.
+     *
+     * The type definition says it returns results for the loaded page range, so
+     * `sortedRecordIds` accumulates 1..N and the board grows. A table has to
+     * pass `true` and then repair what the platform ignores; a board wants
+     * exactly what the bare call already does, and the card you were reading
+     * stays where it was.
+     *
+     * No local accumulator: a copy of the records would be a second source of
+     * truth that a refresh silently invalidates.
+     */
+    private loadMore(dataset: DataSet): void {
         if (!dataset.paging.hasNextPage) {
             return;
         }
 
-        this.goToPage(dataset, this.page + 1);
-    }
-
-    /*
-     * `hasPreviousPage` answers a different question than it appears to.
-     *
-     * Observed on a real model-driven form: after paging forward it stays
-     * false, so Previous never unlocks and there is no way back. The platform
-     * treats the load as the *range* pages 1..N, and a range beginning at page
-     * 1 truthfully has nothing before it.
-     *
-     * The control's own counter is what answers "is there a page before this
-     * one", so that is what gates this — and the button, in the component.
-     */
-    private previousPage(dataset: DataSet): void {
-        if (this.page <= 1) {
-            return;
-        }
-
-        this.goToPage(dataset, this.page - 1);
-    }
-
-    /**
-     * Turn to an absolute page.
-     *
-     * `loadExactPage` says what a pager means, and it is the documented
-     * fallback for a host that ignores `loadOnlyNewPage` — which real ones do.
-     * It is typed as required and feature-detected anyway: a required member is
-     * a claim about the type definitions, not about the host, and this method
-     * exists because one of those claims did not hold.
-     */
-    private goToPage(dataset: DataSet, target: number): void {
-        const back = target < this.page;
-
-        this.page = Math.max(1, target);
-
-        if (typeof dataset.paging.loadExactPage === 'function') {
-            dataset.paging.loadExactPage(this.page);
-            return;
-        }
-
-        if (back) {
-            dataset.paging.loadPreviousPage(true);
-        } else {
-            dataset.paging.loadNextPage(true);
-        }
+        dataset.paging.loadNextPage();
     }
 
     /**

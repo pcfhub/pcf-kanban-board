@@ -1,245 +1,297 @@
 import * as React from 'react';
-import { FluentProvider, webLightTheme } from '@fluentui/react-components';
-
-type Column = ComponentFramework.PropertyHelper.DataSetApi.Column;
-type DataSet = ComponentFramework.PropertyTypes.DataSet;
+import {
+    Button,
+    FluentProvider,
+    Menu,
+    MenuItem,
+    MenuList,
+    MenuPopover,
+    MenuTrigger,
+    webLightTheme,
+} from '@fluentui/react-components';
+import { Card, Lane, boardKey, cardsInLane } from './lanes';
 
 export interface IProps {
-    dataset: DataSet;
-    columns: Column[];
-    pageIds: string[];
-    page: number;
-    pageSize: number;
+    cards: Card[];
+    lanes: Lane[];
+    hasStatus: boolean;
+    hasTitle: boolean;
+    moving: string[];
+    moveError: string | null;
+    loading: boolean;
+    error: boolean;
+    errorMessage: string;
+    hasNextPage: boolean;
+    laneWidth: number;
+    openOnCardClick: boolean;
     visible: boolean;
     disabled: boolean;
     isRTL: boolean;
-    theme: Record<string, string> | undefined;
+    theme?: Record<string, string>;
+    title: string;
     getString: (id: string) => string;
-    onSort: (columnName: string) => void;
-    onNextPage: () => void;
-    onPreviousPage: () => void;
+    onMove: (recordId: string, toValue: number) => void;
     onOpenRecord: (id: string) => void;
+    onLoadMore: () => void;
 }
 
 /**
- * `visualSizeFactor` as percentage widths for a `<colgroup>`.
+ * Where this component thinks each card is, over the top of what props say.
  *
- * Canvas reports every factor as 0 — there is no view designer there to have
- * set them — in which case there is nothing to distribute and the browser's own
- * table layout is a better answer than dividing by zero.
- */
-function columnWidths(columns: Column[]): string[] | null {
-    const total = columns.reduce((sum, column) => sum + (column.visualSizeFactor || 0), 0);
-
-    if (total <= 0) {
-        return null;
-    }
-
-    return columns.map((column) => `${((column.visualSizeFactor || 0) / total) * 100}%`);
-}
-
-/**
- * `totalResultCount` is -1 when the platform did not count the rows, which is
- * common on large views. Printing "of -1" is the tell that nobody checked, so
- * name the page instead of the range.
+ * On a real form the overlay is redundant: the platform re-renders after
+ * `notifyOutputChanged()` and the control has already applied its own pending
+ * move, so the card arrives in the new lane. PCFHub's demo harness does not —
+ * it posts outputs to the parent window and rebuilds the DataSet on every
+ * render — so a board that placed cards straight from props would look dead in
+ * the published demo: every drag accepted, nothing moving.
  *
- * Both ends are clamped to the total. `props.page` is the control's own counter
- * and `pageIds.length` is what survived the slice, and combining two numbers
- * that came from different places is how this printed **"4–9 of 6"** on a real
- * form. The clamp is cheap; a range past its own total is not recoverable by
- * the reader.
+ * `pcf-data-table` needs the same trick for selection and documents it the same
+ * way. The resync key is the board's *content*, not its identity: every
+ * `updateView` hands down freshly built card objects.
  */
-function pagerLabel(props: IProps): string {
-    const total = props.dataset.paging.totalResultCount;
+function useOptimisticLanes(
+    cards: Card[],
+): [Record<string, number>, (id: string, lane: number) => void] {
+    const [overlay, setOverlay] = React.useState<Record<string, number>>({});
+    const key = boardKey(cards);
 
-    if (total < 0) {
-        return props.getString('KanbanBoard_PageStatus').replace('{0}', String(props.page));
-    }
+    React.useEffect(() => {
+        setOverlay({});
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [key]);
 
-    const start = (props.page - 1) * props.pageSize + 1;
+    const place = React.useCallback((id: string, lane: number): void => {
+        setOverlay((current) => ({ ...current, [id]: lane }));
+    }, []);
 
-    return props
-        .getString('KanbanBoard_RangeStatus')
-        .replace('{0}', String(Math.min(start, total)))
-        .replace('{1}', String(Math.min(start + props.pageIds.length - 1, total)))
-        .replace('{2}', String(total));
+    return [overlay, place];
 }
 
 export function KanbanBoardControl(props: IProps): React.ReactElement | null {
-    const { dataset, columns, pageIds, getString } = props;
+    const { cards, lanes, getString, laneWidth } = props;
+    const [overlay, place] = useOptimisticLanes(cards);
 
-    // Canvas relies on this; a model-driven form hides the section itself, so
-    // honouring it costs a line and covers both hosts.
-    if (!props.visible) {
-        return null;
-    }
+    const placed = React.useMemo(
+        () => cards.map((card) => (card.id in overlay ? { ...card, lane: overlay[card.id] } : card)),
+        [cards, overlay],
+    );
 
-    /**
-     * Every return path goes through here.
-     *
-     * FluentProvider is what emits the Fluent design tokens as CSS custom
-     * properties on its wrapper — which is how a hand-rolled <table> inherits
-     * the host's theme without importing a single Fluent component. Miss it on
-     * one branch and that branch renders unthemed.
-     */
+    const move = (recordId: string, toValue: number): void => {
+        place(recordId, toValue);
+        props.onMove(recordId, toValue);
+    };
+
     const frame = (content: React.ReactElement): React.ReactElement => (
         <FluentProvider theme={props.theme ?? webLightTheme} dir={props.isRTL ? 'rtl' : 'ltr'}>
             <div className="KanbanBoard">{content}</div>
         </FluentProvider>
     );
 
-    if (dataset.error) {
+    /*
+     * The order of these is the whole of the empty-state logic.
+     *
+     * `loading` is true on the first updateView, before any records arrive, so
+     * rendering the empty state here would flash "No records" on every load.
+     * The unbound-role messages come first because they are actionable and
+     * permanent: no amount of waiting fixes an unbound Lane column.
+     */
+    if (!props.visible) {
+        return null;
+    }
+
+    if (props.error) {
         return frame(
-            <p className="KanbanBoard-message KanbanBoard-error">
-                {dataset.errorMessage || getString('KanbanBoard_Error')}
+            <p className="KanbanBoard-message" role="alert">
+                {props.errorMessage || getString('KanbanBoard_Error')}
             </p>,
         );
     }
 
-    // A canvas app supplies only the columns the maker picked in the Items
-    // Fields flyout. None picked is a real state, and an empty <table> reads as
-    // a broken control rather than as an unfinished configuration.
-    if (columns.length === 0) {
+    if (!props.hasStatus) {
+        return frame(<p className="KanbanBoard-message">{getString('KanbanBoard_NoStatus')}</p>);
+    }
+
+    if (!props.hasTitle) {
+        return frame(<p className="KanbanBoard-message">{getString('KanbanBoard_NoTitle')}</p>);
+    }
+
+    if (placed.length === 0) {
         return frame(
             <p className="KanbanBoard-message">
-                {dataset.loading ? getString('KanbanBoard_Loading') : getString('KanbanBoard_NoColumns')}
+                {props.loading ? getString('KanbanBoard_Loading') : getString('KanbanBoard_Empty')}
             </p>,
         );
     }
 
-    // `loading` is true on the first updateView, before any records arrive, so
-    // rendering the empty state here flashes "No records" on every load.
-    if (pageIds.length === 0) {
-        return frame(
-            <p className="KanbanBoard-message">
-                {dataset.loading ? getString('KanbanBoard_Loading') : getString('KanbanBoard_Empty')}
-            </p>,
-        );
+    if (lanes.length === 0) {
+        return frame(<p className="KanbanBoard-message">{getString('KanbanBoard_NoLanes')}</p>);
     }
-
-    const widths = columnWidths(columns);
-    const primary = columns.find((column) => column.isPrimary) ?? columns[0];
 
     return frame(
         <>
-            <div className={dataset.loading ? 'KanbanBoard-scroll is-loading' : 'KanbanBoard-scroll'}>
-                <table className="KanbanBoard-table">
-                    <caption className="KanbanBoard-caption">{dataset.getTitle()}</caption>
+            {props.moveError !== null && (
+                <p className="KanbanBoard-error" role="alert">
+                    {props.moveError}
+                </p>
+            )}
 
-                    {widths && (
-                        <colgroup>
-                            {widths.map((width, index) => (
-                                <col key={columns[index].name} style={{ width }} />
-                            ))}
-                        </colgroup>
-                    )}
-
-                    <thead>
-                        <tr>
-                            {columns.map((column) => {
-                                const status = dataset.sorting.find((entry) => entry.name === column.name);
-                                const sorted = status
-                                    ? status.sortDirection === 1
-                                        ? 'descending'
-                                        : 'ascending'
-                                    : 'none';
-
-                                return (
-                                    <th
-                                        key={column.name}
-                                        scope="col"
-                                        aria-sort={column.disableSorting ? undefined : sorted}
-                                    >
-                                        {column.disableSorting ? (
-                                            column.displayName
-                                        ) : (
-                                            // A real <button>, so sorting is
-                                            // reachable by keyboard.
-                                            <button
-                                                type="button"
-                                                className="KanbanBoard-sort"
-                                                title={getString('KanbanBoard_SortBy').replace(
-                                                    '{0}',
-                                                    column.displayName,
-                                                )}
-                                                onClick={(): void => props.onSort(column.name)}
-                                            >
-                                                {column.displayName}
-                                            </button>
-                                        )}
-                                    </th>
-                                );
-                            })}
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        {pageIds.map((id) => {
-                            const record = dataset.records[id];
-
-                            if (!record) {
-                                return null;
-                            }
-
-                            return (
-                                <tr key={id}>
-                                    {columns.map((column) => (
-                                        <td key={column.name}>
-                                            {column.name === primary.name ? (
-                                                <button
-                                                    type="button"
-                                                    className="KanbanBoard-open"
-                                                    title={getString('KanbanBoard_OpenRecord').replace(
-                                                        '{0}',
-                                                        record.getFormattedValue(primary.name),
-                                                    )}
-                                                    onClick={(): void => props.onOpenRecord(id)}
-                                                >
-                                                    {record.getFormattedValue(column.name)}
-                                                </button>
-                                            ) : (
-                                                // `getFormattedValue` takes the
-                                                // column's *name*. With
-                                                // property-set roles you find
-                                                // the column by `alias` and read
-                                                // it by `name`; backwards, it
-                                                // renders zero rows against real
-                                                // data and looks fine in a demo.
-                                                record.getFormattedValue(column.name)
-                                            )}
-                                        </td>
-                                    ))}
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
+            <div className="KanbanBoard-lanes" aria-label={props.title}>
+                {lanes.map((lane) => (
+                    <LaneColumn
+                        key={String(lane.value)}
+                        {...props}
+                        lane={lane}
+                        cards={cardsInLane(placed, lane)}
+                        width={laneWidth}
+                        onDrop={move}
+                    />
+                ))}
             </div>
 
-            <div className="KanbanBoard-pager">
-                <button
-                    type="button"
-                    // Not `hasPreviousPage`: it stays false after paging
-                    // forward on a real form, so Previous never unlocks. The
-                    // control's own page counter is the honest answer.
-                    disabled={props.disabled || props.page <= 1}
-                    onClick={props.onPreviousPage}
-                >
-                    {getString('KanbanBoard_Previous')}
-                </button>
-
-                <span className="KanbanBoard-pagerStatus" aria-live="polite">
-                    {pagerLabel(props)}
-                </span>
-
-                <button
-                    type="button"
-                    disabled={props.disabled || !dataset.paging.hasNextPage}
-                    onClick={props.onNextPage}
-                >
-                    {getString('KanbanBoard_Next')}
-                </button>
-            </div>
+            {props.hasNextPage && (
+                <div className="KanbanBoard-footer">
+                    <Button
+                        appearance="secondary"
+                        disabled={props.disabled || props.loading}
+                        onClick={props.onLoadMore}
+                    >
+                        {getString('KanbanBoard_LoadMore')}
+                    </Button>
+                </div>
+            )}
         </>,
+    );
+}
+
+interface ILaneProps extends IProps {
+    lane: Lane;
+    cards: Card[];
+    width: number;
+    onDrop: (recordId: string, toValue: number) => void;
+}
+
+function LaneColumn(props: ILaneProps): React.ReactElement {
+    const { lane, cards, getString } = props;
+    const [over, setOver] = React.useState(false);
+
+    /*
+     * The unassigned lane is not a drop target.
+     *
+     * Writing `null` back to a choice column is a different intention from
+     * moving a card, and not one a drag should be able to express by accident.
+     * Cards can be dragged *out* of it.
+     */
+    const droppable = lane.value !== null && !props.disabled;
+
+    return (
+        <section
+            className={over ? 'KanbanBoard-lane is-over' : 'KanbanBoard-lane'}
+            style={{ width: `${props.width}px` }}
+            aria-label={`${lane.label}, ${getString('KanbanBoard_CardCount').replace('{0}', String(cards.length))}`}
+            onDragOver={(event): void => {
+                if (!droppable) {
+                    return;
+                }
+
+                // Without preventDefault the browser refuses the drop, which
+                // reads as the board ignoring the gesture.
+                event.preventDefault();
+                setOver(true);
+            }}
+            onDragLeave={(): void => setOver(false)}
+            onDrop={(event): void => {
+                event.preventDefault();
+                setOver(false);
+
+                const id = event.dataTransfer.getData('text/plain');
+
+                if (droppable && id !== '' && lane.value !== null) {
+                    props.onDrop(id, lane.value);
+                }
+            }}
+        >
+            <header className="KanbanBoard-laneHeader">
+                <span className="KanbanBoard-laneLabel">{lane.label}</span>
+                <span className="KanbanBoard-laneCount">{cards.length}</span>
+            </header>
+
+            <ul className="KanbanBoard-cards">
+                {cards.map((card) => (
+                    <CardItem key={card.id} card={card} {...props} />
+                ))}
+            </ul>
+        </section>
+    );
+}
+
+function CardItem(props: ILaneProps & { card: Card }): React.ReactElement {
+    const { card, lanes, getString } = props;
+    const busy = props.moving.indexOf(card.id) >= 0;
+
+    return (
+        <li
+            className={busy ? 'KanbanBoard-card is-moving' : 'KanbanBoard-card'}
+            draggable={!props.disabled}
+            onDragStart={(event): void => {
+                event.dataTransfer.setData('text/plain', card.id);
+                event.dataTransfer.effectAllowed = 'move';
+            }}
+        >
+            <div className="KanbanBoard-cardTop">
+                {/*
+                    A real button, not a clickable div: opening a record has to
+                    be reachable by keyboard, and drag never is.
+                */}
+                {props.openOnCardClick ? (
+                    <button
+                        type="button"
+                        className="KanbanBoard-cardTitle"
+                        disabled={props.disabled}
+                        onClick={(): void => props.onOpenRecord(card.id)}
+                    >
+                        {card.title}
+                    </button>
+                ) : (
+                    <span className="KanbanBoard-cardTitle">{card.title}</span>
+                )}
+
+                {/*
+                    The keyboard path for moving a card, and the whole reason
+                    this control is usable without a mouse. HTML5 drag-and-drop
+                    has no keyboard equivalent, so a board that only supported
+                    dragging would be unreachable for anyone using one.
+                */}
+                <Menu>
+                    <MenuTrigger disableButtonEnhancement>
+                        <Button
+                            appearance="subtle"
+                            size="small"
+                            disabled={props.disabled || busy}
+                            aria-label={getString('KanbanBoard_MoveTo').replace('{0}', card.title)}
+                        >
+                            ⋯
+                        </Button>
+                    </MenuTrigger>
+                    <MenuPopover>
+                        <MenuList>
+                            {lanes
+                                .filter((lane) => lane.value !== null && lane.value !== card.lane)
+                                .map((lane) => (
+                                    <MenuItem
+                                        key={String(lane.value)}
+                                        onClick={(): void => props.onDrop(card.id, lane.value as number)}
+                                    >
+                                        {lane.label}
+                                    </MenuItem>
+                                ))}
+                        </MenuList>
+                    </MenuPopover>
+                </Menu>
+            </div>
+
+            {card.assignee && <div className="KanbanBoard-cardAssignee">{card.assignee}</div>}
+            {card.badge && <span className="KanbanBoard-cardBadge">{card.badge}</span>}
+            {busy && <span className="KanbanBoard-cardBusy">{getString('KanbanBoard_Moving')}</span>}
+        </li>
     );
 }
