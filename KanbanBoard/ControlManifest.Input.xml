@@ -114,6 +114,24 @@
               required="false"
               default-value="280" />
 
+    <!--
+      Colour comes from the option set, so it exists only where the option set
+      was read: a model-driven board. Derived lanes and lanes named in the
+      `lanes` override have none, and simply show no bar.
+
+      On by default, with this to turn it off, because Dataverse assigns option
+      colours automatically when a choice is created — the colours are usually
+      present whether or not anybody chose them, and a board where they are
+      noise should be able to say so.
+    -->
+    <property name="laneColors"
+              display-name-key="LaneColors_Name"
+              description-key="LaneColors_Desc"
+              of-type="TwoOptions"
+              usage="input"
+              required="false"
+              default-value="true" />
+
     <property name="openOnCardClick"
               display-name-key="OpenOnCardClick_Name"
               description-key="OpenOnCardClick_Desc"

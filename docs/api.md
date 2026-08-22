@@ -77,3 +77,17 @@ Each entry is an option value, `=`, and the label to show. The order is yours,
 not numeric. Entries whose left side is not a whole number are ignored, so a
 malformed lane is dropped rather than collecting every unparsed card into one
 heap.
+
+Setting it also removes the lane colours, since those come from the option set
+and this replaces it as the source of the lanes.
+
+## Lane colours
+
+When the lanes come from the option set, each carries the colour Dataverse holds
+for that option, shown as a bar above the lane header. **Lane colours** turns
+that off.
+
+There is no colour to show when the lanes came from anywhere else — a canvas
+app, or the **Lanes** property — and the bar is simply absent. A colour is only
+ever decoration here: the lane is named in its header, so nothing is carried by
+the colour alone.

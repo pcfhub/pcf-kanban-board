@@ -112,6 +112,13 @@
     <value>省略可能。空のままにすると、レーン列自体の選択肢 (レコードが 1 件もないものを含む) がレーンになります。「1=新規,2=進行中,3=解決済み」のように指定すると、レーンとその順序を自分で固定できます。選択肢を読み取れないキャンバス アプリでは必須です。</value>
   </data>
 
+  <data name="LaneColors_Name" xml:space="preserve">
+    <value>レーンの色</value>
+  </data>
+  <data name="LaneColors_Desc" xml:space="preserve">
+    <value>レーン列の選択肢セットに設定された色を、レーンの上のバーとして表示します。それらの色が意図して選ばれたものではなく自動的に割り当てられた場合は、オフにしてください。色のないレーン (キャンバス アプリや、レーン プロパティを設定した場合) には、いずれにしてもバーは表示されません。</value>
+  </data>
+
   <data name="LaneWidth_Name" xml:space="preserve">
     <value>レーンの幅</value>
   </data>

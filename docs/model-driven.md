@@ -74,6 +74,12 @@ Set the **Lanes** property when you want fewer lanes than the column has, a
 different order, or labels of your own. It fixes the set completely: an option
 left out of it gets no lane.
 
+Each lane also shows its option’s **colour** as a bar above the header. Dataverse
+assigns those colours automatically when a choice is created, so they are
+usually present whether or not anyone picked them — turn **Lane colours** off if
+they are noise rather than meaning. Setting **Lanes** yourself removes the
+colours too, because the option set is no longer what the lanes come from.
+
 ## The command bar
 
 The subgrid's command bar, view selector and quick find are all off. The

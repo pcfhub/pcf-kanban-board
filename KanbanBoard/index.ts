@@ -119,6 +119,7 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
             errorMessage: dataset.errorMessage,
             hasNextPage: dataset.paging.hasNextPage,
             laneWidth: Math.max(160, Math.trunc(context.parameters.laneWidth.raw ?? 280)),
+            laneColors: context.parameters.laneColors.raw ?? true,
             openOnCardClick: context.parameters.openOnCardClick.raw ?? true,
             visible: context.mode.isVisible,
             disabled: context.mode.isControlDisabled,

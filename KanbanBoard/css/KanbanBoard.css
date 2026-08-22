@@ -75,6 +75,20 @@
     background-color: var(--colorNeutralBackground1Selected, #ebebeb);
 }
 
+/*
+  The lane's option colour.
+
+  A bar rather than a filled header: nothing sits on it, so no colour can make
+  text unreadable, and it costs no contrast calculation. Sized in pixels rather
+  than a token because it is a hairline — a spacing token would make it a band.
+*/
+.KanbanBoard-laneAccent {
+    height: 4px;
+    border-radius: var(--borderRadiusSmall, 2px);
+    /* The lane already has padding; pull the bar out to its full width. */
+    margin: 0 calc(-1 * var(--spacingVerticalS, 8px)) var(--spacingVerticalXS, 4px);
+}
+
 .KanbanBoard-laneHeader {
     display: flex;
     align-items: baseline;

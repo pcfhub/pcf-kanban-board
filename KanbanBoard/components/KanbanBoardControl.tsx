@@ -25,6 +25,8 @@ export interface IProps {
     errorMessage: string;
     hasNextPage: boolean;
     laneWidth: number;
+    /** Whether to show each lane's option colour. Off hides it everywhere. */
+    laneColors: boolean;
     openOnCardClick: boolean;
     visible: boolean;
     disabled: boolean;
@@ -276,6 +278,28 @@ function LaneColumn(props: ILaneProps): React.ReactElement {
                 }
             }}
         >
+            {/*
+                The option's colour, as a bar above the header rather than
+                behind it.
+
+                Nothing is written on it, so an arbitrary colour can never make
+                text unreadable — which matters because Dataverse assigns these
+                colours automatically when a choice is created, so most of them
+                were never chosen by anyone. Decoration is the honest weight to
+                give a value nobody picked.
+
+                aria-hidden because the lane already has its name in the header:
+                the colour repeats what the label says, and announcing it again
+                is noise.
+            */}
+            {props.laneColors && lane.color && (
+                <div
+                    className="KanbanBoard-laneAccent"
+                    style={{ backgroundColor: lane.color }}
+                    aria-hidden="true"
+                />
+            )}
+
             <header className="KanbanBoard-laneHeader">
                 <span className="KanbanBoard-laneLabel">{lane.label}</span>
                 <span className="KanbanBoard-laneCount">{cards.length}</span>

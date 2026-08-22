@@ -112,6 +112,13 @@
     <value>Opcional. Si se deja vacío, los carriles son las propias opciones de la columna de carril, incluidas aquellas en las que no hay ningún registro. Indíquelo — "1=Nuevo,2=Activo,3=Resuelto" — para fijar usted mismo los carriles y su orden. Obligatorio en aplicaciones de lienzo, donde no se pueden leer las opciones.</value>
   </data>
 
+  <data name="LaneColors_Name" xml:space="preserve">
+    <value>Colores de carril</value>
+  </data>
+  <data name="LaneColors_Desc" xml:space="preserve">
+    <value>Muestra el color de cada carril, tomado del conjunto de opciones de la columna de carril, como una barra sobre el carril. Desactívelo cuando esos colores se hayan asignado automáticamente en lugar de elegirse. Los carriles sin color — en aplicaciones de lienzo o cuando la propiedad Carriles está definida — no muestran barra en ningún caso.</value>
+  </data>
+
   <data name="LaneWidth_Name" xml:space="preserve">
     <value>Ancho del carril</value>
   </data>

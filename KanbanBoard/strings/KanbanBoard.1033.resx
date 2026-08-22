@@ -112,6 +112,13 @@
     <value>Optional. Left empty, the lanes are the Lane column’s own options, including ones no record is in yet. Set it — "1=New,2=Active,3=Resolved" — to fix the lanes and their order yourself. Required in canvas apps, where the options cannot be read.</value>
   </data>
 
+  <data name="LaneColors_Name" xml:space="preserve">
+    <value>Lane colours</value>
+  </data>
+  <data name="LaneColors_Desc" xml:space="preserve">
+    <value>Show each lane’s colour from the Lane column’s option set, as a bar above the lane. Turn it off where those colours were assigned automatically rather than chosen. Lanes with no colour — in canvas apps, or when the Lanes property is set — show no bar either way.</value>
+  </data>
+
   <data name="LaneWidth_Name" xml:space="preserve">
     <value>Lane width</value>
   </data>

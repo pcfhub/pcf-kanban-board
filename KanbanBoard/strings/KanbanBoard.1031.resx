@@ -112,6 +112,13 @@
     <value>Optional. Bleibt das Feld leer, sind die Bahnen die Optionen der Spaltenbahn selbst, einschließlich solcher ohne Datensätze. Legen Sie es fest — „1=Neu,2=Aktiv,3=Gelöst“ —, um Bahnen und Reihenfolge selbst zu bestimmen. In Canvas-Apps erforderlich, da dort die Optionen nicht gelesen werden können.</value>
   </data>
 
+  <data name="LaneColors_Name" xml:space="preserve">
+    <value>Bahnfarben</value>
+  </data>
+  <data name="LaneColors_Desc" xml:space="preserve">
+    <value>Zeigt die Farbe jeder Bahn aus dem Optionssatz der Spaltenbahn als Balken über der Bahn an. Schalten Sie sie aus, wenn diese Farben automatisch vergeben und nicht bewusst gewählt wurden. Bahnen ohne Farbe — in Canvas-Apps oder wenn die Eigenschaft „Bahnen“ gesetzt ist — zeigen ohnehin keinen Balken.</value>
+  </data>
+
   <data name="LaneWidth_Name" xml:space="preserve">
     <value>Bahnbreite</value>
   </data>

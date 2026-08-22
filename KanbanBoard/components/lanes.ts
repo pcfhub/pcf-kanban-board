@@ -8,6 +8,16 @@
 export interface Lane {
     value: number | null;
     label: string;
+    /**
+     * The option's colour, when the option set supplied one.
+     *
+     * Only the option set knows it — lanes derived from the loaded records and
+     * lanes named in the `lanes` override both have `null`. So colour is
+     * present on a model-driven board and absent everywhere else, which is why
+     * it is rendered as decoration rather than as anything a reader has to
+     * interpret.
+     */
+    color: string | null;
 }
 
 export interface Card {
@@ -94,7 +104,7 @@ export function parseLanes(spec: string): Lane[] {
         }
 
         seen.add(value);
-        lanes.push({ value, label });
+        lanes.push({ value, label, color: null });
     }
 
     return lanes;
@@ -119,7 +129,7 @@ export function deriveLanes(cards: Card[]): Lane[] {
 
     return [...seen.entries()]
         .sort((a, b) => a[0] - b[0])
-        .map(([value, label]) => ({ value, label: label || String(value) }));
+        .map(([value, label]) => ({ value, label: label || String(value), color: null }));
 }
 
 /**
@@ -135,7 +145,7 @@ export function withUnassigned(lanes: Lane[], cards: Card[], label: string): Lan
         return lanes;
     }
 
-    return [{ value: null, label }, ...lanes];
+    return [{ value: null, label, color: null }, ...lanes];
 }
 
 /** The cards in a lane, in the order the view supplied them. */
@@ -207,7 +217,11 @@ export function optionLanes(metadata: unknown, columnName: string): Lane[] {
         const value = get(option, 'Value');
 
         if (typeof value === 'number' && Number.isInteger(value)) {
-            lanes.push({ value, label: labelOf(option) || String(value) });
+            lanes.push({
+                value,
+                label: labelOf(option) || String(value),
+                color: hexColor(get(option, 'Color')),
+            });
         }
     }
 
@@ -418,6 +432,24 @@ function readableKeys(node: object): string[] {
     }
 
     return [...keys];
+}
+
+/**
+ * A colour if it is one, otherwise `null`.
+ *
+ * Validated rather than trusted. The value goes into an inline style, and
+ * `EntityMetadata` is untyped — so anything that is not plainly a hex colour is
+ * dropped instead of handed to the browser to interpret. Dataverse returns
+ * `#rrggbb`; the short form is accepted because it costs nothing to.
+ */
+function hexColor(value: unknown): string | null {
+    if (typeof value !== 'string') {
+        return null;
+    }
+
+    const trimmed = value.trim();
+
+    return /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(trimmed) ? trimmed : null;
 }
 
 /** An option's label, which is either a string or a localised label object. */

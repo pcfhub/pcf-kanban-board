@@ -40,6 +40,7 @@
       "A refused move cannot be demonstrated. The harness’s mock resolves, so the rollback never runs — on a real form a write the user has no privilege for rejects, the card returns to the lane it came from, and the failure is named above the board. That path is the reason this control catches at all, and the demo is the one place you cannot see it.",
       "The lanes are set explicitly in both presets rather than derived. A fixture record carries one value per column, so it cannot express an option’s number separately from its label — left to derive, the lanes here would be titled 1, 2 and 3. On a real view the Lanes property is empty and the lanes come from the data with their proper labels.",
       "Load more never appears. The harness puts every fixture record on a single page and reports hasNextPage as false, so there is nothing further to fetch. The page size property does nothing either, because the harness’s setPageSize() is an empty function.",
+      "Lane colours never appear. The bar above each lane comes from the Lane column’s option set, and a fixture record carries one value per column with no metadata behind it — so the demo has no colours to show and the presets leave laneColors on with nothing to render. On a model-driven form each lane shows its option’s colour.",
       "Clicking a card calls dataset.openDatasetItem(), which the harness logs as a mock call: there is no Dataverse behind this origin and no form to open. The openedRecordId output still updates."
     ],
     "presets": [
@@ -50,6 +51,7 @@
         "props": {
           "lanes": "1=New,2=Active,3=Resolved",
           "laneWidth": 280,
+          "laneColors": true,
           "openOnCardClick": true,
           "pageSize": 50
         },
@@ -62,6 +64,7 @@
         "props": {
           "lanes": "1=New,2=Active,3=Resolved",
           "laneWidth": 200,
+          "laneColors": true,
           "openOnCardClick": false,
           "pageSize": 50
         }
