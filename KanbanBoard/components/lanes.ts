@@ -35,6 +35,35 @@ export const ROLES = {
 } as const;
 
 /**
+ * A choice column's raw value as a lane number, or `null`.
+ *
+ * On a real host this is the `typeof raw === 'number'` branch and nothing else:
+ * a choice column's raw value is its option number. The string branch exists
+ * for PCFHub's demo harness, whose fixture format carries **one value per
+ * column** and so cannot express an option's number separately from its label.
+ * A fixture written with numbers may still arrive as strings depending on how
+ * the harness builds its records, and a board where every card silently lands
+ * in Unassigned is a demo that misrepresents the control.
+ *
+ * Narrow on purpose: only an integer-valued string converts. `"Active"` stays
+ * `null`, because a role bound to a text column should look unbound rather than
+ * inventing lanes out of labels it cannot write back.
+ */
+export function laneValue(raw: unknown): number | null {
+    if (typeof raw === 'number') {
+        return Number.isInteger(raw) ? raw : null;
+    }
+
+    if (typeof raw === 'string' && raw.trim() !== '') {
+        const parsed = Number(raw);
+
+        return Number.isInteger(parsed) ? parsed : null;
+    }
+
+    return null;
+}
+
+/**
  * Parse the `lanes` override: `"1=New,2=Active,3=Resolved"`.
  *
  * Deliberately forgiving about whitespace and deliberately strict about the

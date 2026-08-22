@@ -2,12 +2,12 @@
   Every rule is scoped under .KanbanBoard.
 
   A code component's CSS is loaded into the whole page, not into a shadow root,
-  so an unscoped `table { }` here restyles the host form.
+  so an unscoped `section { }` here restyles the host form.
 
   The colours are Fluent design tokens, which FluentProvider emits as CSS custom
-  properties on its own wrapper — so the table picks up the host's theme without
-  importing a single Fluent component. The fallbacks after each comma are what
-  the control looks like if that ever stops being true.
+  properties on its own wrapper — so the board picks up the host's theme without
+  importing a single Fluent component for colour. The fallbacks after each comma
+  are what the control looks like if that ever stops being true.
 */
 
 .KanbanBoard {
@@ -26,129 +26,180 @@
     color: var(--colorNeutralForeground3, #616161);
 }
 
+/*
+  A failed move is the one message that must not be missed: the card the user
+  just dragged has silently returned to where it started, and without this the
+  board looks like it ignored them.
+*/
 .KanbanBoard-error {
+    margin: 0;
+    padding: var(--spacingVerticalS, 8px) var(--spacingHorizontalM, 12px);
     color: var(--colorPaletteRedForeground1, #b10e1c);
-}
-
-/* Wide views scroll inside the control rather than widening the form. */
-.KanbanBoard-scroll {
-    overflow-x: auto;
-    width: 100%;
+    background-color: var(--colorPaletteRedBackground1, #fdf3f4);
+    border-radius: var(--borderRadiusMedium, 4px);
 }
 
 /*
-  Dim rather than blank while a page loads. Replacing the rows with a spinner
-  makes every sort and page turn flash empty.
+  The lanes scroll sideways inside the control rather than widening the form.
+  A board is the one dataset layout whose natural width has nothing to do with
+  the space it is given, so this is load-bearing rather than defensive.
 */
-.KanbanBoard-scroll.is-loading {
-    opacity: 0.6;
+.KanbanBoard-lanes {
+    display: flex;
+    gap: var(--spacingHorizontalM, 12px);
+    overflow-x: auto;
+    align-items: flex-start;
+    padding-bottom: var(--spacingVerticalXS, 4px);
 }
 
-.KanbanBoard-table {
-    border-collapse: collapse;
-    width: 100%;
-    table-layout: fixed;
+.KanbanBoard-lane {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacingVerticalXS, 4px);
+    /* Set from the laneWidth property; this is the floor, not the value. */
+    flex: 0 0 auto;
+    min-width: 160px;
+    padding: var(--spacingVerticalS, 8px);
+    border-radius: var(--borderRadiusMedium, 4px);
+    background-color: var(--colorNeutralBackground3, #f5f5f5);
 }
 
-/* The title names the table for a screen reader without taking up space. */
-.KanbanBoard-caption {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
+/*
+  The drop target has to be visible while a card is over it, or the drag is a
+  guess. Outline rather than border: a border would resize the lane mid-drag
+  and shuffle every other lane sideways.
+*/
+.KanbanBoard-lane.is-over {
+    outline: 2px solid var(--colorBrandStroke1, #0f6cbd);
+    outline-offset: -2px;
+    background-color: var(--colorNeutralBackground1Selected, #ebebeb);
 }
 
-.KanbanBoard-table th,
-.KanbanBoard-table td {
-    text-align: start;
-    padding: var(--spacingVerticalS, 8px) var(--spacingHorizontalM, 12px);
-    border-bottom: 1px solid var(--colorNeutralStroke2, #e0e0e0);
+.KanbanBoard-laneHeader {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--spacingHorizontalS, 8px);
+    padding: var(--spacingVerticalXS, 4px) var(--spacingHorizontalXS, 4px);
+}
+
+.KanbanBoard-laneLabel {
+    font-weight: var(--fontWeightSemibold, 600);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.KanbanBoard-table th {
-    font-weight: var(--fontWeightSemibold, 600);
-    border-bottom: 1px solid var(--colorNeutralStroke1, #d1d1d1);
+.KanbanBoard-laneCount {
+    color: var(--colorNeutralForeground3, #616161);
+    font-size: var(--fontSizeBase200, 12px);
+    flex: 0 0 auto;
 }
 
-.KanbanBoard-table tbody tr:hover {
-    background-color: var(--colorNeutralBackground1Hover, #f5f5f5);
+.KanbanBoard-cards {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacingVerticalXS, 4px);
+    /* Keeps an empty lane a visible drop target rather than a label. */
+    min-height: 48px;
 }
 
-
+.KanbanBoard-card {
+    background-color: var(--colorNeutralBackground1, #ffffff);
+    border: 1px solid var(--colorNeutralStroke2, #e0e0e0);
+    border-radius: var(--borderRadiusMedium, 4px);
+    padding: var(--spacingVerticalS, 8px);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacingVerticalXXS, 2px);
+    cursor: grab;
+}
 
 /*
-  The sort control and the open-record control are real buttons, so they are
-  keyboard-reachable. These rules strip the browser chrome without removing the
-  semantics.
+  Dim rather than lock while the write is in flight. The card is already where
+  the user dropped it and the move usually succeeds; hiding or freezing it would
+  make the common case feel broken to save face in the rare one.
 */
-.KanbanBoard-sort,
-.KanbanBoard-open {
+.KanbanBoard-card.is-moving {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.KanbanBoard-cardTop {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--spacingHorizontalXS, 4px);
+}
+
+/*
+  A button that does not look like one. It is a real <button> because opening a
+  record has to be reachable by keyboard — drag never is — but a board of
+  chrome-heavy buttons reads as a toolbar rather than as cards.
+*/
+.KanbanBoard-cardTitle {
     font: inherit;
     color: inherit;
+    text-align: start;
     background: none;
     border: none;
     padding: 0;
     cursor: pointer;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    flex: 1 1 auto;
 }
 
-.KanbanBoard-sort {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--spacingHorizontalXS, 4px);
-    font-weight: inherit;
-}
-
-.KanbanBoard-open {
-    color: var(--colorBrandForegroundLink, #0f6cbd);
-    text-align: start;
-}
-
-.KanbanBoard-open:hover {
+button.KanbanBoard-cardTitle:hover {
     text-decoration: underline;
 }
 
-.KanbanBoard-sort:focus-visible,
-.KanbanBoard-open:focus-visible,
-.KanbanBoard-pager button:focus-visible {
+/*
+  Focus is never suppressed. The move menu and the title are the only two
+  keyboard paths this control has, and a board whose focus ring is invisible is
+  a board that cannot be operated without a mouse.
+*/
+.KanbanBoard-cardTitle:focus-visible,
+.KanbanBoard-card:focus-visible {
     outline: 2px solid var(--colorStrokeFocus2, #000000);
-    outline-offset: 2px;
+    outline-offset: 1px;
 }
 
-.KanbanBoard-arrow {
-    font-size: 0.7em;
+.KanbanBoard-cardAssignee {
+    color: var(--colorNeutralForeground3, #616161);
+    font-size: var(--fontSizeBase200, 12px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.KanbanBoard-cardBadge {
+    align-self: flex-start;
+    font-size: var(--fontSizeBase200, 12px);
+    padding: 0 var(--spacingHorizontalXS, 4px);
+    border-radius: var(--borderRadiusSmall, 2px);
+    background-color: var(--colorNeutralBackground3, #f5f5f5);
+    color: var(--colorNeutralForeground2, #424242);
+}
+
+.KanbanBoard-cardBusy {
+    font-size: var(--fontSizeBase200, 12px);
     color: var(--colorNeutralForeground3, #616161);
 }
 
-.KanbanBoard-pager {
+.KanbanBoard-footer {
     display: flex;
-    align-items: center;
-    gap: var(--spacingHorizontalM, 12px);
+    justify-content: center;
 }
 
-.KanbanBoard-pager button {
-    font: inherit;
-    padding: var(--spacingVerticalXS, 4px) var(--spacingHorizontalM, 12px);
-    color: var(--colorNeutralForeground1, #242424);
-    background-color: var(--colorNeutralBackground1, #ffffff);
-    border: 1px solid var(--colorNeutralStroke1, #d1d1d1);
-    border-radius: var(--borderRadiusMedium, 4px);
-    cursor: pointer;
-}
-
-.KanbanBoard-pager button:disabled {
-    color: var(--colorNeutralForegroundDisabled, #bdbdbd);
-    border-color: var(--colorNeutralStrokeDisabled, #e0e0e0);
-    cursor: default;
-}
-
-.KanbanBoard-pagerStatus {
-    color: var(--colorNeutralForeground3, #616161);
+/*
+  Respect a reduced-motion preference by not animating the drop at all. There is
+  no transition to disable here yet; the rule is the reminder that adding one
+  belongs behind this query.
+*/
+@media (prefers-reduced-motion: reduce) {
+    .KanbanBoard-card {
+        transition: none;
+    }
 }

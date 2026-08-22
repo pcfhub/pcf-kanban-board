@@ -1,112 +1,120 @@
 {
-    "targetEntityType": "account",
-    "title": "Active Accounts",
+    "targetEntityType": "cr123_workitem",
+    "title": "Sprint board",
     "columns": [
         {
-            "name": "name",
-            "displayName": "Account name",
+            "name": "cr123_subject",
+            "displayName": "Subject",
             "dataType": "SingleLine.Text",
-            "alias": "name",
+            "alias": "titleField",
             "order": 0,
-            "visualSizeFactor": 200,
+            "visualSizeFactor": 220,
             "isPrimary": true
         },
         {
-            "name": "accountnumber",
-            "displayName": "Account number",
-            "dataType": "SingleLine.Text",
-            "alias": "accountnumber",
+            "name": "cr123_status",
+            "displayName": "Status",
+            "dataType": "OptionSet",
+            "alias": "statusField",
             "order": 1,
-            "visualSizeFactor": 120
+            "visualSizeFactor": 110
         },
         {
-            "name": "primarycontactname",
-            "displayName": "Primary contact",
+            "name": "cr123_assignedto",
+            "displayName": "Assigned to",
             "dataType": "SingleLine.Text",
-            "alias": "primarycontactname",
+            "alias": "assigneeField",
             "order": 2,
             "visualSizeFactor": 150
         },
         {
-            "name": "statecode",
-            "displayName": "Status",
-            "dataType": "OptionSet",
-            "alias": "statecode",
+            "name": "cr123_priority",
+            "displayName": "Priority",
+            "dataType": "SingleLine.Text",
+            "alias": "badgeField",
             "order": 3,
             "visualSizeFactor": 90
         }
     ],
     "records": [
         {
-            "id": "a0001",
+            "id": "w0001",
             "values": {
-                "name": "Fabrikam Manufacturing",
-                "accountnumber": "ACC-1042",
-                "primarycontactname": "Dana Whitfield",
-                "statecode": "Active"
+                "cr123_subject": "Rework the onboarding email sequence",
+                "cr123_status": 1,
+                "cr123_assignedto": "Dana Whitfield",
+                "cr123_priority": "High"
             }
         },
         {
-            "id": "a0002",
+            "id": "w0002",
             "values": {
-                "name": "Contoso Logistics",
-                "accountnumber": "ACC-1087",
-                "primarycontactname": "Ravi Menon",
-                "statecode": "Active"
+                "cr123_subject": "Audit the supplier contact list",
+                "cr123_status": 1,
+                "cr123_assignedto": "Marcus Reyes",
+                "cr123_priority": "Normal"
             }
         },
         {
-            "id": "a0003",
+            "id": "w0003",
             "values": {
-                "name": "Northwind Traders",
-                "accountnumber": "ACC-1103",
-                "primarycontactname": "Erin Boyle",
-                "statecode": "Active"
+                "cr123_subject": "Draft the Q3 renewal terms",
+                "cr123_status": 1,
+                "cr123_assignedto": "Priya Anand",
+                "cr123_priority": "Low"
             }
         },
         {
-            "id": "a0004",
+            "id": "w0004",
             "values": {
-                "name": "Adventure Works Cycles",
-                "accountnumber": "ACC-1155",
-                "primarycontactname": "Marcus Feld",
-                "statecode": "Active"
+                "cr123_subject": "Migrate the reporting dashboard",
+                "cr123_status": 2,
+                "cr123_assignedto": "Dana Whitfield",
+                "cr123_priority": "High"
             }
         },
         {
-            "id": "a0005",
+            "id": "w0005",
             "values": {
-                "name": "Litware Consulting",
-                "accountnumber": "ACC-1178",
-                "primarycontactname": "Priya Raman",
-                "statecode": "Inactive"
+                "cr123_subject": "Consolidate duplicate account records",
+                "cr123_status": 2,
+                "cr123_assignedto": "Tomas Lindqvist",
+                "cr123_priority": "Normal"
             }
         },
         {
-            "id": "a0006",
+            "id": "w0006",
             "values": {
-                "name": "Tailspin Toys",
-                "accountnumber": "ACC-1201",
-                "primarycontactname": "Owen Brackett",
-                "statecode": "Active"
+                "cr123_subject": "Rewrite the escalation runbook",
+                "cr123_status": 2,
+                "cr123_assignedto": "Priya Anand",
+                "cr123_priority": "Normal"
             }
         },
         {
-            "id": "a0007",
+            "id": "w0007",
             "values": {
-                "name": "Proseware Systems",
-                "accountnumber": "ACC-1233",
-                "primarycontactname": "Alice Nakamura",
-                "statecode": "Active"
+                "cr123_subject": "Retire the legacy import job",
+                "cr123_status": 3,
+                "cr123_assignedto": "Marcus Reyes",
+                "cr123_priority": "Low"
             }
         },
         {
-            "id": "a0008",
+            "id": "w0008",
             "values": {
-                "name": "Wingtip Analytics",
-                "accountnumber": "ACC-1260",
-                "primarycontactname": "Tomas Ehrlich",
-                "statecode": "Active"
+                "cr123_subject": "Publish the partner integration guide",
+                "cr123_status": 3,
+                "cr123_assignedto": "Aiko Tanaka",
+                "cr123_priority": "Normal"
+            }
+        },
+        {
+            "id": "w0009",
+            "values": {
+                "cr123_subject": "Triage the inbound feature requests",
+                "cr123_assignedto": "Aiko Tanaka",
+                "cr123_priority": "High"
             }
         }
     ]

@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { IInputs, IOutputs } from './generated/ManifestTypes';
 import { KanbanBoardControl, IProps } from './components/KanbanBoardControl';
-import { Card, Lane, ROLES, deriveLanes, parseLanes, withUnassigned } from './components/lanes';
+import { Card, Lane, ROLES, deriveLanes, laneValue, parseLanes, withUnassigned } from './components/lanes';
 
 type DataSet = ComponentFramework.PropertyTypes.DataSet;
 type Column = ComponentFramework.PropertyHelper.DataSetApi.Column;
@@ -227,11 +227,11 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
                 continue;
             }
 
-            // A choice column's raw value is its option number. Anything else —
-            // an unset column, or a role bound to a column that is not a choice
-            // — is left unassigned rather than coerced into lane NaN.
-            const raw = record.getValue(status.name);
-            const actual = typeof raw === 'number' ? raw : null;
+            // A choice column's raw value is its option number. Anything that
+            // is not one — an unset column, or a role bound to a column that is
+            // not a choice — is left unassigned rather than coerced into lane
+            // NaN. See `laneValue` for why a numeric string counts.
+            const actual = laneValue(record.getValue(status.name));
             const override = this.pending.get(id);
 
             built.push({
