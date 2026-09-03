@@ -97,7 +97,10 @@ const marked = (key) => (key === 'KanbanBoard_MoveFailed' ? 'resx:KanbanBoard_Mo
  * exist.
  */
 const INPUTS = {
-    pageSize: 50,
+    // No `pageSize`, and that is the manifest's own state rather than an
+    // omission: the property carries no `default-value`, so a maker who never
+    // touched it hands the control nothing. Seeding it here would make the
+    // adopt-the-host path unreachable from every bind in this file.
     lanes: '',
     laneWidth: 280,
     laneColors: true,
@@ -113,7 +116,10 @@ function disposeAll() {
 }
 
 function bind(options) {
-    const settings = { ...options, inputs: { ...INPUTS, ...((options || {}).inputs || {}) } };
+    // `pageSize` here is the **host's** — what `paging.pageSize` reports and
+    // what the board therefore adopts when the maker set nothing. It is not the
+    // control's input; that lives in `inputs` and is deliberately unset.
+    const settings = { pageSize: 50, ...options, inputs: { ...INPUTS, ...((options || {}).inputs || {}) } };
     const handle = host.createHost(fixture, { getString: marked, ...settings });
     const container = dom.createElement('div');
     const instance = new registration.ctor();
@@ -175,6 +181,44 @@ if (typeof registration.ctor !== 'function') {
 const plain = bind({});
 
 check('settles instead of refreshing forever', plain.driven.looping === false, `${plain.driven.passes} passes`);
+
+/*
+ * The assertion about a call that must **not** happen.
+ *
+ * `pageSize` carried `default-value="50"`, so a maker who never touched the
+ * property still produced a control that told the host how many rows to fetch —
+ * replacing the *Rows per page* the user had set on a main grid and the row
+ * count the maker set on a subgrid. `pcf-row-commands` shipped that and had to
+ * be released twice to take it back out. The property has no default now:
+ * unset, the board takes whatever the host is already fetching.
+ */
+check(
+    'an unset page size overrides nothing — the host is already paging',
+    plain.calls().filter((call) => call.startsWith('setPageSize')).length === 0,
+    plain.calls().join(' '),
+);
+
+const overriding = bind({ inputs: { pageSize: 3 } });
+
+check(
+    'a page size the maker did set is asked for once and then left alone',
+    overriding.calls().filter((call) => call.startsWith('setPageSize')).length === 1,
+    overriding.calls().join(' '),
+);
+
+/*
+ * A main grid answers the width and never the height — `-1` for the life of the
+ * control, however politely it asks. A control that waits for a positive number
+ * waits forever, which is how `pcf-row-commands` ran its rows off the bottom of
+ * a page and took the pager with them.
+ */
+const unmeasured = bind({ width: 900, quirks: { heightUnmeasured: true } });
+
+check(
+    'renders on a host that measures a width and never a height',
+    unmeasured.handle.context.mode.allocatedHeight === -1 && !unmeasured.driven.looping,
+    `allocatedHeight ${unmeasured.handle.context.mode.allocatedHeight}`,
+);
 
 check('returns an element rather than writing into a container', plain.driven.element !== undefined);
 
