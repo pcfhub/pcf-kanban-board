@@ -247,8 +247,28 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
             return;
         }
 
+        const previous = this.appliedPageSize;
+
         this.appliedPageSize = wanted;
         dataset.paging.setPageSize(wanted);
+
+        /*
+         * **Repaginating makes the platform's current page mean something
+         * else**, so the fetch starts from the first one again — but only when
+         * the size actually changed. `previous` is 0 until a size has been
+         * applied, and at mount the platform is already on page one: resetting
+         * there is a round trip for nothing, since `reset()` is a fetch and the
+         * `refresh()` below is a second one.
+         *
+         * There is no page counter to reset here — the board loads more with `loadNextPage()` rather than turning pages — so this is
+         * `paging.reset()` alone. Found by the rule that fixed
+         * `pcf-data-table` 0.2.0, where a rows-per-page picker made it
+         * reachable.
+         */
+        if (previous > 0) {
+            dataset.paging.reset();
+        }
+
         dataset.refresh();
     }
 
