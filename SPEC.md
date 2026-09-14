@@ -54,11 +54,11 @@ it. The questions, and what each decides:
 | Q1 | The record carries `setValue`/`save`/`isEditable`; what `isEditable(status.name)` answers | The record route exists on this shape | **Yes** — all four present (`isDirty` too), `isEditable` returned a Promise, `isEditable("cll_status")` = `true`. The role column arrived as `{ name: "cll_status", alias: "statusField", dataType: "OptionSet" }` |
 | Q2 | `setValue(status.name, int)` + `save()` commits, read back through the Web API | The record route writes the right column | *pending* |
 | Q3 | An `updateView` arrives after `save()` without `refresh()`, or only with it | Whether the `refresh()` in `finally` is load-bearing | *pending* |
-| Q4 | `openForm({ useQuickCreateForm }, { [status.name]: "2" })` opens with the lane chosen; string vs number | The + | *pending* |
+| Q4 | `openForm({ useQuickCreateForm }, { [status.name]: "2" })` opens with the lane chosen; string vs number | The + | **Yes, both** — the quick create for `cll_task` opened with Status set to the lane, from `"858010002"` and from `858010002` alike; dismissed, it resolved `{ savedEntityReference: null }`. The platform **appended `recordSetQueryKey` to the options object** it was handed |
 | Q5 | The shape of `Attributes.get(column).OptionSet` | The oldest *Not verified* entry below | **Measured** — see *Where the option set lives* below |
 | Q6 | `mode.contextInfo` on this subgrid | `createFromEntity` on the + | **Present** — `{ entityTypeName: "account", entityId: "7de84297-…" (unbraced, lower-case), entityRecordName: "Adventure Works (sample)" }` |
 
-Q1, Q5 and Q6 answered 2026-09-14 from the passive dump on the Accounts
+Q4 measured 2026-09-14 by two active calls. Q1, Q5 and Q6 answered the same day from the passive dump on the Accounts
 form's Kanban subgrid (`cll_account.cll_status`). Q2–Q4 need the active calls.
 Fill the last column in from the console output before tagging 0.3.0. If Q2
 fails, `write()` loses its first branch and the manifest comment goes back to
@@ -310,9 +310,13 @@ this repository, and the first one is load-bearing.
   route needs no feature, and the template's rig hands canvas the same records
   as model-driven — but nobody has bound this board in a canvas app and looked.
   The docs say "read-only, in practice" for that reason.
-- **That a form parameter preselects a choice column on a quick create, and
-  that it wants a string.** Q4. The typings say string; the platform has not
-  been asked.
+- ~~That a form parameter preselects a choice column on a quick create, and
+  that it wants a string.~~ Measured: a string works, and so does a number.
+  The control keeps the string, which is what the typings declare.
+- **`openForm` mutates its options argument.** After the call the object
+  carried a `recordSetQueryKey` the control never set. `createCard` builds a
+  fresh object per call so nothing here reads it back; a control that reused
+  one would find the platform's key on the second call.
 - **That a table with no quick create form falls back to the main form** with
   the parameter still applied. Documented behaviour of `openForm`, not
   observed here.
