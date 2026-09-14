@@ -51,16 +51,40 @@ it. The questions, and what each decides:
 
 | | Question | Decides | Measured |
 | --- | --- | --- | --- |
-| Q1 | The record carries `setValue`/`save`/`isEditable`; what `isEditable(status.name)` answers | The record route exists on this shape | *pending* |
+| Q1 | The record carries `setValue`/`save`/`isEditable`; what `isEditable(status.name)` answers | The record route exists on this shape | **Yes** — all four present (`isDirty` too), `isEditable` returned a Promise, `isEditable("cll_status")` = `true`. The role column arrived as `{ name: "cll_status", alias: "statusField", dataType: "OptionSet" }` |
 | Q2 | `setValue(status.name, int)` + `save()` commits, read back through the Web API | The record route writes the right column | *pending* |
 | Q3 | An `updateView` arrives after `save()` without `refresh()`, or only with it | Whether the `refresh()` in `finally` is load-bearing | *pending* |
 | Q4 | `openForm({ useQuickCreateForm }, { [status.name]: "2" })` opens with the lane chosen; string vs number | The + | *pending* |
-| Q5 | The shape of `Attributes.get(column).OptionSet` | The oldest *Not verified* entry below | *pending* |
-| Q6 | `mode.contextInfo` on this subgrid | `createFromEntity` on the + | *pending* |
+| Q5 | The shape of `Attributes.get(column).OptionSet` | The oldest *Not verified* entry below | **Measured** — see *Where the option set lives* below |
+| Q6 | `mode.contextInfo` on this subgrid | `createFromEntity` on the + | **Present** — `{ entityTypeName: "account", entityId: "7de84297-…" (unbraced, lower-case), entityRecordName: "Adventure Works (sample)" }` |
 
+Q1, Q5 and Q6 answered 2026-09-14 from the passive dump on the Accounts
+form's Kanban subgrid (`cll_account.cll_status`). Q2–Q4 need the active calls.
 Fill the last column in from the console output before tagging 0.3.0. If Q2
 fails, `write()` loses its first branch and the manifest comment goes back to
 one route; if Q4 fails, the + goes with it.
+
+### Where the option set lives — measured 2026-09-14
+
+The question this repo has carried since 0.1.0, answered by the probe's
+`describeShape` of `metadata.Attributes.get("cll_status")`. The attribute is a
+class instance carrying the option set **three times**, in two shapes:
+
+- `OptionSet` and `_optionSet` — **a map keyed by the option value**:
+  `{ 858010000: { text, value }, … }`. No array, no `Options`, no colour.
+  This is the shape `pcf-data-table` 0.4.0 measured on its own column, and
+  the one `optionLanes()`'s walk finds.
+- `attributeDescriptor.OptionSet` — **an array**:
+  `[{ Color, Label, Value, TransitionData, IsHidden } ×6]`, in the maker's
+  order. **`Color` is present here**, which is where the lane accent colours
+  have been coming from; the skill's note that `Color` is "absent everywhere"
+  was true of the map, not of the descriptor array.
+
+So there was never a mystery about *whether* the options were reachable —
+only that `Attributes.get(column).OptionSet.Options` names a key that does
+not exist on either shape. The walk stays, because it reads both; the direct
+route, if anyone wants one, is `attributeDescriptor.OptionSet` for order and
+colour and `OptionSet[value].text` for a label.
 
 ### What the rig had to learn
 
@@ -300,11 +324,6 @@ this repository, and the first one is load-bearing.
   demo harness's mock resolves, and no real environment has refused one yet.
 - **That the canvas lookup-JSON behaviour above is real.** Read from
   documentation; nobody has put a lookup role on this board and looked.
-- **Where in `EntityMetadata` the option set actually lives.** Known: not at
-  `Attributes.get(column).OptionSet.Options`. That path was tried on a real
-  form and found nothing, while the recursive walk beside it found the lanes
-  from the same object — so the collection is reachable and the options are in
-  it, somewhere other than the obvious place. Nobody has looked at
-  `metadata.Attributes` directly yet; the failure dump now prints it, which is
-  what would settle this. Until then the walk stays and **must not be cut
-  again**: it is the only thing known to work.
+- ~~Where in `EntityMetadata` the option set actually lives.~~ Measured
+  2026-09-14; see *Where the option set lives* above. The walk stays because
+  it reads both shapes, not because the shape is unknown.
