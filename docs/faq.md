@@ -38,8 +38,9 @@ Working through the likely causes in order:
    ```
 
    The menu says this too, in place of an empty list.
-2. **The app is a canvas app.** Cards cannot be moved there at all, and the drag
-   handles are not shown. See [Canvas apps](canvas.md).
+2. **The app is a canvas app.** Moves need a host that can write, and canvas
+   apps are not one in practice, so the drag handles are not shown. See
+   [Canvas apps](canvas.md).
 3. **It is a custom page in the studio preview.** Moves report *Method not
    implemented* until the page is published.
 4. **The user lacks write access to the record.** The move runs as the signed-in
@@ -58,6 +59,18 @@ by design.
 
 In a canvas app the metadata call does not exist, so lanes are always derived.
 See [Examples](examples.md).
+
+## The + opens the main form, not a quick create
+
+The table has no quick create form, so the platform opens the next best thing.
+Create a quick create form for the table (in the table's **Forms** list) and
+the **+** will use it. The lane is passed as a field value either way.
+
+## Can I search across cards that have not loaded yet?
+
+No. The search box narrows the cards on the board; it does not query
+Dataverse. Press **Load more** until the cards you want are on the board, or
+bind a view that filters them in.
 
 ## Can I reorder cards inside a lane?
 

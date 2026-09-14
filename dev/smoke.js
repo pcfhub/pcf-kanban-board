@@ -88,6 +88,9 @@ function check(label, ok, detail) {
  */
 const marked = (key) => (key === 'KanbanBoard_MoveFailed' ? 'resx:KanbanBoard_MoveFailed {0}' : `resx:${key}`);
 
+/** The GUID `openForm` resolves for a saved row: braced and upper-case, as measured. */
+const SAVED = { savedEntityReference: [{ id: '{436E09A8-1F2B-4C3D-8E9F-0A1B2C3D4E5F}', entityType: 'new_workitem', name: 'New' }] };
+
 /**
  * Every input the manifest declares, with its defaults.
  *
@@ -105,6 +108,8 @@ const INPUTS = {
     laneWidth: 280,
     laneColors: true,
     openOnCardClick: true,
+    showSearch: true,
+    allowCreate: true,
 };
 
 const live = [];
@@ -285,7 +290,35 @@ check('the lane width the maker set is passed down, with a floor', bind({ inputs
  */
 check('reports that it can write where the host allows it', plain.props().canMove === true, String(plain.props().canMove));
 
-check('and that it cannot where there is no Web API', bind({ webApi: 'absent' }).props().canMove === false, String(bind({ webApi: 'absent' }).props().canMove));
+/*
+ * Two routes, so three hosts. A record with a write half and no Web API —
+ * which is what the record route buys — can still move; only a host with
+ * neither is read-only.
+ */
+check(
+    'and still where there is no Web API but the record can be written',
+    bind({ webApi: 'absent' }).props().canMove === true,
+    String(bind({ webApi: 'absent' }).props().canMove),
+);
+
+check(
+    'and that it cannot where there is neither',
+    bind({ webApi: 'absent', quirks: { editableAbsent: true } }).props().canMove === false,
+    String(bind({ webApi: 'absent', quirks: { editableAbsent: true } }).props().canMove),
+);
+
+/*
+ * The create route is `navigation.openForm`, which a canvas host withholds
+ * whatever the maker set — and the maker can switch it off on a host that
+ * has it.
+ */
+check('offers to add a card where the host has a form to open', plain.props().canCreate === true, String(plain.props().canCreate));
+
+check('but not on canvas, which has no forms', bind({ host: 'canvas' }).props().canCreate === false, String(bind({ host: 'canvas' }).props().canCreate));
+
+check('nor when the maker turned it off', bind({ inputs: { allowCreate: false } }).props().canCreate === false, String(bind({ inputs: { allowCreate: false } }).props().canCreate));
+
+check('passes the search switch down', bind({ inputs: { showSearch: false } }).props().showSearch === false, String(bind({ inputs: { showSearch: false } }).props().showSearch));
 
 /* ------------------------------------------------------------- the move */
 
@@ -311,15 +344,145 @@ check('and that it cannot where there is no Web API', bind({ webApi: 'absent' })
 
     await flush();
 
-    const write = moved.calls().find((call) => call.startsWith('updateRecord'));
+    /*
+     * **Through the record, not the Web API.** `setValue` on the column the
+     * role points at — `name`, never `alias` — then one `save()`. The Web
+     * API is not touched on a record that allows the write.
+     */
+    const staged = moved.calls().find((call) => call.startsWith('record.setValue'));
 
     check(
-        'and writing the new status to the column the role points at',
-        Boolean(write) && write.includes('new_stage') && write.includes('new_workitem'),
-        write || 'no updateRecord',
+        'and writing the new status through the record, to the column the role points at',
+        Boolean(staged) && staged.includes('new_stage=3'),
+        staged || 'no record.setValue',
     );
 
+    check('then saving the record', moved.calls().some((call) => call.startsWith('record.save')), moved.calls().join(' '));
+
+    check('and not the Web API, which this record did not need', !moved.calls().some((call) => call.startsWith('updateRecord')), moved.calls().join(' '));
+
     check('then refreshing, so the override retires against real data', moved.calls().some((call) => call === 'refresh'), moved.calls().join(' '));
+
+    /*
+     * **The override retires against data, not against the promise.** The
+     * rig applies a committed value on the next fetch, the way a re-read
+     * does, and the card is then placed from the record.
+     */
+    moved.settle();
+
+    check(
+        'after which the card is placed from the record, with no override left',
+        laneOf(moved, 'w1') === 3 && moved.handle.dataset.records.w1.getValue('new_stage') === 3,
+        `lane ${laneOf(moved, 'w1')}, record says ${moved.handle.dataset.records.w1.getValue('new_stage')}`,
+    );
+
+    /*
+     * **The second route.** `isEditable` answers `false` for `statuscode` on
+     * a real subgrid while the column reports `OptionSet`, and a board is
+     * grouped by it more often than by anything else. That record goes
+     * through `webAPI.updateRecord`, and only that record.
+     */
+    const readOnly = bind({ quirks: { readOnlyColumns: ['new_stage'] } });
+
+    readOnly.props().onMove('w1', 3);
+    await flush();
+
+    const viaApi = readOnly.calls().find((call) => call.startsWith('updateRecord'));
+
+    check(
+        'a column the record refuses to edit is written through the Web API instead',
+        Boolean(viaApi) && viaApi.includes('new_stage') && viaApi.includes('new_workitem'),
+        viaApi || 'no updateRecord',
+    );
+
+    check('with nothing staged on the record', !readOnly.calls().some((call) => call.startsWith('record.setValue')), readOnly.calls().join(' '));
+
+    /*
+     * And a record with no write half at all — the host the typings describe
+     * — takes the Web API without asking `isEditable`, which it cannot.
+     */
+    const bare = bind({ quirks: { editableAbsent: true } });
+
+    bare.props().onMove('w1', 3);
+    await flush();
+
+    check('a record with no write half goes straight to the Web API', bare.calls().some((call) => call.startsWith('updateRecord')), bare.calls().join(' '));
+
+    /*
+     * **A refused `save()` rolls back like a refused update.** Same override,
+     * same message, same refresh — the route must not change what a failure
+     * looks like.
+     */
+    const refusedSave = bind({ quirks: { saveRejects: true }, rejection: { message: 'Insufficient privileges' } });
+
+    refusedSave.props().onMove('w1', 3);
+    refusedSave.settle();
+    await flush();
+    refusedSave.settle();
+
+    check('a refused save puts the card back', laneOf(refusedSave, 'w1') === 1, `lane ${laneOf(refusedSave, 'w1')}`);
+
+    check(
+        'and names the card and the reason',
+        typeof refusedSave.props().moveError === 'string' && refusedSave.props().moveError.includes('Insufficient privileges'),
+        String(refusedSave.props().moveError),
+    );
+
+    /* ----------------------------------------------------------- the create */
+
+    /*
+     * **The quick create, with the lane passed as a form parameter.** The
+     * second argument to `openForm` is how a column arrives already set, and
+     * the typings make it `{ [key: string]: string }` — so the option number
+     * goes as a string. `createFromEntity` seeds the parent only where the
+     * host names one.
+     */
+    const creating = bind({ contextInfo: { entityTypeName: 'account', entityId: 'parent-1', entityRecordName: 'Parent' } });
+
+    creating.props().onCreate(2);
+    await flush();
+
+    const openedForm = creating.calls().find((call) => call.startsWith('navigation.openForm'));
+    const openedWith = openedForm ? JSON.parse(openedForm.slice('navigation.openForm('.length, -1)) : null;
+
+    check('adding a card opens the quick create form for the view\'s table', Boolean(openedWith) && openedWith.options.entityName === 'new_workitem' && openedWith.options.useQuickCreateForm === true, openedForm || 'no openForm');
+
+    check(
+        'with the lane passed as a form parameter, as a string, on the column the role points at',
+        Boolean(openedWith) && openedWith.parameters && openedWith.parameters.new_stage === '2',
+        JSON.stringify(openedWith && openedWith.parameters),
+    );
+
+    check(
+        'and the parent seeded from contextInfo, so the card lands in this subgrid',
+        Boolean(openedWith) && openedWith.options.createFromEntity && openedWith.options.createFromEntity.id === 'parent-1',
+        JSON.stringify(openedWith && openedWith.options.createFromEntity),
+    );
+
+    check('a dismissed form reports nothing and fetches nothing', creating.instance.getOutputs().createdRecordId === '' && !creating.calls().some((call) => call === 'refresh'), `"${creating.instance.getOutputs().createdRecordId}" ${creating.calls().join(' ')}`);
+
+    const noParent = bind({});
+
+    noParent.props().onCreate(2);
+    await flush();
+
+    const openedBare = noParent.calls().find((call) => call.startsWith('navigation.openForm'));
+
+    check('a main grid, with no parent, leaves createFromEntity out', Boolean(openedBare) && !openedBare.includes('createFromEntity'), openedBare || 'no openForm');
+
+    const saved = bind({ openFormReturns: SAVED });
+    const notifiedBefore = saved.notifications();
+
+    saved.props().onCreate(3);
+    await flush();
+
+    check(
+        'a saved form reports the new id unbraced and lower-case, like the other outputs',
+        saved.instance.getOutputs().createdRecordId === '436e09a8-1f2b-4c3d-8e9f-0a1b2c3d4e5f',
+        saved.instance.getOutputs().createdRecordId,
+    );
+
+    check('notifying the change and refreshing so the card appears', saved.notifications() > notifiedBefore && saved.calls().some((call) => call === 'refresh'), `${saved.notifications() - notifiedBefore} notifications; ${saved.calls().join(' ')}`);
 
     /*
      * **The rollback**, which is the assertion this whole file is for.
@@ -329,7 +492,9 @@ check('and that it cannot where there is no Web API', bind({ webApi: 'absent' })
      * reads the label *before* the write, because by the time a rejection
      * arrives the record may be gone from a refreshed dataset.
      */
-    const refused = bind({ webApi: 'rejects' });
+    // `webApi: 'rejects'` reaches the write only on a record that cannot take
+    // it itself; the record route is the one refusing above.
+    const refused = bind({ webApi: 'rejects', quirks: { editableAbsent: true } });
     const before = laneOf(refused, 'w1');
 
     refused.props().onMove('w1', 3);
@@ -363,7 +528,7 @@ check('and that it cannot where there is no Web API', bind({ webApi: 'absent' })
         refused.props().moveError,
     );
 
-    const odd = bind({ webApi: 'rejects', rejection: 'a bare string' });
+    const odd = bind({ webApi: 'rejects', rejection: 'a bare string', quirks: { editableAbsent: true } });
 
     odd.props().onMove('w2', 3);
     await flush();
@@ -395,15 +560,15 @@ check('and that it cannot where there is no Web API', bind({ webApi: 'absent' })
      * The guard that stands between an absent API and a TypeError inside a
      * promise nobody is awaiting.
      */
-    const readOnly = bind({ webApi: 'absent' });
+    const unwritable = bind({ webApi: 'absent', quirks: { editableAbsent: true } });
 
-    readOnly.props().onMove('w1', 3);
+    unwritable.props().onMove('w1', 3);
     await flush();
 
     check(
-        'a host that cannot write is not asked to',
-        !readOnly.calls().some((call) => call.startsWith('updateRecord')),
-        readOnly.calls().join(' ') || 'no calls',
+        'a host that cannot write is not asked to, by either route',
+        !unwritable.calls().some((call) => call.startsWith('updateRecord') || call.startsWith('record.')),
+        unwritable.calls().join(' ') || 'no calls',
     );
 
     /* ------------------------------------------------------------ opening */

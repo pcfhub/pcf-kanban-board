@@ -196,4 +196,34 @@
   <data name="KanbanBoard_OpenRecord" xml:space="preserve">
     <value>Open {0}</value>
   </data>
+  <data name="ShowSearch_Name" xml:space="preserve">
+    <value>Show search</value>
+  </data>
+  <data name="ShowSearch_Desc" xml:space="preserve">
+    <value>Show a search box above the lanes. It narrows the cards already loaded by title, assignee and badge; the lanes and their drop targets stay.</value>
+  </data>
+  <data name="AllowCreate_Name" xml:space="preserve">
+    <value>Allow adding cards</value>
+  </data>
+  <data name="AllowCreate_Desc" xml:space="preserve">
+    <value>Show a + in each lane header that opens the quick create form with that lane already chosen. Only where the app has forms to open — a model-driven app.</value>
+  </data>
+  <data name="CreatedRecordId_Name" xml:space="preserve">
+    <value>Created record id</value>
+  </data>
+  <data name="CreatedRecordId_Desc" xml:space="preserve">
+    <value>The id of the record the quick create form saved. Unchanged when the form is dismissed.</value>
+  </data>
+  <data name="KanbanBoard_Search" xml:space="preserve">
+    <value>Search cards</value>
+  </data>
+  <data name="KanbanBoard_MatchCount" xml:space="preserve">
+    <value>{0} of {1}</value>
+  </data>
+  <data name="KanbanBoard_AddCard" xml:space="preserve">
+    <value>Add a card to {0}</value>
+  </data>
+  <data name="KanbanBoard_ReadOnly" xml:space="preserve">
+    <value>This host cannot write to the record.</value>
+  </data>
 </root>

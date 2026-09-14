@@ -6,19 +6,40 @@ order: 7
 
 # Limitations
 
-## Cards cannot be moved in a canvas app
+## Cards cannot be moved in a canvas app, in practice
 
-Moving a card writes through the Web API, and Dataverse-dependent APIs including
-the Web API are [not available to code components in canvas apps][limits]. The
-board renders and groups normally there; the drag handles and the *Move to…*
-menu are simply not shown.
+A move is written one of two ways: through the record — `setValue` and
+`save`, which needs no declared feature — where the platform reports the lane
+column as editable for that record, and through the Web API otherwise. Canvas
+apps offer code components neither the Web API
+([not available there][limits]) nor, as far as this control has seen, a record
+it can save, so the board renders and groups normally there and the drag
+handles and the *Move to…* menu are simply not shown.
 
-The control declares the feature as `required="false"` on purpose. Declared
+The control declares `WebAPI` as `required="false"` on purpose. Declared
 `required="true"`, the documented behaviour on a host that lacks the feature is
 not a graceful degradation but **component load failure at runtime** — a blank
 space where the board should be. Read-only is the better failure.
 
 Moves work in model-driven apps, and in custom pages once published.
+
+## Adding a card needs a model-driven app
+
+The **+** in a lane header opens the table's quick create form, and there is
+one to open only in a model-driven app. Elsewhere — a canvas app, PCFHub's
+demo — the button is not shown rather than disabled. The table also has to
+*have* a quick create form: with none, the platform opens the main form
+instead, which still works but is not quick.
+
+The lane is passed to the form as a field value, so it arrives already chosen.
+The other columns are the form's own business — the board sets nothing else.
+
+## Search covers the cards already loaded
+
+The search box narrows what is on the board; it does not query Dataverse. A
+board loads more rather than turning pages, so cards past the last **Load
+more** are not searched until they are loaded. It matches the title, assignee
+and badge — the three things printed on a card — and nothing that is not.
 
 [limits]: https://learn.microsoft.com/power-apps/developer/component-framework/limitations
 

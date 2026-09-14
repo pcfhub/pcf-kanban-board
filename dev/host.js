@@ -75,6 +75,10 @@
     var STRINGS = {
         KanbanBoard_Name: 'Kanban Board',
         KanbanBoard_MoveFailed: 'Could not move {0}.',
+        KanbanBoard_Search: 'Search cards',
+        KanbanBoard_MatchCount: '{0} of {1}',
+        KanbanBoard_AddCard: 'Add a card to {0}',
+        KanbanBoard_ReadOnly: 'This host cannot write to the record.',
         KanbanBoard_Unassigned: 'Unassigned',
         KanbanBoard_Empty: 'No records.',
         KanbanBoard_Error: 'The records could not be loaded.',
@@ -150,7 +154,47 @@
         /** What a rejection carries. Not an Error, because the platform's is not. */
         rejection: null,
 
+        /**
+         * What `navigation.openForm` resolves with. Measured by
+         * `pcf-data-table` (2026-09-11): a dismissed quick create resolves
+         * `{ savedEntityReference: null }` — not `[]`, not a rejection — and a
+         * saved one `{ savedEntityReference: [{ id: "{436E09A8-…}", entityType,
+         * name }] }`, braced and upper-case. The default is the dismissal,
+         * because it is the shape a control forgets to handle.
+         */
+        openFormReturns: { savedEntityReference: null },
+
+        /**
+         * `mode.contextInfo` — the parent record of a form subgrid, which a
+         * control passes to `openForm` as `createFromEntity`. Undocumented, so
+         * absent by default: a main grid has none, and a control that reads it
+         * unguarded finds out here.
+         */
+        contextInfo: undefined,
+
         quirks: {
+            /**
+             * Whether the record carries the write half of `EntityRecord` —
+             * `setValue`, `save`, `isEditable`. Off by default, because a
+             * real model-driven subgrid has them (measured 2026-09-09 and
+             * 2026-09-11); on, it models the host that does not, which a
+             * control survives by falling back to `webAPI.updateRecord`.
+             * None of the three is in the typings.
+             */
+            editableAbsent: false,
+
+            /** `save()` rejects. The path a rollback exists for. */
+            saveRejects: false,
+
+            /**
+             * Columns `isEditable` answers `false` for. On the measured subgrid
+             * `statecode` and `statuscode` came back `false` while a Choice
+             * column on the same row came back `true` — all three reporting
+             * `OptionSet`. A board grouped by `statuscode` has to write
+             * through the Web API instead, which is why this is a switch.
+             */
+            readOnlyColumns: ['statecode'],
+
             /**
              * `loadNextPage(true)` returns the whole range from page one rather
              * than only the new page. Observed on a real form; defaulted on
@@ -225,7 +269,18 @@
         var quirks = Object.assign({}, DEFAULTS.quirks, (options || {}).quirks);
         var hostKind = HOSTS[o.host] || HOSTS['model-driven'];
 
-        var allRecords = o.records || fixture.records;
+        /*
+         * **Each host gets its own rows.** `record.save()` commits into the
+         * row and the next fetch applies it, so a host sharing the fixture's
+         * row objects would leak every write into every host created after
+         * it — and it did: a suite that moved w1 to lane 3 left w1 in lane 3
+         * for the rest of the file, and "move w1 to 3" became a no-op that
+         * passed as "a refused write put it back". The values are copied
+         * one level deep, which is as deep as a fixture row goes.
+         */
+        var allRecords = (o.records || fixture.records).map(function (row) {
+            return Object.assign({}, row, { values: Object.assign({}, row.values), staged: null, committed: null });
+        });
         var columns = o.columns || fixture.columns;
 
         var state = {
@@ -294,7 +349,7 @@
         }
 
         function recordFor(row) {
-            return {
+            var record = {
                 getRecordId: function () {
                     return row.id;
                 },
@@ -308,6 +363,65 @@
                     return { id: row.id, name: formatted(row.values.name), etn: fixture.targetEntityType };
                 },
             };
+
+            /*
+             * **The write half of `EntityRecord`, which the type definitions do
+             * not declare.** Ported from the template's dataset rig, where the
+             * measurements are recorded: `setValue` + `save` committed a Choice
+             * integer on a real subgrid (2026-09-11), and it is the route that
+             * needs no `<uses-feature>` and exists where `webAPI` does not.
+             */
+            if (quirks.editableAbsent) {
+                return record;
+            }
+
+            // Staged, not applied: `setValue` on the platform does not commit.
+            row.staged = row.staged || {};
+
+            /*
+             * **Returns `undefined`, because the platform does.** Microsoft's
+             * reference page types it `Promise`; a rig that returned one let
+             * `pcf-data-table` chain `.then` off it for three releases.
+             */
+            record.setValue = function (name, value) {
+                log('record.setValue', name + '=' + JSON.stringify(value));
+                row.staged[name] = value;
+
+                return undefined;
+            };
+
+            record.save = function () {
+                log('record.save', row.id);
+
+                if (quirks.saveRejects) {
+                    row.staged = {};
+
+                    return Promise.reject(o.rejection || { message: 'The platform refused this write.' });
+                }
+
+                /*
+                 * **Resolving is not applying.** A resolved `save()` is
+                 * Dataverse accepting the write; the dataset re-reads on a
+                 * separate fetch, and until then the record still reports
+                 * the old value — the window an optimistic control holds its
+                 * own value across. Applied at the next `fetched()`.
+                 */
+                row.committed = Object.assign(row.committed || {}, row.staged);
+                row.staged = {};
+
+                return Promise.resolve();
+            };
+
+            /*
+             * **A Promise, because the platform's is.** An unawaited call is a
+             * truthy Promise, so `if (record.isEditable(name))` is true for
+             * every column; returning a bare boolean here would let that pass.
+             */
+            record.isEditable = function (name) {
+                return Promise.resolve(quirks.readOnlyColumns.indexOf(name) === -1);
+            };
+
+            return record;
         }
 
         var dataset = {
@@ -486,6 +600,15 @@
             state.pageSize = state.requestedPageSize;
             state.refreshes += 1;
             state.renderOwed = true;
+
+            // Values a resolved `save()` committed become visible on the
+            // re-read, not before — see `record.save`.
+            allRecords.forEach(function (row) {
+                if (row.committed) {
+                    Object.assign(row.values, row.committed);
+                    row.committed = null;
+                }
+            });
         }
 
         function createContext() {
@@ -525,6 +648,8 @@
                     isVisible: o.visible,
                     isControlDisabled: false,
                     label: fixture.title,
+                    // Undocumented, and absent unless the host says otherwise.
+                    contextInfo: o.contextInfo,
                     // Recorded rather than delivered — "did the control ask for
                     // resize notifications" is a decision worth asserting; the
                     // resize itself comes from the `width` option.
@@ -578,6 +703,25 @@
                                   return o.webApi === 'rejects'
                                       ? Promise.reject(o.rejection || { message: 'Insufficient privileges' })
                                       : Promise.resolve({ id: id, name: 'updated', etn: entity });
+                              },
+                          },
+
+                /*
+                 * `navigation` is typed as always present and is absent on
+                 * canvas and on the hub's demo harness, so the bag itself is
+                 * withheld there. **Both arguments are logged**: the second,
+                 * `parameters`, is how a quick create arrives with a column
+                 * already set — the lane, here — and a stub that logged only
+                 * the options would certify a "+" that opens a blank form.
+                 */
+                navigation:
+                    hostKind.label === 'canvas app'
+                        ? undefined
+                        : {
+                              openForm: function (formOptions, parameters) {
+                                  log('navigation.openForm', { options: formOptions, parameters: parameters });
+
+                                  return Promise.resolve(o.openFormReturns);
                               },
                           },
 

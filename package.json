@@ -1,6 +1,6 @@
 {
   "name": "pcf-kanban-board",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "A Dataverse view as a drag-and-drop board, grouped by a choice column.",
   "license": "MIT",
   "private": true,
@@ -14,7 +14,8 @@
     "start": "pcf-scripts start",
     "refreshTypes": "pcf-scripts refreshTypes",
     "lint": "eslint KanbanBoard --ext .ts,.tsx",
-    "smoke": "node dev/smoke.js"
+    "smoke": "node dev/smoke.js",
+    "preview": "node dev/serve.js"
   },
   "devDependencies": {
     "@fluentui/react-components": "9.46.2",

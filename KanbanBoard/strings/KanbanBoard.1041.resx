@@ -196,4 +196,34 @@
   <data name="KanbanBoard_OpenRecord" xml:space="preserve">
     <value>{0} を開く</value>
   </data>
+  <data name="ShowSearch_Name" xml:space="preserve">
+    <value>検索を表示</value>
+  </data>
+  <data name="ShowSearch_Desc" xml:space="preserve">
+    <value>レーンの上に検索ボックスを表示します。読み込み済みのカードをタイトル、担当者、バッジで絞り込みます。レーンとそのドロップ先はそのまま残ります。</value>
+  </data>
+  <data name="AllowCreate_Name" xml:space="preserve">
+    <value>カードの追加を許可</value>
+  </data>
+  <data name="AllowCreate_Desc" xml:space="preserve">
+    <value>各レーンの見出しに + を表示し、そのレーンが選択された状態でクイック作成フォームを開きます。フォームを開けるアプリ（モデル駆動型アプリ）でのみ表示されます。</value>
+  </data>
+  <data name="CreatedRecordId_Name" xml:space="preserve">
+    <value>作成されたレコード ID</value>
+  </data>
+  <data name="CreatedRecordId_Desc" xml:space="preserve">
+    <value>クイック作成フォームが保存したレコードの ID。フォームを閉じた場合は変わりません。</value>
+  </data>
+  <data name="KanbanBoard_Search" xml:space="preserve">
+    <value>カードを検索</value>
+  </data>
+  <data name="KanbanBoard_MatchCount" xml:space="preserve">
+    <value>{1} 件中 {0} 件</value>
+  </data>
+  <data name="KanbanBoard_AddCard" xml:space="preserve">
+    <value>{0} にカードを追加</value>
+  </data>
+  <data name="KanbanBoard_ReadOnly" xml:space="preserve">
+    <value>このホストではレコードに書き込めません。</value>
+  </data>
 </root>

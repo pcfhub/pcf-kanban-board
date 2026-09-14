@@ -20,7 +20,7 @@ Reference them from a doc page with the `image` and `video` directives, which
 take repository-relative paths:
 
 ```markdown
-::image{src=media/screenshot.png alt="What it shows" zoom}
+::image{src=media/screenshot-board.png alt="What it shows" zoom}
 ::video{src=media/walkthrough.mp4 poster=media/walkthrough-poster.png}
 ```
 

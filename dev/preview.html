@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<!--
+  The board, rendered in a real browser, for looking at.
+
+      npm run build
+      npm run preview        then open http://localhost:8080/dev/preview.html
+
+  ---
+
+  **Why this exists alongside `smoke.js`.** That file loads the same bundle in
+  Node and asserts what the control *decided* — which route a move took, what
+  `openForm` was handed. This one renders it, and the two answer different
+  questions: whether the count sits beside the "+" or under it, whether a
+  search box styled from tokens reads as a Fluent field, whether a lane with
+  nothing in it after a search still looks like a drop target. None of that
+  is visible in a props object.
+
+  **And why it is a browser page rather than `react-dom/server`.** The search
+  text is React state driven by an input event, and the lanes from the option
+  set arrive through an effect. Neither runs under the server renderer, so a
+  server-rendered picture can only show the board before any of it happened.
+  Here, effects run and `?search=` types.
+
+  **The Fluent components are stubbed**, and the stub does *less* than the
+  real thing, which is the safe direction:
+    - `FluentProvider` is a `<div>` and the theme is empty, so every
+      `var(--colorX, fallback)` resolves to its literal fallback — the light
+      theme, and the branch a canvas app and PCFHub's demo get.
+    - `Menu` renders its popover inline under the trigger, not in a portal, and
+      traps no focus. A rule scoped through `.KanbanBoard` works here and
+      matches nothing on a form.
+    - `Button` is a `<button>` with a class naming its appearance; hover and
+      pressed states are the browser's.
+  `npm start` stays the authority for anything that depends on real Fluent.
+
+  Query parameters, all optional:
+
+    ?fixture=demo          render demo/records.json (formatted values) instead of dev/fixture.js
+    ?search=text           type this into the search box
+    ?create=0              hide the "+" (manifest default is on)
+    ?canvas=1              a canvas host: no webAPI, no navigation, no theme
+    ?empty=1               a view with no records
+    ?lanes=1=New,2=Active  the Lanes override
+    ?width=700             the width the host allocates (default: the window's)
+-->
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Kanban Board — preview</title>
+    <link rel="stylesheet" href="../out/controls/KanbanBoard/css/KanbanBoard.css" />
+    <style>
+        /*
+          Nothing here styles the control. It stands in for the host page, so
+          the picture has the padding and ground a form would give it.
+        */
+        body { margin: 0; padding: 16px; background: #ffffff; font-family: 'Segoe UI', system-ui, sans-serif; }
+        #root { max-width: 100%; }
+        /* The stub's menu, drawn as a layer so the picture is not misleading. */
+        .stub-menu { position: absolute; z-index: 1; margin-top: 4px; min-width: 160px; background: #fff; border-radius: 4px; box-shadow: 0 8px 16px rgba(0,0,0,.14), 0 0 2px rgba(0,0,0,.12); padding: 4px; }
+        .stub-menu button { display: block; width: 100%; text-align: start; font: inherit; background: none; border: 0; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
+        .stub-menu button:hover { background: #f5f5f5; }
+        .stub-button { font: inherit; border: 1px solid transparent; border-radius: 4px; background: transparent; cursor: pointer; padding: 2px 6px; color: inherit; }
+        .stub-button.secondary { border-color: #d1d1d1; background: #fff; padding: 5px 12px; }
+        .stub-button:hover { background: #f5f5f5; }
+        .stub-button:disabled { color: #bdbdbd; cursor: default; }
+    </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="../node_modules/react/umd/react.development.js"></script>
+<script src="../node_modules/react-dom/umd/react-dom.development.js"></script>
+<script src="fixture.js"></script>
+<script src="host.js"></script>
+
+<script>
+    /*
+      The platform globals, under the names the bundle asks for.
+
+      `pcf-scripts` maps a `<platform-library>` version onto the build it
+      supports, so Fluent 9.46.2 arrives as `FluentUIReactv940`. If a version
+      bump ever changes those names this page fails loudly on the next line
+      rather than rendering an empty box — which `smoke.js` avoids by reading
+      the names out of the bundle, and which is not worth the machinery here.
+    */
+    window.Reactv16 = window.React;
+
+    (function (React) {
+        function Button(props) {
+            var className = 'stub-button ' + (props.appearance || 'subtle') + (props.className ? ' ' + props.className : '');
+
+            return React.createElement('button', {
+                type: 'button',
+                className: className,
+                disabled: props.disabled,
+                'aria-label': props['aria-label'],
+                'aria-haspopup': props['aria-haspopup'],
+                'aria-expanded': props['aria-expanded'],
+                onClick: props.onClick,
+            }, props.children);
+        }
+
+        // Compound: Menu reads its own children for the trigger and the popover.
+        function MenuTrigger(props) { return props.children; }
+        MenuTrigger.__role = 'trigger';
+        function MenuPopover(props) { return React.createElement('div', { className: 'stub-menu', role: 'menu' }, props.children); }
+        MenuPopover.__role = 'popover';
+        function MenuList(props) { return props.children; }
+        function MenuItem(props) {
+            return React.createElement('button', { type: 'button', role: 'menuitem', disabled: props.disabled, onClick: props.onClick }, props.children);
+        }
+
+        function Menu(props) {
+            var open = React.useState(false);
+            var trigger = null;
+            var popover = null;
+
+            React.Children.forEach(props.children, function (child) {
+                if (child && child.type && child.type.__role === 'trigger') { trigger = child; }
+                if (child && child.type && child.type.__role === 'popover') { popover = child; }
+            });
+
+            var button = trigger && React.cloneElement(trigger.props.children, {
+                onClick: function () { open[1](!open[0]); },
+                'aria-haspopup': 'menu',
+                'aria-expanded': open[0] ? 'true' : 'false',
+            });
+
+            return React.createElement('div', { style: { position: 'relative' } }, button, open[0] ? popover : null);
+        }
+
+        window.FluentUIReactv940 = {
+            FluentProvider: function (props) { return React.createElement('div', { dir: props.dir }, props.children); },
+            Button: Button,
+            Menu: Menu,
+            MenuTrigger: MenuTrigger,
+            MenuPopover: MenuPopover,
+            MenuList: MenuList,
+            MenuItem: MenuItem,
+            webLightTheme: {},
+        };
+    })(window.React);
+
+    var registration = window.__pcfHost.captureRegistration(window);
+</script>
+
+<script src="../out/controls/KanbanBoard/bundle.js"></script>
+
+<script>
+    (async function () {
+        'use strict';
+
+        var host = window.__pcfHost;
+        var fixture = window.__pcfFixture;
+        var params = new URLSearchParams(window.location.search);
+        var root = document.getElementById('root');
+
+        if (typeof registration.ctor !== 'function') {
+            root.textContent = 'The bundle registered no control. Run npm run build.';
+
+            return;
+        }
+
+        /*
+          `dev/fixture.js` exists to break things — nulls, an overlong title —
+          and `demo/records.json` carries values already formatted the way a
+          form shows them, which is what a published screenshot should be of.
+        */
+        if (params.get('fixture') === 'demo') {
+            var response = await fetch('../demo/records.json');
+
+            fixture = await response.json();
+        }
+
+        if (params.get('empty') === '1') {
+            fixture = Object.assign({}, fixture, { records: [] });
+        }
+
+        var canvas = params.get('canvas') === '1';
+        var width = Number(params.get('width')) || window.innerWidth - 32;
+
+        var handle = host.createHost(fixture, {
+            host: canvas ? 'canvas' : 'model-driven',
+            webApi: canvas ? 'absent' : 'works',
+            width: width,
+            pageSize: 50,
+            inputs: {
+                lanes: params.get('lanes') || '',
+                laneWidth: Number(params.get("lane")) || 250,
+                laneColors: true,
+                openOnCardClick: true,
+                showSearch: params.get('search') !== '0',
+                allowCreate: params.get('create') !== '0',
+            },
+            contextInfo: canvas ? undefined : { entityTypeName: 'account', entityId: '85f67958-7637-f111-88b5-7ced8d3b545a', entityRecordName: 'Preview parent' },
+        });
+
+        var control = new registration.ctor();
+
+        // The platform re-renders after notifyOutputChanged; so does this page.
+        var render = function () {
+            handle.settled();
+            ReactDOM.render(control.updateView(handle.nextContext()), root);
+        };
+
+        control.init(handle.context, function () { setTimeout(render, 0); }, {}, root);
+        render();
+
+        // A mutator owes a render, the way a fetch does on a form.
+        var tick = setInterval(function () {
+            if (handle.renderOwed()) {
+                render();
+            }
+        }, 50);
+
+        var query = params.get('search');
+
+        if (query) {
+            setTimeout(function () {
+                var box = root.querySelector('.KanbanBoard-search');
+
+                if (box) {
+                    // React 16 listens for the native input event through its own value tracker.
+                    var setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+
+                    setter.call(box, query);
+                    box.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            }, 100);
+        }
+
+        window.__preview = { handle: handle, control: control, render: render, stop: function () { clearInterval(tick); } };
+    })();
+</script>
+</body>
+</html>

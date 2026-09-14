@@ -196,4 +196,34 @@
   <data name="KanbanBoard_OpenRecord" xml:space="preserve">
     <value>Ouvrir {0}</value>
   </data>
+  <data name="ShowSearch_Name" xml:space="preserve">
+    <value>Afficher la recherche</value>
+  </data>
+  <data name="ShowSearch_Desc" xml:space="preserve">
+    <value>Affiche une zone de recherche au-dessus des couloirs. Elle filtre les cartes déjà chargées par titre, responsable et badge ; les couloirs et leurs zones de dépôt restent.</value>
+  </data>
+  <data name="AllowCreate_Name" xml:space="preserve">
+    <value>Autoriser l’ajout de cartes</value>
+  </data>
+  <data name="AllowCreate_Desc" xml:space="preserve">
+    <value>Affiche un + dans l’en-tête de chaque couloir, qui ouvre le formulaire de création rapide avec ce couloir déjà choisi. Uniquement là où l’application a des formulaires à ouvrir : une application pilotée par modèle.</value>
+  </data>
+  <data name="CreatedRecordId_Name" xml:space="preserve">
+    <value>Id de l’enregistrement créé</value>
+  </data>
+  <data name="CreatedRecordId_Desc" xml:space="preserve">
+    <value>L’id de l’enregistrement enregistré par le formulaire de création rapide. Inchangé si le formulaire est fermé sans enregistrer.</value>
+  </data>
+  <data name="KanbanBoard_Search" xml:space="preserve">
+    <value>Rechercher des cartes</value>
+  </data>
+  <data name="KanbanBoard_MatchCount" xml:space="preserve">
+    <value>{0} sur {1}</value>
+  </data>
+  <data name="KanbanBoard_AddCard" xml:space="preserve">
+    <value>Ajouter une carte à {0}</value>
+  </data>
+  <data name="KanbanBoard_ReadOnly" xml:space="preserve">
+    <value>Cet hôte ne peut pas écrire dans l’enregistrement.</value>
+  </data>
 </root>

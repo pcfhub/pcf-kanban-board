@@ -196,4 +196,34 @@
   <data name="KanbanBoard_OpenRecord" xml:space="preserve">
     <value>{0} öffnen</value>
   </data>
+  <data name="ShowSearch_Name" xml:space="preserve">
+    <value>Suche anzeigen</value>
+  </data>
+  <data name="ShowSearch_Desc" xml:space="preserve">
+    <value>Zeigt ein Suchfeld über den Spalten. Es filtert die bereits geladenen Karten nach Titel, Zuständigem und Kennzeichen; die Spalten und ihre Ablagebereiche bleiben.</value>
+  </data>
+  <data name="AllowCreate_Name" xml:space="preserve">
+    <value>Karten hinzufügen erlauben</value>
+  </data>
+  <data name="AllowCreate_Desc" xml:space="preserve">
+    <value>Zeigt in jeder Spaltenüberschrift ein +, das das Schnellerstellungsformular mit dieser Spalte bereits ausgewählt öffnet. Nur dort, wo die App Formulare öffnen kann – eine modellgesteuerte App.</value>
+  </data>
+  <data name="CreatedRecordId_Name" xml:space="preserve">
+    <value>ID des erstellten Datensatzes</value>
+  </data>
+  <data name="CreatedRecordId_Desc" xml:space="preserve">
+    <value>Die ID des Datensatzes, den das Schnellerstellungsformular gespeichert hat. Unverändert, wenn das Formular verworfen wird.</value>
+  </data>
+  <data name="KanbanBoard_Search" xml:space="preserve">
+    <value>Karten suchen</value>
+  </data>
+  <data name="KanbanBoard_MatchCount" xml:space="preserve">
+    <value>{0} von {1}</value>
+  </data>
+  <data name="KanbanBoard_AddCard" xml:space="preserve">
+    <value>Karte zu {0} hinzufügen</value>
+  </data>
+  <data name="KanbanBoard_ReadOnly" xml:space="preserve">
+    <value>Dieser Host kann den Datensatz nicht schreiben.</value>
+  </data>
 </root>

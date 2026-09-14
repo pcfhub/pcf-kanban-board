@@ -196,4 +196,34 @@
   <data name="KanbanBoard_OpenRecord" xml:space="preserve">
     <value>Abrir {0}</value>
   </data>
+  <data name="ShowSearch_Name" xml:space="preserve">
+    <value>Mostrar búsqueda</value>
+  </data>
+  <data name="ShowSearch_Desc" xml:space="preserve">
+    <value>Muestra un cuadro de búsqueda sobre los carriles. Filtra las tarjetas ya cargadas por título, responsable y etiqueta; los carriles y sus zonas de destino se mantienen.</value>
+  </data>
+  <data name="AllowCreate_Name" xml:space="preserve">
+    <value>Permitir añadir tarjetas</value>
+  </data>
+  <data name="AllowCreate_Desc" xml:space="preserve">
+    <value>Muestra un + en la cabecera de cada carril que abre el formulario de creación rápida con ese carril ya elegido. Solo donde la aplicación tenga formularios que abrir: una aplicación basada en modelo.</value>
+  </data>
+  <data name="CreatedRecordId_Name" xml:space="preserve">
+    <value>Id del registro creado</value>
+  </data>
+  <data name="CreatedRecordId_Desc" xml:space="preserve">
+    <value>El id del registro que guardó el formulario de creación rápida. No cambia si el formulario se cierra sin guardar.</value>
+  </data>
+  <data name="KanbanBoard_Search" xml:space="preserve">
+    <value>Buscar tarjetas</value>
+  </data>
+  <data name="KanbanBoard_MatchCount" xml:space="preserve">
+    <value>{0} de {1}</value>
+  </data>
+  <data name="KanbanBoard_AddCard" xml:space="preserve">
+    <value>Añadir una tarjeta a {0}</value>
+  </data>
+  <data name="KanbanBoard_ReadOnly" xml:space="preserve">
+    <value>Este host no puede escribir en el registro.</value>
+  </data>
 </root>

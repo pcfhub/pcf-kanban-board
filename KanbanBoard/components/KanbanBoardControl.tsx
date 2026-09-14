@@ -9,15 +9,19 @@ import {
     MenuTrigger,
     webLightTheme,
 } from '@fluentui/react-components';
-import { Card, Lane, boardKey, cardsInLane, withUnassigned } from './lanes';
+import { Card, Lane, boardKey, cardsInLane, matchesQuery, withUnassigned } from './lanes';
 
 export interface IProps {
     cards: Card[];
     lanes: Lane[];
     hasStatus: boolean;
     hasTitle: boolean;
-    /** False on a host with no WebAPI — canvas — where a move cannot be written. */
+    /** False on a host with neither a writable record nor a WebAPI, where a move cannot be written. */
     canMove: boolean;
+    /** False where the maker turned it off, or the host has no `navigation.openForm` — canvas, the demo. */
+    canCreate: boolean;
+    /** Whether the search box is rendered at all. */
+    showSearch: boolean;
     moving: string[];
     moveError: string | null;
     loading: boolean;
@@ -51,6 +55,8 @@ export interface IProps {
      */
     loadLanes: (() => Promise<Lane[]>) | null;
     onMove: (recordId: string, toValue: number) => void;
+    /** Open the quick create form with the lane's option preselected. */
+    onCreate: (laneValue: number) => void;
     onOpenRecord: (id: string) => void;
     onLoadMore: () => void;
 }
@@ -139,9 +145,25 @@ export function KanbanBoardControl(props: IProps): React.ReactElement | null {
     const [overlay, place] = useOptimisticLanes(cards);
     const fromOptions = useOptionLanes(props.lanesKey, props.loadLanes);
 
+    /*
+     * The search text lives here and nowhere else. A virtual control cannot
+     * push a repaint from outside React — `notifyOutputChanged()` announces
+     * outputs, and typing changes none — so state that has to repaint on
+     * every keystroke has to be React's. Same rule as `useOptionLanes`.
+     */
+    const [query, setQuery] = React.useState('');
+    const searching = query.trim() !== '';
+
     const placed = React.useMemo(
         () => cards.map((card) => (card.id in overlay ? { ...card, lane: overlay[card.id] } : card)),
         [cards, overlay],
+    );
+
+    // What the lanes show. The lanes themselves come from every card, so a
+    // search never hides a drop target — only the cards in it.
+    const shown = React.useMemo(
+        () => (searching ? placed.filter((card) => matchesQuery(card, query)) : placed),
+        [placed, query, searching],
     );
 
     // The option set when it answered, otherwise whatever index.ts could work
@@ -203,12 +225,17 @@ export function KanbanBoardControl(props: IProps): React.ReactElement | null {
         return frame(<p className="KanbanBoard-message">{getString('KanbanBoard_NoTitle')}</p>);
     }
 
-    if (placed.length === 0) {
-        return frame(
-            <p className="KanbanBoard-message">
-                {props.loading ? getString('KanbanBoard_Loading') : getString('KanbanBoard_Empty')}
-            </p>,
-        );
+    /*
+     * An empty view is still a board when a card can be added to it: the lanes
+     * are drawn so each one's "+" is reachable, and the message sits above
+     * them. Without a create route there is nothing to do with empty lanes, so
+     * the message stands alone as before.
+     */
+    const empty = placed.length === 0;
+    const emptyMessage = props.loading ? getString('KanbanBoard_Loading') : getString('KanbanBoard_Empty');
+
+    if (empty && (!props.canCreate || props.loading || lanes.length === 0)) {
+        return frame(<p className="KanbanBoard-message">{emptyMessage}</p>);
     }
 
     if (lanes.length === 0) {
@@ -221,6 +248,41 @@ export function KanbanBoardControl(props: IProps): React.ReactElement | null {
                 <p className="KanbanBoard-error" role="alert">
                     {props.moveError}
                 </p>
+            )}
+
+            {empty && <p className="KanbanBoard-message">{emptyMessage}</p>}
+
+            {props.showSearch && !empty && (
+                <div className="KanbanBoard-toolbar">
+                    {/*
+                        A native search input rather than Fluent's: the
+                        platform's Fluent build carries no icon set, and a
+                        search box's affordances — the type, the clear
+                        button — are the browser's own. Styled from the same
+                        tokens as the rest, so it sits on a form like a field.
+                    */}
+                    <input
+                        type="search"
+                        className="KanbanBoard-search"
+                        value={query}
+                        placeholder={getString('KanbanBoard_Search')}
+                        aria-label={getString('KanbanBoard_Search')}
+                        disabled={props.disabled}
+                        onChange={(event): void => setQuery(event.target.value)}
+                    />
+                    {/*
+                        aria-live so a screen reader hears the count change as
+                        the query narrows; polite, because it changes on every
+                        keystroke.
+                    */}
+                    <span className="KanbanBoard-searchCount" aria-live="polite">
+                        {searching
+                            ? getString('KanbanBoard_MatchCount')
+                                .replace('{0}', String(shown.length))
+                                .replace('{1}', String(placed.length))
+                            : ''}
+                    </span>
+                </div>
             )}
 
             {/*
@@ -240,7 +302,9 @@ export function KanbanBoardControl(props: IProps): React.ReactElement | null {
                         key={String(lane.value)}
                         {...props}
                         lane={lane}
-                        cards={cardsInLane(placed, lane)}
+                        cards={cardsInLane(shown, lane)}
+                        total={cardsInLane(placed, lane).length}
+                        searching={searching}
                         width={laneWidth}
                         onDrop={move}
                     />
@@ -264,7 +328,11 @@ export function KanbanBoardControl(props: IProps): React.ReactElement | null {
 
 interface ILaneProps extends IProps {
     lane: Lane;
+    /** The cards to draw — every card in the lane, or the ones matching the search. */
     cards: Card[];
+    /** Every card in the lane, whatever the search says. */
+    total: number;
+    searching: boolean;
     width: number;
     onDrop: (recordId: string, toValue: number) => void;
 }
@@ -282,11 +350,21 @@ function LaneColumn(props: ILaneProps): React.ReactElement {
      */
     const droppable = lane.value !== null && !props.disabled && props.canMove;
 
+    /*
+     * The count reads "2 of 5" while a search narrows the lane and "5" the rest
+     * of the time. The unassigned lane takes no new card, for the reason it
+     * takes no drop: a card with no lane is not something to create on purpose.
+     */
+    const count = props.searching
+        ? getString('KanbanBoard_MatchCount').replace('{0}', String(cards.length)).replace('{1}', String(props.total))
+        : String(props.total);
+    const creatable = lane.value !== null && !props.disabled && props.canCreate;
+
     return (
         <section
             className={over ? 'KanbanBoard-lane is-over' : 'KanbanBoard-lane'}
             style={{ width: `${props.width}px` }}
-            aria-label={`${lane.label}, ${getString('KanbanBoard_CardCount').replace('{0}', String(cards.length))}`}
+            aria-label={`${lane.label}, ${getString('KanbanBoard_CardCount').replace('{0}', count)}`}
             onDragOver={(event): void => {
                 if (!droppable) {
                     return;
@@ -333,7 +411,25 @@ function LaneColumn(props: ILaneProps): React.ReactElement {
 
             <header className="KanbanBoard-laneHeader">
                 <span className="KanbanBoard-laneLabel">{lane.label}</span>
-                <span className="KanbanBoard-laneCount">{cards.length}</span>
+                <span className="KanbanBoard-laneCount">{count}</span>
+                {/*
+                    Hidden rather than disabled where nothing can create — the
+                    same reasoning as the move menu: a permanently greyed
+                    button invites the reader to work out what they configured
+                    wrongly, when the answer is that this host has no form to
+                    open.
+                */}
+                {creatable && (
+                    <Button
+                        appearance="subtle"
+                        size="small"
+                        className="KanbanBoard-laneAdd"
+                        aria-label={getString('KanbanBoard_AddCard').replace('{0}', lane.label)}
+                        onClick={(): void => props.onCreate(lane.value as number)}
+                    >
+                        +
+                    </Button>
+                )}
             </header>
 
             <ul className="KanbanBoard-cards">

@@ -89,15 +89,46 @@ control does not report a selection, so the ribbon's buttons would have nothing
 to act on, and its layout depends on the four bound roles rather than on
 whatever columns a different view would bring.
 
+## Adding cards
+
+Each lane header carries a **+** that opens the table's quick create form with
+the lane's option already chosen — the value is passed to the form as a field
+value, so the form opens filled in rather than blank. On a subgrid the parent
+record is passed too, so the new card lands in this view. When the form saves,
+the board refreshes and the card appears in its lane; when it is dismissed,
+nothing changes.
+
+The table needs a quick create form for this to be quick: without one the
+platform opens the main form instead. **Allow adding cards** turns the button
+off for a board that should only move what already exists.
+
+## How a move is written
+
+A dropped card writes its lane column one of two ways, chosen per record:
+
+- **Through the record**, where the platform reports the lane column as
+  editable for it — the same route an editable grid takes, needing no declared
+  feature and no install-time permission.
+- **Through the Web API**, where it does not. `statuscode` is the common case:
+  the platform reports it read-only on the record even though it is a choice
+  column, and a plain update writes it. This is why the control still declares
+  `WebAPI` — as `required="false"`, so a host without it loads the board
+  read-only rather than refusing it.
+
+Either way the card lands where it was dropped before the write returns, and
+returns to its lane with a message if the write is refused.
+
 ## Reacting to a move
 
-Two outputs are available to the form. Both update *before* the platform call
-they describe, so a form can observe the intent even when the call fails.
+Three outputs are available to the form. The first two update *before* the
+platform call they describe, so a form can observe the intent even when the
+call fails; the third updates only once the quick create has saved.
 
 | Output | Set when |
 | --- | --- |
 | `movedRecordId` | A card is dropped into a different lane |
 | `openedRecordId` | A card's title is clicked |
+| `createdRecordId` | The quick create form opened from a lane's **+** saves |
 
 The control writes the status column itself — a form handler is for reacting to
 the move, not for performing it.

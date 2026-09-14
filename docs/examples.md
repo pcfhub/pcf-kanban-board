@@ -68,7 +68,8 @@ right trade when the record is already open on the same form.
 
 No configuration difference — the same properties, on a canvas screen.
 
-The board renders, groups and scrolls, and the cards cannot be moved. See
+The board renders, groups, scrolls and searches, and the cards cannot be moved
+in practice. See
 [Canvas apps](canvas.md) for why, and for the custom-page option if moves are
 needed.
 

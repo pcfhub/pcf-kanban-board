@@ -179,6 +179,32 @@ export function cardsInLane(cards: Card[], lane: Lane): Card[] {
 }
 
 /**
+ * Whether a card matches what was typed into the search box.
+ *
+ * A case-insensitive substring over the three things printed on the card —
+ * title, assignee, badge — and nothing else: the search is over what the
+ * reader can see, so a match is always explicable. Whitespace-only is no
+ * query, and every card matches an empty one.
+ *
+ * Client-side, over the cards already loaded, and deliberately so. A board
+ * loads more rather than turning pages, so what is on screen is the working
+ * set; a server-side `setFilter` would cost a fetch per keystroke and drop
+ * the optimistic overlay with every refresh. `docs/limitations.md` says the
+ * search does not reach cards that have not been loaded.
+ */
+export function matchesQuery(card: Card, query: string): boolean {
+    const needle = query.trim().toLowerCase();
+
+    if (needle === '') {
+        return true;
+    }
+
+    return [card.title, card.assignee, card.badge].some(
+        (text) => typeof text === 'string' && text.toLowerCase().includes(needle),
+    );
+}
+
+/**
  * A content signature for the whole board.
  *
  * Used by the component to decide when to drop its optimistic overlay: every

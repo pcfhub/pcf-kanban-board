@@ -7,10 +7,14 @@ order: 3
 # Canvas apps
 
 :::callout{type=warning}
-**Cards cannot be moved in a canvas app.** The board renders, groups and scrolls
-normally, but the drag handles and the *Move to…* menu are not shown — moving a
-card writes through the Web API, and Dataverse-dependent APIs including the Web
-API are [not available to code components in canvas apps][limits].
+**Expect a read-only board in a canvas app.** It renders, groups, scrolls and
+searches normally, but the drag handles and the *Move to…* menu appear only
+where the host can write: through the Web API, which is
+[not available to code components in canvas apps][limits], or through the
+record itself, which no canvas app has yet been seen to allow. If your canvas
+board *does* show drag handles, the host handed it records it can save, and a
+move will work. The **+** is never shown here — there is no quick create form
+to open.
 
 This is a platform limitation, not a configuration mistake. There is no property
 that turns it on.
@@ -55,8 +59,11 @@ published custom page, and the board behaves correctly there.
 | | Canvas | Model-driven |
 | --- | --- | --- |
 | Cards render and group | Yes | Yes |
-| Cards can be moved | No | Yes |
-| `movedRecordId` output | Never set | Set on each move |
+| Cards can be moved | Not in practice — see above | Yes |
+| Cards can be added with **+** | No — no form to open | Yes |
+| Search | Yes | Yes |
+| `movedRecordId` output | Set only if a move is offered | Set on each move |
+| `createdRecordId` output | Never set | Set when the quick create saves |
 | Opening a card | No form to open; `openedRecordId` still updates | Opens the record |
 | Column metadata | Absent — the board does not use it | Present |
 

@@ -50,6 +50,52 @@
 }
 
 /*
+  The search box and its count, on one row above the lanes.
+
+  The input is a native <input type="search"> drawn as a Fluent field: the
+  neutral surface, the hairline border, and the bottom stroke that thickens to
+  brand on focus. The platform's Fluent build ships no icon set, so there is no
+  magnifier; the type attribute is what gives it a clear button.
+*/
+.KanbanBoard-toolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--spacingHorizontalS, 8px);
+}
+
+.KanbanBoard-search {
+    font: inherit;
+    color: inherit;
+    flex: 0 1 280px;
+    min-width: 120px;
+    box-sizing: border-box;
+    padding: var(--spacingVerticalXS, 4px) var(--spacingHorizontalS, 8px);
+    background-color: var(--colorNeutralBackground1, #ffffff);
+    border: 1px solid var(--colorNeutralStroke1, #d1d1d1);
+    border-bottom-color: var(--colorNeutralStrokeAccessible, #616161);
+    border-radius: var(--borderRadiusMedium, 4px);
+    outline: none;
+}
+
+.KanbanBoard-search:focus-visible {
+    border-bottom: 2px solid var(--colorCompoundBrandStroke, #0f6cbd);
+    /* Keep the box the same height when the bottom stroke doubles. */
+    padding-bottom: calc(var(--spacingVerticalXS, 4px) - 1px);
+}
+
+.KanbanBoard-search:disabled {
+    color: var(--colorNeutralForegroundDisabled, #bdbdbd);
+    border-color: var(--colorNeutralStrokeDisabled, #e0e0e0);
+}
+
+/* "3 of 12" while a search narrows the board; empty otherwise, so it takes no room. */
+.KanbanBoard-searchCount {
+    color: var(--colorNeutralForeground3, #616161);
+    font-size: var(--fontSizeBase200, 12px);
+    white-space: nowrap;
+}
+
+/*
   The lanes scroll sideways inside the control rather than widening the form.
   A board is the one dataset layout whose natural width has nothing to do with
   the space it is given, so this is load-bearing rather than defensive.
@@ -125,8 +171,10 @@
 
 .KanbanBoard-laneHeader {
     display: flex;
-    align-items: baseline;
-    justify-content: space-between;
+    /* Centred, not baseline: the "+" is a button with its own height, and baseline drops it below the count. */
+    align-items: center;
+    /* The count's auto margin does the spacing, so a third child does not land in the middle. */
+    justify-content: flex-start;
     gap: var(--spacingHorizontalS, 8px);
     padding: var(--spacingVerticalXS, 4px) var(--spacingHorizontalXS, 4px);
 }
@@ -142,6 +190,20 @@
     color: var(--colorNeutralForeground3, #616161);
     font-size: var(--fontSizeBase200, 12px);
     flex: 0 0 auto;
+    /* At the far edge, or beside the "+" when there is one. */
+    margin-inline-start: auto;
+}
+
+/*
+  The "+" that adds a card to the lane. A Fluent subtle button, so it takes
+  its hover and focus from the host; this only stops it stretching the header
+  and keeps the glyph optically centred.
+*/
+.KanbanBoard-laneAdd {
+    flex: 0 0 auto;
+    min-width: 24px;
+    line-height: 1;
+    align-self: center;
 }
 
 .KanbanBoard-cards {

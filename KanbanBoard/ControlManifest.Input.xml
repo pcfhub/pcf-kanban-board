@@ -7,7 +7,7 @@
   -->
   <control namespace="PCFHub"
            constructor="KanbanBoard"
-           version="0.2.2"
+           version="0.3.0"
            display-name-key="KanbanBoard_Name"
            description-key="KanbanBoard_Desc"
            control-type="virtual">
@@ -141,6 +141,38 @@
               default-value="true" />
 
     <!--
+      The search box above the lanes. Client-side, over the cards already
+      loaded — see matchesQuery in lanes.ts for why not setFilter. On by
+      default because a board with more than a screenful of cards needs it;
+      off is for a narrow form section where the toolbar costs a row.
+    -->
+    <property name="showSearch"
+              display-name-key="ShowSearch_Name"
+              description-key="ShowSearch_Desc"
+              of-type="TwoOptions"
+              usage="input"
+              required="false"
+              default-value="true" />
+
+    <!--
+      The "+" in each lane header, which opens the table's quick create form
+      with that lane's option already set — passed as a form parameter, the
+      second argument to navigation.openForm. Shown only where the host has
+      openForm at all: a model-driven app. Canvas and the hub's demo have no
+      form to open, and the button is hidden there rather than disabled.
+
+      On by default: a board you can move cards across but not add to sends
+      the user back to the grid for the one thing a board is for.
+    -->
+    <property name="allowCreate"
+              display-name-key="AllowCreate_Name"
+              description-key="AllowCreate_Desc"
+              of-type="TwoOptions"
+              usage="input"
+              required="false"
+              default-value="true" />
+
+    <!--
       A board loads more, it does not turn pages, so this is how many cards
       arrive per fetch rather than how many are on screen. The platform clamps
       large values.
@@ -190,6 +222,16 @@
               of-type="SingleLine.Text"
               usage="output" />
 
+    <!--
+      The id of the card the quick create form saved — unbraced, lower-case,
+      the spelling the other two use. Unchanged when the form is dismissed.
+    -->
+    <property name="createdRecordId"
+              display-name-key="CreatedRecordId_Name"
+              description-key="CreatedRecordId_Desc"
+              of-type="SingleLine.Text"
+              usage="output" />
+
     <resources>
       <code path="index.ts" order="1" />
       <css path="css/KanbanBoard.css" order="1" />
@@ -203,11 +245,13 @@
     </resources>
 
     <!--
-      WebAPI only, and it is genuinely used: moving a card calls
-      updateRecord(). That is one install-time permission prompt this control
-      has earned, and the reason the lanes are derived rather than read through
-      Utility — a second prompt for something a text property can answer is not
-      a trade worth making.
+      WebAPI is the *second* write route since 0.3.0, not the first. A move
+      goes through the record — setValue() then save(), which no manifest
+      entry has to declare — wherever record.isEditable() allows it, and falls
+      back to updateRecord() where it does not: statuscode answers false while
+      reporting OptionSet, and it is the column a board is most often grouped
+      by. So the feature stays declared, and the prompt it costs still buys
+      something.
 
       **required="false", and that is the whole difference between a board that
       degrades and one that will not start.**
@@ -221,13 +265,14 @@
       app rather than one that shows the cards and declines to move them.
 
       Reading a view is most of what this control does. With required="false"
-      the host leaves context.webAPI absent instead of refusing to load, index.ts
-      feature-detects it, and canvas gets a read-only board. Moving a card needs
-      a model-driven app, or a published custom page — custom pages have runtime
-      WebAPI support, though the studio preview reports "Method not implemented".
+      the host leaves context.webAPI absent instead of refusing to load, and
+      index.ts feature-detects it. A canvas app has no webAPI; whether its
+      dataset records carry the write half is not yet measured (SPEC.md), so
+      canvas is read-only until they are shown to.
 
       openDatasetItem() needs no feature: it is a method on the dataset itself,
-      not on context.navigation.
+      not on context.navigation. Nor does navigation.openForm, which the "+"
+      calls; it is simply absent on a host without forms.
     -->
     <feature-usage>
       <uses-feature name="WebAPI" required="false" />

@@ -12,10 +12,90 @@ import {
     parseLanes,
     withUnassigned,
 } from './components/lanes';
-import { Probe } from './probe';
 
 type DataSet = ComponentFramework.PropertyTypes.DataSet;
 type Column = ComponentFramework.PropertyHelper.DataSetApi.Column;
+
+/**
+ * The write half of a dataset record, which the type definitions do not
+ * declare and a model-driven host supplies.
+ *
+ * Measured on a real subgrid by `pcf-data-table` (a text cell 2026-09-09, a
+ * Choice integer 2026-09-11): `setValue` then one `save()` commits, needs
+ * no `<uses-feature>` and so no install-time prompt, and is the route that
+ * exists on a host where `webAPI` does not. **`setValue` returns
+ * `undefined`** — Microsoft's reference page types it `Promise`, and
+ * chaining `.then` off it is a synchronous `TypeError` outside every
+ * `.catch`. **`isEditable` is a Promise**, so an unawaited call is truthy for
+ * every column; it answers `false` for `statecode` and `statuscode` while
+ * both report `OptionSet`, which is exactly the column a board is most often
+ * grouped by — and the reason `webAPI.updateRecord` stays as the second
+ * route rather than being deleted.
+ */
+interface EditableRecord {
+    setValue(columnName: string, value: unknown): unknown;
+    save(): Promise<unknown>;
+    isEditable(columnName: string): Promise<boolean> | boolean;
+}
+
+/** The record as something that can be written to, or `null`. Detected on the three methods actually called. */
+function editableRecord(record: unknown): EditableRecord | null {
+    const candidate = record as EditableRecord | undefined;
+
+    return candidate
+        && typeof candidate.setValue === 'function'
+        && typeof candidate.save === 'function'
+        && typeof candidate.isEditable === 'function'
+        ? candidate
+        : null;
+}
+
+/**
+ * `navigation.openForm`, or `null`. Typed as always present; absent on
+ * canvas and on the hub's demo harness — detected per method, the
+ * `pcf-row-commands` rule.
+ */
+type FormOpener = (options: Record<string, unknown>, parameters?: Record<string, string>) => Promise<unknown>;
+
+function formOpener(context: ComponentFramework.Context<IInputs>): FormOpener | null {
+    const navigation = (context as { navigation?: { openForm?: unknown } }).navigation;
+
+    return navigation && typeof navigation.openForm === 'function'
+        ? (navigation.openForm as FormOpener).bind(navigation)
+        : null;
+}
+
+/**
+ * `mode.contextInfo` — untyped, measured by `pcf-data-table` on a form
+ * subgrid as `{ entityTypeName, entityId, entityRecordName }`, the parent
+ * record. A main grid has no parent, so both fields are checked.
+ */
+function parentReference(
+    context: ComponentFramework.Context<IInputs>,
+): { entityType: string; id: string } | null {
+    const info = (context.mode as { contextInfo?: { entityTypeName?: unknown; entityId?: unknown } })
+        .contextInfo;
+
+    return info && typeof info.entityTypeName === 'string' && typeof info.entityId === 'string'
+        ? { entityType: info.entityTypeName, id: info.entityId }
+        : null;
+}
+
+/**
+ * A GUID as the other outputs spell it: unbraced, lower-case. `openForm`
+ * resolves `{ id: "{436E09A8-…}" }` where the dataset's ids are bare and
+ * lower-case, so a form comparing `createdRecordId` with `openedRecordId`
+ * would never match without this.
+ */
+function bareGuid(raw: unknown): string | null {
+    if (typeof raw !== 'string') {
+        return null;
+    }
+
+    const trimmed = raw.trim().replace(/^\{|\}$/g, '').toLowerCase();
+
+    return /^[0-9a-f-]{36}$/.test(trimmed) ? trimmed : null;
+}
 
 /** The platform's ceiling on a page. Not in the type definitions. */
 const MAX_PAGE_SIZE = 250;
@@ -38,9 +118,10 @@ const MAX_PAGE_SIZE = 250;
  * in an event handler or a promise callback; `applyPageSize` is the one
  * exception and it is guarded on this control's own field.
  *
- * **This control writes.** Moving a card calls `webAPI.updateRecord`, and the
- * card moves on screen before the write resolves — nobody waits a round trip to
- * see a drag land. That optimism has to be paid for: `pending` holds the moves
+ * **This control writes.** Moving a card writes the lane column — through the
+ * record where the record allows it, through `webAPI.updateRecord` where it
+ * does not — and the card moves on screen before the write resolves, because
+ * nobody waits a round trip to see a drag land. That optimism has to be paid for: `pending` holds the moves
  * this control has asserted but not yet seen confirmed, `reconcile()` retires
  * them as the refreshed data catches up, and the `.catch()` puts a card back
  * when the write is refused. A card left sitting in a lane the record is not in
@@ -56,6 +137,7 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
     private notifyOutputChanged!: () => void;
     private openedRecordId = '';
     private movedRecordId = '';
+    private createdRecordId = '';
 
     /**
      * The page size this control has already asked the platform for.
@@ -83,9 +165,6 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
     private readonly moving = new Set<string>();
 
     private moveError: string | null = null;
-
-    /** 0.2.2 only. See probe.ts. */
-    private readonly probe = new Probe();
 
     public init(
         context: ComponentFramework.Context<IInputs>,
@@ -117,7 +196,6 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
     public updateView(context: ComponentFramework.Context<IInputs>): React.ReactElement {
         const dataset = context.parameters.records;
 
-        this.probe.observe(context);
         this.applyPageSize(context, dataset);
 
         const status = this.roleColumn(dataset, ROLES.status);
@@ -135,7 +213,9 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
             lanes: this.lanes(context, cards, getString),
             hasStatus: status !== undefined,
             hasTitle: title !== undefined,
-            canMove: this.canWrite(context),
+            canMove: this.canWrite(context, dataset),
+            canCreate: (context.parameters.allowCreate.raw ?? true) && formOpener(context) !== null,
+            showSearch: context.parameters.showSearch.raw ?? true,
             moving: [...this.moving],
             moveError: this.moveError,
             loading: dataset.loading,
@@ -163,6 +243,7 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
             loadLanes: this.laneLoader(context, dataset, status),
             onMove: (recordId: string, toValue: number): void =>
                 this.moveCard(context, dataset, recordId, toValue),
+            onCreate: (laneValue: number): void => this.createCard(context, dataset, laneValue),
             onOpenRecord: (id: string): void => this.openRecord(dataset, id),
             onLoadMore: (): void => this.loadMore(dataset),
         };
@@ -179,6 +260,7 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
         return {
             movedRecordId: this.movedRecordId,
             openedRecordId: this.openedRecordId,
+            createdRecordId: this.createdRecordId,
         };
     }
 
@@ -204,19 +286,29 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
     }
 
     /**
-     * Whether this host can be written to at all.
+     * Whether this host can be written to at all — by either route.
      *
-     * WebAPI is a Dataverse-dependent API and is absent in canvas apps. The
-     * manifest declares it `required="false"` precisely so the host leaves it
-     * out rather than refusing to load the component — see the comment there —
-     * which makes checking for it here the other half of that decision, not a
-     * defensive flourish.
+     * The record's own write half is checked first, on the first loaded
+     * record, because it is the route that costs nothing: no feature, no
+     * prompt, and present on hosts that have no `webAPI`. WebAPI is
+     * Dataverse-dependent and absent in canvas; the manifest declares it
+     * `required="false"` precisely so the host leaves it out rather than
+     * refusing to load the component, which makes checking for it here the
+     * other half of that decision.
      *
      * `context.webAPI` is typed as always present, so the optional access is
      * deliberately narrower than the type: a required member is a claim about
-     * the type definitions, not about the host.
+     * the type definitions, not about the host. Which route a *particular*
+     * card takes is decided per record in `write`, because `isEditable` is
+     * per column and per record and cannot be answered from here.
      */
-    private canWrite(context: ComponentFramework.Context<IInputs>): boolean {
+    private canWrite(context: ComponentFramework.Context<IInputs>, dataset: DataSet): boolean {
+        const firstId = (dataset.sortedRecordIds ?? [])[0];
+
+        if (firstId !== undefined && editableRecord(dataset.records[firstId]) !== null) {
+            return true;
+        }
+
         return typeof context.webAPI?.updateRecord === 'function';
     }
 
@@ -501,7 +593,7 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
         // reaching here is a caller error rather than a user action — but the
         // check is the one that matters, since it is what stands between an
         // absent API and a TypeError in a promise nobody is awaiting.
-        if (!status || !record || !this.canWrite(context)) {
+        if (!status || !record || !this.canWrite(context, dataset)) {
             return;
         }
 
@@ -523,8 +615,7 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
         this.movedRecordId = recordId;
         this.notifyOutputChanged();
 
-        void context.webAPI
-            .updateRecord(dataset.getTargetEntityType(), recordId, { [status.name]: toValue })
+        void this.write(context, dataset, record, status.name, recordId, toValue)
             .catch((error: unknown) => {
                 this.pending.delete(recordId);
                 this.moveError = `${context.resources
@@ -535,6 +626,119 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
             .finally(() => {
                 this.moving.delete(recordId);
                 dataset.refresh();
+            });
+    }
+
+    /**
+     * The write itself, by whichever route this record allows.
+     *
+     * **Two routes, chosen per record.** `record.isEditable(column)` decides:
+     * `true` and the value goes through `setValue` + `save()` on the record —
+     * no feature, no prompt, and the only route a canvas app has; `false`, or
+     * a record with no write half at all, and it goes through
+     * `webAPI.updateRecord` where that exists. The second route is not
+     * legacy: `isEditable` answers `false` for `statuscode`, which is the
+     * column a board is most often grouped by, and a plain Web API update
+     * writes it.
+     *
+     * **`Promise.resolve().then(...)` rather than chaining off `setValue`.**
+     * It returns `undefined`, so `record.setValue(...).then(...)` is `.then`
+     * on nothing — a `TypeError` thrown synchronously, outside every
+     * `.catch`. Starting from a resolved promise turns a synchronous throw
+     * inside the callback into a rejection, which is what `moveCard` is
+     * equipped to handle. `refresh()` follows either route, from `moveCard`'s
+     * `finally`: a resolved `save()` is Dataverse accepting the write, and
+     * nothing re-reads until something asks.
+     */
+    private write(
+        context: ComponentFramework.Context<IInputs>,
+        dataset: DataSet,
+        record: unknown,
+        column: string,
+        recordId: string,
+        value: number,
+    ): Promise<unknown> {
+        const editable = editableRecord(record);
+        const api = context.webAPI;
+        const viaApi = (): Promise<unknown> =>
+            typeof api?.updateRecord === 'function'
+                ? api.updateRecord(dataset.getTargetEntityType(), recordId, { [column]: value })
+                : Promise.reject(new Error(context.resources.getString('KanbanBoard_ReadOnly')));
+
+        if (!editable) {
+            return viaApi();
+        }
+
+        return Promise.resolve()
+            // `=== true` rather than truthiness: a host returning the Promise
+            // the platform does would otherwise read as editable everywhere.
+            .then(() => editable.isEditable(column))
+            .then((allowed) => {
+                if (allowed !== true) {
+                    return viaApi();
+                }
+
+                editable.setValue(column, value);
+
+                return editable.save();
+            });
+    }
+
+    /**
+     * Open the quick create form for a new card in a lane, and report the row
+     * it made.
+     *
+     * The lane is passed as a **form parameter** — the second argument, typed
+     * `{ [key: string]: string }`, so the option number goes as a string —
+     * which is how a quick create arrives with a column already set.
+     * `createFromEntity` seeds the parent so the row lands in this subgrid; on
+     * a main grid there is no parent and the option is left out.
+     *
+     * A dismissed form resolves `{ savedEntityReference: null }` — not `[]`,
+     * not a rejection (measured by `pcf-data-table`, 2026-09-11) — so every
+     * read below is optional. A saved row resolves its id braced and
+     * upper-case, normalised to the spelling the other outputs use.
+     * `refresh()` is what puts the new card on the board.
+     */
+    private createCard(
+        context: ComponentFramework.Context<IInputs>,
+        dataset: DataSet,
+        laneValue: number,
+    ): void {
+        const open = formOpener(context);
+        const status = this.roleColumn(dataset, ROLES.status);
+
+        if (!open || !status) {
+            return;
+        }
+
+        const parent = parentReference(context);
+        const options: Record<string, unknown> = {
+            entityName: dataset.getTargetEntityType(),
+            useQuickCreateForm: true,
+        };
+
+        if (parent) {
+            options.createFromEntity = { entityType: parent.entityType, id: parent.id };
+        }
+
+        void Promise.resolve()
+            .then(() => open(options, { [status.name]: String(laneValue) }))
+            .then((result) => {
+                const saved = (result as { savedEntityReference?: { id?: unknown }[] | null } | undefined)
+                    ?.savedEntityReference;
+                const id = bareGuid(saved?.[0]?.id);
+
+                if (id === null) {
+                    return;
+                }
+
+                this.createdRecordId = id;
+                this.notifyOutputChanged();
+                dataset.refresh();
+            })
+            .catch((error: unknown) => {
+                console.warn('[KanbanBoard] create failed', error);
             });
     }
 
