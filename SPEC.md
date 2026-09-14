@@ -52,13 +52,15 @@ it. The questions, and what each decides:
 | | Question | Decides | Measured |
 | --- | --- | --- | --- |
 | Q1 | The record carries `setValue`/`save`/`isEditable`; what `isEditable(status.name)` answers | The record route exists on this shape | **Yes** — all four present (`isDirty` too), `isEditable` returned a Promise, `isEditable("cll_status")` = `true`. The role column arrived as `{ name: "cll_status", alias: "statusField", dataType: "OptionSet" }` |
-| Q2 | `setValue(status.name, int)` + `save()` commits, read back through the Web API | The record route writes the right column | *pending* |
-| Q3 | An `updateView` arrives after `save()` without `refresh()`, or only with it | Whether the `refresh()` in `finally` is load-bearing | *pending* |
+| Q2 | `setValue(status.name, int)` + `save()` commits, read back through the Web API | The record route writes the right column | **Yes** — `setValue("cll_status", 858010001)` returned `undefined` (+4 ms), `save()` resolved `{ etn: "cll_task", id: { guid: "991e0dc8-…" } }` at +438 ms, and `retrieveRecord` read back `858010001` at +513 ms. `name`, not `alias`, on a property-set column |
+| Q3 | An `updateView` arrives after `save()` without `refresh()`, or only with it | Whether the `refresh()` in `finally` is load-bearing | **One arrives on its own — carrying the old value.** In the 15 s after `save()`, one `updateView` and `getValue` still `858010000`; after `refresh()`, one more and `858010001`. So `refresh()` is what re-reads, and an override retired on "a repaint came" would snap the card back |
 | Q4 | `openForm({ useQuickCreateForm }, { [status.name]: "2" })` opens with the lane chosen; string vs number | The + | **Yes, both** — the quick create for `cll_task` opened with Status set to the lane, from `"858010002"` and from `858010002` alike; dismissed, it resolved `{ savedEntityReference: null }`. The platform **appended `recordSetQueryKey` to the options object** it was handed |
 | Q5 | The shape of `Attributes.get(column).OptionSet` | The oldest *Not verified* entry below | **Measured** — see *Where the option set lives* below |
 | Q6 | `mode.contextInfo` on this subgrid | `createFromEntity` on the + | **Present** — `{ entityTypeName: "account", entityId: "7de84297-…" (unbraced, lower-case), entityRecordName: "Adventure Works (sample)" }` |
 
-Q4 measured 2026-09-14 by two active calls. Q1, Q5 and Q6 answered the same day from the passive dump on the Accounts
+**All six answered 2026-09-14, nothing cut.** Q2–Q4 by active calls on the
+Accounts form's Kanban subgrid (`cll_task.cll_status`, a card moved from
+lane 858010000 to 858010001 and read back through the Web API). Q1, Q5 and Q6 answered the same day from the passive dump on the Accounts
 form's Kanban subgrid (`cll_account.cll_status`). Q2–Q4 need the active calls.
 Fill the last column in from the console output before tagging 0.3.0. If Q2
 fails, `write()` loses its first branch and the manifest comment goes back to
@@ -85,6 +87,23 @@ only that `Attributes.get(column).OptionSet.Options` names a key that does
 not exist on either shape. The walk stays, because it reads both; the direct
 route, if anyone wants one, is `attributeDescriptor.OptionSet` for order and
 colour and `OptionSet[value].text` for a label.
+
+### The move, timed
+
+`setValue` +4 ms, `save()` resolved +438 ms, the Web API holding the value
++513 ms — and the dataset the control reads from still holding the *old*
+value through the one `updateView` that arrived unasked in the next fifteen
+seconds. That pass is the trap: a control that retired its override on "an
+`updateView` came after the save" would put the card back in its old lane
+for the length of a fetch and then move it forward again. `reconcile()`
+compares against the record's value and keeps the override until it agrees,
+which is what makes the platform's unasked pass harmless. The `refresh()`
+in `finally` is what produces the pass that agrees.
+
+Two id spellings, on the same page: the grid's `getId()` hands back
+`{991E0DC8-…}`, braced and upper-case; `dataset.records` is keyed
+`991e0dc8-…`, unbraced and lower-case. The first probe call passed the
+grid's spelling and found no record.
 
 ### What the rig had to learn
 
@@ -300,12 +319,10 @@ Two of those entries are admissions worth keeping visible:
 Everything here needs a real model-driven form. None of it can be settled from
 this repository, and the first one is load-bearing.
 
-- **That `column.name` on an aliased property-set column is the name
-  `record.setValue` wants**, as it is the name `getValue` takes. Q2 of the
-  0.2.2 probe. The Web API half of the same question — that it is the
-  attribute logical name `updateRecord` wants — is what 0.2.x has relied on
-  since it went onto the Accounts form, and no move there has been written
-  down as measured either; Q2 reads the value back and settles both.
+- ~~That `column.name` on an aliased property-set column is the name
+  `record.setValue` wants.~~ Measured, Q2: `cll_status` staged and saved,
+  read back from the Web API. The Web API route on the same column is what
+  0.2.x relied on; the same read-back covers it.
 - **That a canvas app's dataset records carry the write half at all.** The
   route needs no feature, and the template's rig hands canvas the same records
   as model-driven — but nobody has bound this board in a canvas app and looked.
