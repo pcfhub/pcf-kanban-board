@@ -775,12 +775,25 @@
                  * already set — the lane, here — and a stub that logged only
                  * the options would certify a "+" that opens a blank form.
                  */
+                /*
+                 * **Canvas publishes `navigation` and refuses it.** Measured
+                 * with a host probe on a real canvas app, 2026-09-22:
+                 * `navigation.openForm` came back `present: true` along with
+                 * every other surface asked about.
+                 *
+                 * Omitting the object here made `canCreate` false locally for
+                 * a reason that is not the platform's — so the "+" was
+                 * withheld in this rig and drawn in a real canvas app, on a
+                 * host with no forms at all.
+                 */
                 navigation:
-                    hostKind.label === 'canvas app'
-                        ? undefined
-                        : {
+                    {
                               openForm: function (formOptions, parameters) {
                                   log('navigation.openForm', { options: formOptions, parameters: parameters });
+
+                                  if (hostKind.label === 'canvas app') {
+                                      throw new Error('openForm: Method not implemented.');
+                                  }
 
                                   return Promise.resolve(o.openFormReturns);
                               },
