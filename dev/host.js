@@ -693,6 +693,67 @@
                  * `[object Object]` at the user is the failure this stub is
                  * built to expose.
                  */
+                /**
+                 * `context.utils`, which the lane loader reads the status
+                 * column's options from.
+                 *
+                 * **Canvas publishes this object and refuses to run it**, and
+                 * refuses *synchronously*: `getEntityMetadata: Method not
+                 * implemented.` thrown from the call rather than returned as a
+                 * rejected promise. Measured on a real canvas app, 2026-09-21.
+                 *
+                 * The rig had no `utils` at all, so the lane loader was never
+                 * exercised here and the crash it caused on canvas was
+                 * unreachable by any assertion. A rig that omits a surface is a
+                 * friendlier host than the platform, which is the shape of
+                 * every defect this file has hidden.
+                 */
+                /**
+                 * `context.page`, absent from the API reference entirely and
+                 * the only measured way to tell a model-driven host from a
+                 * canvas one — every other surface is published on both.
+                 * Measured with a host probe, 2026-09-22. `getClientUrl` is
+                 * published on both too, but it *answers* on one and **throws**
+                 * on the other.
+                 *
+                 * `o.page: false` models a model-driven host that publishes
+                 * neither this nor `Xrm`, where the Web API fallback is
+                 * withheld deliberately.
+                 */
+                page: o.page === false
+                    ? undefined
+                    : {
+                        getClientUrl: function () {
+                            log('page.getClientUrl');
+
+                            if (hostKind.label === 'canvas app') {
+                                throw new Error('getClientUrl: Method not implemented.');
+                            }
+
+                            return 'https://rig.crm.invalid';
+                        },
+                    },
+
+                utils: o.utils === false
+                    ? undefined
+                    : {
+                        getEntityMetadata: function (entityName, attributes) {
+                            log('utils.getEntityMetadata', { entity: entityName, attributes: attributes });
+
+                            if (hostKind.label === 'canvas app') {
+                                throw new Error('getEntityMetadata: Method not implemented.');
+                            }
+
+                            return Promise.resolve({
+                                Attributes: {
+                                    get: function () {
+                                        return undefined;
+                                    },
+                                },
+                            });
+                        },
+                    },
+
                 webAPI:
                     o.webApi === 'absent'
                         ? undefined

@@ -308,6 +308,30 @@ check(
 );
 
 /*
+ * **Canvas publishes `updateRecord` and refuses it.** Measured with a host
+ * probe on a real canvas app, 2026-09-22: fifteen of fifteen surfaces present,
+ * the callable ones throwing `Method not implemented.`
+ *
+ * The assertion above uses `webApi: 'absent'` — a host this rig invents, and
+ * not what canvas is. On canvas the Web API fallback answered `true`, so a
+ * board whose records were not editable offered a drag that could only fail.
+ *
+ * The record route is untouched and still works there, which is why only the
+ * fallback is gated.
+ */
+check(
+    'nor on canvas, where updateRecord exists and refuses',
+    bind({ host: 'canvas', quirks: { editableAbsent: true } }).props().canMove === false,
+    String(bind({ host: 'canvas', quirks: { editableAbsent: true } }).props().canMove),
+);
+
+check(
+    'while a canvas host with writable records still moves, through the record',
+    bind({ host: 'canvas' }).props().canMove === true,
+    String(bind({ host: 'canvas' }).props().canMove),
+);
+
+/*
  * The create route is `navigation.openForm`, which a canvas host withholds
  * whatever the maker set — and the maker can switch it off on a host that
  * has it.
@@ -630,6 +654,40 @@ check('passes the search switch down', bind({ inputs: { showSearch: false } }).p
         'the first page size costs no reset, and changing it afterwards does',
         resetOnMount === 0 && resets() === 1,
         `${resetOnMount} at mount, ${resets()} after the change`,
+    );
+
+    /*
+     * **A synchronous refusal has to arrive as a rejection.** Canvas publishes
+     * `utils` and throws `getEntityMetadata: Method not implemented.` from the
+     * call itself — measured on a real canvas app, 2026-09-21. A throw is not a
+     * rejected promise: it never reaches the loader's own `.catch`, it escapes
+     * the effect that calls it, and the studio replaces the whole board with
+     * *Error loading control*.
+     *
+     * This has to **call** the loader. Rendering alone never invokes it and
+     * passes against the broken control — and until this rig grew a `utils`
+     * object it could not reach the code at all.
+     */
+    const canvasLanes = bind({ host: 'canvas' }).props().loadLanes;
+    let lanesThrew = false;
+    let lanesResolved = null;
+
+    if (typeof canvasLanes === 'function') {
+        try {
+            lanesResolved = await canvasLanes();
+        } catch {
+            lanesThrew = true;
+        }
+    }
+
+    check(
+        'a canvas metadata refusal reaches the loader catch instead of escaping it',
+        typeof canvasLanes === 'function' && !lanesThrew && Array.isArray(lanesResolved),
+        typeof canvasLanes !== 'function'
+            ? 'no loader built — the assertion never reached the call'
+            : lanesThrew
+                ? 'threw out of the call — this kills the control'
+                : 'resolved to ' + lanesResolved.length + ' lane(s)',
     );
 
     report();

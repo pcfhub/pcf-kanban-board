@@ -302,6 +302,50 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
      * card takes is decided per record in `write`, because `isEditable` is
      * per column and per record and cannot be answered from here.
      */
+    /**
+     * Whether this host is one where a model-driven-only API means anything.
+     *
+     * **`typeof x.method === 'function'` is not that test.** Measured with a
+     * host probe on a real canvas app, 2026-09-22: **fifteen of fifteen**
+     * platform surfaces are published there, `webAPI.updateRecord` among them,
+     * and the ones safe to call throw `Method not implemented.` from the call.
+     *
+     * `getClientUrl` refuses by throwing, and a thrown refusal is an answer
+     * once it is caught. That is the discriminator.
+     */
+    private modelDrivenHost(context: ComponentFramework.Context<IInputs>): boolean {
+        const ask = <T>(call: () => T): T | undefined => {
+            try {
+                return call();
+            } catch {
+                return undefined;
+            }
+        };
+
+        const page = (context as { page?: { getClientUrl?: unknown } }).page;
+        const fromPage = typeof page?.getClientUrl === 'function'
+            ? ask(() => (page.getClientUrl as () => unknown)())
+            : undefined;
+        const fromGlobal = ask(() => (globalThis as {
+            Xrm?: { Utility?: { getGlobalContext?: () => { getClientUrl?: () => unknown } } };
+        }).Xrm?.Utility?.getGlobalContext?.()?.getClientUrl?.());
+
+        return [fromPage, fromGlobal].some((url) => typeof url === 'string' && url !== '');
+    }
+
+    /**
+     * Whether a lane change can be saved.
+     *
+     * **Two routes, and only the second needed a host test.** The dataset
+     * record writes through `setValue`/`save`, which works wherever the record
+     * can be written — canvas included — so that branch is untouched. Gating
+     * the whole method would have withheld drag-between-lanes on canvas, where
+     * it works.
+     *
+     * The Web API fallback is the one that lied: `updateRecord` exists on
+     * canvas and refuses, so this returned `true` on a canvas host whose
+     * records were not editable and the drag could only fail.
+     */
     private canWrite(context: ComponentFramework.Context<IInputs>, dataset: DataSet): boolean {
         const firstId = (dataset.sortedRecordIds ?? [])[0];
 
@@ -309,7 +353,7 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
             return true;
         }
 
-        return typeof context.webAPI?.updateRecord === 'function';
+        return typeof context.webAPI?.updateRecord === 'function' && this.modelDrivenHost(context);
     }
 
     /** Ask for a new page size, but only when it actually changed. See the note above. */
@@ -478,9 +522,20 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
         const entity = dataset.getTargetEntityType();
         const column = status.name;
 
+        /*
+         * **The executor is not ceremony.** A host can publish this method and
+         * refuse to run it *synchronously* — canvas answers
+         * `getEntityMetadata: Method not implemented.` from the call itself,
+         * measured on a real canvas app 2026-09-21 against `pcf-data-table`.
+         *
+         * A synchronous throw is not a rejected promise: it never reaches the
+         * `.catch` below, it escapes this loader, it escapes the effect that
+         * calls it, and the studio replaces the whole board with *Error loading
+         * control*. The `typeof … === 'function'` guard above passes, because
+         * the method genuinely exists — existing is not working.
+         */
         return (): Promise<Lane[]> =>
-            context.utils
-                .getEntityMetadata(entity, [column])
+            new Promise<unknown>((resolve) => resolve(context.utils.getEntityMetadata(entity, [column])))
                 .then((metadata: unknown) => {
                     const lanes = optionLanes(metadata, column);
 
