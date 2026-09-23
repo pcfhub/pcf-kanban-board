@@ -15,7 +15,10 @@
     "refreshTypes": "pcf-scripts refreshTypes",
     "lint": "eslint KanbanBoard --ext .ts,.tsx",
     "smoke": "node dev/smoke.js",
-    "preview": "node dev/serve.js"
+    "preview": "node dev/serve.js",
+    "bump": "node scripts/version.mjs",
+    "release": "node scripts/release.mjs",
+    "harness": "node dev/serve.js"
   },
   "devDependencies": {
     "@fluentui/react-components": "9.46.2",
