@@ -288,6 +288,37 @@ Element.prototype.removeAttribute = function (name) {
     delete this.attributes[name];
 };
 
+/*
+ * The handful of attributes a browser keeps in sync with a same-named property.
+ *
+ * `img.src = url` and `img.setAttribute('src', url)` are the same write in a
+ * browser, and they were not here: the first set a plain property that
+ * `getAttribute` could not see. That matters because of which assertions it
+ * breaks — a test written as "the control requested no tile", checking
+ * `getAttribute('src') === null`, passed whether or not the control had set
+ * one. It was reading a slot nothing ever wrote to, and reporting the absence
+ * as proof.
+ *
+ * The list is deliberately short. Reflection in a real DOM is per-element and
+ * full of exceptions — `value` on an input reflects only until a user types,
+ * `href` resolves to an absolute URL on read — and a stub that guessed at the
+ * general rule would be wrong in a way nothing here could reveal. These are the
+ * ones a code component sets as a property and a test reads as an attribute.
+ * `value` is NOT in the list: it is already special-cased below, because its
+ * real behaviour is the exception rather than the rule.
+ */
+['src', 'href', 'alt', 'title', 'type'].forEach(function (name) {
+    Object.defineProperty(Element.prototype, name, {
+        get: function () {
+            return this.getAttribute(name) === null ? '' : this.getAttribute(name);
+        },
+        set: function (value) {
+            this.setAttribute(name, value);
+        },
+        configurable: true,
+    });
+});
+
 Element.prototype.addEventListener = function (type, handler) {
     (this.listeners[type] = this.listeners[type] || []).push(handler);
 };
@@ -490,6 +521,81 @@ document.body = createElement('body');
 document.documentElement.appendChild(document.body);
 
 /**
+ * A `FileReader`, because Node has `File` and `Blob` and not the one thing that
+ * turns either into a data URL.
+ *
+ * Only `readAsDataURL`, which is the method a control that keeps a file in a
+ * column actually uses — the other three would be stubs nobody drives.
+ *
+ * **It resolves on a later turn, exactly as the real one does**, which is the
+ * whole reason it is worth having rather than faking. A control that assumes
+ * the result is available when `readAsDataURL` returns works perfectly against
+ * a synchronous stub and reads `null` in a browser; a suite that asserts on the
+ * result therefore has to `await` a turn, and that is the honest shape.
+ */
+function FileReader() {
+    this.result = null;
+    this.error = null;
+    this.onload = null;
+    this.onerror = null;
+    this.onabort = null;
+    this._aborted = false;
+}
+
+FileReader.prototype.readAsDataURL = function (blob) {
+    var reader = this;
+
+    this._aborted = false;
+
+    Promise.resolve()
+        .then(function () {
+            return blob.arrayBuffer();
+        })
+        .then(function (buffer) {
+            // An aborted read reports nothing at all — see `abort` below.
+            if (reader._aborted) {
+                return;
+            }
+
+            reader.result =
+                'data:'
+                + (blob.type || 'application/octet-stream')
+                + ';base64,'
+                + Buffer.from(buffer).toString('base64');
+
+            if (reader.onload) {
+                reader.onload({ target: reader });
+            }
+        })
+        .catch(function (error) {
+            if (reader._aborted) {
+                return;
+            }
+
+            reader.error = error;
+
+            if (reader.onerror) {
+                reader.onerror({ target: reader });
+            }
+        });
+};
+
+/**
+ * Stops the pending read from ever calling back.
+ *
+ * This is what `destroy()` owes for a read still in flight: without it the
+ * callback fires against a control the platform has already thrown away, and
+ * writes into a container that is no longer on the page.
+ */
+FileReader.prototype.abort = function () {
+    this._aborted = true;
+
+    if (this.onabort) {
+        this.onabort({ target: this });
+    }
+};
+
+/**
  * Install the shim as this process's globals.
  *
  * Called before the bundle is loaded, because a control's module scope can read
@@ -511,6 +617,7 @@ function install(global) {
     define('window', global);
     define('self', global);
     define('navigator', { userAgent: 'dev/dom.js', language: 'en-US' });
+    define('FileReader', FileReader);
 
     function define(name, value) {
         if (global[name] !== undefined) {
@@ -527,4 +634,10 @@ function install(global) {
     return document;
 }
 
-module.exports = { Element: Element, createElement: createElement, document: document, install: install };
+module.exports = {
+    Element: Element,
+    createElement: createElement,
+    document: document,
+    FileReader: FileReader,
+    install: install,
+};
