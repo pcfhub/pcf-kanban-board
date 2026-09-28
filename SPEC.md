@@ -323,15 +323,24 @@ at all, and it is named in `demo.limitations`. It is a gap in the stand-in, not
 a stubbed feature, which is the same line `pcf-row-commands` drew for its
 refused delete.
 
-**The check found a bug in 0.3.3: the Move menu never offers an empty lane.**
-The lane columns render from the option set once it lands, but each
-`LaneColumn` spreads `{...props}`, so the `lanes` a card's menu filters is
-`props.lanes`. That is the synchronous set `index.ts` derives from the cards
-(`KanbanBoardControl.tsx:300–311`), and it holds only lanes some card is in. On
-a real form, a card can be dragged into an empty lane and not moved there from
-its menu, which is the keyboard route. The Narrow lanes preset shows it: before
-Load more, no card's menu offers Resolved. The fix is to pass the rendered
-`lanes` to `LaneColumn` explicitly.
+**The check found a bug in 0.3.3, fixed in 0.3.4: the Move menu never offered
+an empty lane.** The lane columns render from the option set once it lands, but
+each `LaneColumn` spread `{...props}`, so the `lanes` a card's menu filtered was
+`props.lanes`. That is the synchronous set `index.ts` derives from the cards,
+and it holds only lanes some card is in. On a real form, a card could be dragged
+into an empty lane but not moved there from its menu, which is the keyboard
+route and the dependable one on a phone (`docs/faq.md`).
+
+0.3.4 passes the rendered `lanes` to `LaneColumn` explicitly. It was checked on
+the hub's harness with the new fixture and *Narrow lanes* before Load more:
+
+- 0.3.3's published bundle offered Rework's card *Active* only;
+- the 0.3.4 build offered *Active* and *Resolved*, and the move into the empty
+  lane landed ("Resolved, 1 cards").
+
+`npm run smoke` cannot see this. The option-set lanes arrive through a
+`useEffect`, and the rig drives `index.ts`'s props, never a rendered
+component.
 
 → The fixture limitation was promoted to the skill (`pcfhub-manifest.md`,
 *datasetFixture*). It is lifted now, and the skill should say so.

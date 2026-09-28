@@ -301,6 +301,17 @@ export function KanbanBoardControl(props: IProps): React.ReactElement | null {
                     <LaneColumn
                         key={String(lane.value)}
                         {...props}
+                        /*
+                         * **The lanes on screen, not `props.lanes`.** The
+                         * spread above hands down the synchronous set index.ts
+                         * derives from the cards, which holds only lanes some
+                         * card is in; each card's Move menu filters this. Until
+                         * 0.3.4 it filtered that one, so once the option set
+                         * landed, an empty lane was a drop target and never a
+                         * menu entry — the keyboard route could not reach it.
+                         * Found by the hub's demo, 2026-09-28.
+                         */
+                        lanes={lanes}
                         lane={lane}
                         cards={cardsInLane(shown, lane)}
                         total={cardsInLane(placed, lane).length}
