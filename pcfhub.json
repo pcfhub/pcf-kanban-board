@@ -41,7 +41,7 @@
       "There is no + in the lane headers. Adding a card opens the table’s quick create form through navigation.openForm, and the harness has no forms to open, so the button is hidden here the way it is in a canvas app. On a model-driven form each lane header carries one, and the form opens with that lane already chosen.",
       "A refused move cannot be demonstrated. The harness’s mock resolves, so the rollback never runs — on a real form a write the user has no privilege for rejects, the card returns to the lane it came from, and the failure is named above the board. That path is the reason this control catches at all, and the demo is the one place you cannot see it.",
       "The lanes are set explicitly in both presets rather than derived. A fixture record carries one value per column, so it cannot express an option’s number separately from its label — left to derive, the lanes here would be titled 1, 2 and 3. On a real view the Lanes property is empty and the lanes come from the data with their proper labels.",
-      "Load more never appears. The harness puts every fixture record on a single page and reports hasNextPage as false, so there is nothing further to fetch. The page size property does nothing either, because the harness’s setPageSize() is an empty function.",
+      "Load more works against the fixture. The board asks for its page size, and loadNextPage() adds the next page to the lanes, as on a real view, until the button goes away with every card shown. The Narrow lanes preset asks for six, so three of the nine cards wait behind Load more and the lane counts grow as they arrive; the other presets ask for 50, which is all of them.",
       "Lane colours in the demo are declared, not read. A fixture record carries one value per column with no metadata behind it, so there is no option set here to take a colour from — the Coloured lanes preset writes them into the Lanes property instead, which is the same route a canvas app has to use. On a model-driven form with Lanes left empty, each lane shows its option’s own colour with nothing configured.",
       "Clicking a card calls dataset.openDatasetItem(), which the harness logs as a mock call: there is no Dataverse behind this origin and no form to open. The openedRecordId output still updates."
     ],
@@ -78,7 +78,7 @@
       {
         "slug": "narrow",
         "name": "Narrow lanes, read-only cards",
-        "description": "The shape for a form section rather than a full page: tighter lanes, no search box, and card titles that do not open the record.",
+        "description": "The shape for a form section rather than a full page: tighter lanes, no search box, card titles that do not open the record, and six cards at a time with Load more.",
         "props": {
           "lanes": "1=New,2=Active,3=Resolved",
           "laneWidth": 200,
@@ -86,7 +86,7 @@
           "openOnCardClick": false,
           "showSearch": false,
           "allowCreate": true,
-          "pageSize": 50
+          "pageSize": 6
         }
       }
     ]

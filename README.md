@@ -99,26 +99,32 @@ Notes that do not fit a table:
 
 ## On the hub
 
-`demo.fidelity` is **`limited`**, and there are five separate reasons rather
-than one — which is why it is not `mocked`.
+`demo.fidelity` is **`limited`**, for several separate reasons, which is why
+it is not `mocked`.
 
-The write is mocked: the harness has no environment to update, so a card moves
-because the control places it optimistically and nothing is written. A *refused*
-move cannot be shown at all, because the mock resolves — and that rollback is
-the reason this control catches at all, so the one path most worth seeing is the
-one the demo cannot reach.
+**The write is mocked.** The harness has no environment to update. A card moves
+because the control places it optimistically, and nothing is written, so a
+property change puts it back. A *refused* move can't be shown at all, because
+the mock resolves. That rollback is the reason this control catches at all, so
+the path most worth seeing is the one the demo can't reach.
 
-Lane colours never appear, and the lanes are declared rather than derived: a
-fixture record carries one value per column with no metadata behind it, so there
-is no option set to read a colour or a label from. Both presets therefore set
-`lanes` explicitly, which means the demo also cannot show the default behaviour
-— reading the lanes from the column — that a real board uses.
+**The lanes are declared rather than derived.** A fixture record carries one
+value per column, with no metadata behind it, so there is no option set to read
+a label or a colour from. Every preset therefore sets `lanes` explicitly. So the
+demo can't show the default behaviour a real board uses, which is reading the
+lanes and their colours from the column. **Coloured lanes** declares a colour
+per lane instead, the route a canvas app has to take.
 
-Load more never appears either; the harness puts every record on one page.
+**Load more works**, since pcfhub/pcfhub#51 gave the harness a view that pages.
+**Narrow lanes, read-only cards** asks for six cards at a time, so the button
+shows.
 
-Two presets: **Sprint board**, nine work items across three lanes with one not
-yet triaged, and **Narrow lanes, read-only cards**, the shape for a form section
-rather than a full page.
+Three presets:
+- **Sprint board**: nine work items across three lanes, with one not yet
+  triaged.
+- **Coloured lanes**: the same board, with a declared colour per lane.
+- **Narrow lanes, read-only cards**: the shape for a form section rather than a
+  full page.
 
 ## Install
 
