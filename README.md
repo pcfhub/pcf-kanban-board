@@ -99,32 +99,38 @@ Notes that do not fit a table:
 
 ## On the hub
 
-`demo.fidelity` is **`limited`**, for several separate reasons, which is why
-it is not `mocked`.
+`demo.fidelity` is **`mocked`**: the board works, against a stand-in Dataverse
+rather than a real one.
 
-**The write is mocked.** The harness has no environment to update. A card moves
-because the control places it optimistically, and nothing is written, so a
-property change puts it back. A *refused* move can't be shown at all, because
-the mock resolves. That rollback is the reason this control catches at all, so
-the path most worth seeing is the one the demo can't reach.
+It was `limited` until 2026-09-28, for three reasons, and two are gone:
 
-**The lanes are declared rather than derived.** A fixture record carries one
-value per column, with no metadata behind it, so there is no option set to read
-a label or a colour from. Every preset therefore sets `lanes` explicitly. So the
-demo can't show the default behaviour a real board uses, which is reading the
-lanes and their colours from the column. **Coloured lanes** declares a colour
-per lane instead, the route a canvas app has to take.
+- **The lanes come from the column.** `demo/records.json` carries a stand-in
+  Dataverse whose Status column describes its options, with a colour each
+  (pcfhub/pcfhub#52). With **Lanes** left empty the board reads them through
+  `utils.getEntityMetadata`, as it does on a model-driven form: the labels,
+  their order and the colours. Before that, a fixture could not describe an
+  option set, so every preset had to declare its lanes.
+- **A move is written and kept.** It goes through the record's `setValue` and
+  `save`, into the stand-in, so it survives the next render and a property
+  change.
+- **Still true: a refused move can't be shown.** The stand-in accepts every
+  write, so the rollback never runs. That rollback is the reason this control
+  catches at all, so it is named in `demo.limitations`.
+
+The stand-in Dataverse also makes the demo a model-driven host, so each lane
+carries a **+**. It asks `navigation.openForm` for the quick create form, and
+the event log names the form, since there is no form behind the demo.
 
 **Load more works**, since pcfhub/pcfhub#51 gave the harness a view that pages.
-**Narrow lanes, read-only cards** asks for six cards at a time, so the button
-shows.
 
 Three presets:
-- **Sprint board**: nine work items across three lanes, with one not yet
-  triaged.
-- **Coloured lanes**: the same board, with a declared colour per lane.
+- **Sprint board**: nine work items in the option set's lanes and colours, with
+  one not yet triaged.
+- **Lanes set by hand**: the **Lanes** property filled in, the route a canvas
+  app has to take. The declared labels and colours replace the option set's.
 - **Narrow lanes, read-only cards**: the shape for a form section rather than a
-  full page.
+  full page, six cards at a time. Resolved is on the board, empty, until Load
+  more brings its cards.
 
 ## Install
 

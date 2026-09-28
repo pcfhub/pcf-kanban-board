@@ -32,26 +32,25 @@
   },
 
   "demo": {
-    "fidelity": "limited",
+    "fidelity": "mocked",
     "bundle": "out/controls/KanbanBoard/bundle.js",
     "styles": ["out/controls/KanbanBoard/css/KanbanBoard.css"],
     "datasetFixture": "demo/records.json",
     "limitations": [
-      "Moving a card changes nothing in Dataverse. The control writes through the record where the platform allows it and through webAPI.updateRecord() otherwise, and the demo harness mocks both — there is no environment behind this origin to write to. The card still moves, because the control places it optimistically the moment you drop it and only retires that override once refreshed data agrees; on a real form the write is what makes the move stick. The movedRecordId output updates either way, so the value a form would react to is visible.",
-      "There is no + in the lane headers. Adding a card opens the table’s quick create form through navigation.openForm, and the harness has no forms to open, so the button is hidden here the way it is in a canvas app. On a model-driven form each lane header carries one, and the form opens with that lane already chosen.",
-      "A refused move cannot be demonstrated. The harness’s mock resolves, so the rollback never runs — on a real form a write the user has no privilege for rejects, the card returns to the lane it came from, and the failure is named above the board. That path is the reason this control catches at all, and the demo is the one place you cannot see it.",
-      "The lanes are set explicitly in both presets rather than derived. A fixture record carries one value per column, so it cannot express an option’s number separately from its label — left to derive, the lanes here would be titled 1, 2 and 3. On a real view the Lanes property is empty and the lanes come from the data with their proper labels.",
-      "Load more works against the fixture. The board asks for its page size, and loadNextPage() adds the next page to the lanes, as on a real view, until the button goes away with every card shown. The Narrow lanes preset asks for six, so three of the nine cards wait behind Load more and the lane counts grow as they arrive; the other presets ask for 50, which is all of them.",
-      "Lane colours in the demo are declared, not read. A fixture record carries one value per column with no metadata behind it, so there is no option set here to take a colour from — the Coloured lanes preset writes them into the Lanes property instead, which is the same route a canvas app has to use. On a model-driven form with Lanes left empty, each lane shows its option’s own colour with nothing configured.",
-      "Clicking a card calls dataset.openDatasetItem(), which the harness logs as a mock call: there is no Dataverse behind this origin and no form to open. The openedRecordId output still updates."
+      "Moving a card writes to the demo’s stand-in Dataverse, through the record’s setValue and save as on a form, so the move survives the next render and a change in the property panel; Reset puts the board back. The card lands the moment you drop it because the control places it optimistically and retires that override once refreshed data agrees. The movedRecordId output updates, so the value a form would react to is visible. Nothing leaves the browser.",
+      "Each lane header carries a +, because the demo’s stand-in Dataverse makes this a model-driven host. It asks navigation.openForm for the table’s quick create form, which on a form opens with that lane already chosen; there is no form behind the demo, so the event log names the form that would have opened and no card is added.",
+      "A refused move cannot be demonstrated. The stand-in Dataverse accepts every write, so the rollback never runs — on a real form a write the user has no privilege for rejects, the card returns to the lane it came from, and the failure is named above the board. That path is the reason this control catches at all, and the demo is the one place you cannot see it.",
+      "Sprint board and Narrow lanes read their lanes from the Status column’s option set, as a real view does with Lanes left empty: the labels, their order and each lane’s colour come from the options the stand-in Dataverse describes, through utils.getEntityMetadata. Lanes set by hand fills the Lanes property in instead — the route a canvas app has to take, where the option set cannot be read — and there the declared labels and colours win.",
+      "Load more works against the fixture. The board asks for its page size, and loadNextPage() adds the next page to the lanes, as on a real view, until the button goes away with every card shown. The Narrow lanes preset asks for six, so three of the nine cards wait behind Load more and the lane counts grow as they arrive — and because its lanes come from the option set, Resolved is on the board, empty, before any of its cards have loaded. The other presets ask for 50, which is all of them.",
+      "Clicking a card calls dataset.openDatasetItem(). There is no form behind the demo, so the event log names the record that would have opened. The openedRecordId output still updates."
     ],
     "presets": [
       {
         "slug": "default",
         "name": "Sprint board",
-        "description": "Nine work items across three lanes, with one item not yet triaged.",
+        "description": "Nine work items in the lanes the Status column's options define, each lane in its option's colour, with one item not yet triaged.",
         "props": {
-          "lanes": "1=New,2=Active,3=Resolved",
+          "lanes": "",
           "laneWidth": 280,
           "laneColors": true,
           "openOnCardClick": true,
@@ -63,10 +62,10 @@
       },
       {
         "slug": "coloured",
-        "name": "Coloured lanes",
-        "description": "The same board with a colour declared per lane — the route a canvas app uses, where the option set cannot be read.",
+        "name": "Lanes set by hand",
+        "description": "The Lanes property filled in, as a canvas app has to, where the option set cannot be read: the declared labels and colours replace the option set's.",
         "props": {
-          "lanes": "1=New #6b7280,2=Active #e8d33a,3=Resolved #22a14a",
+          "lanes": "1=To do #0f6cbd,2=Doing #c239b3,3=Done #107c10",
           "laneWidth": 280,
           "laneColors": true,
           "openOnCardClick": true,
@@ -80,7 +79,7 @@
         "name": "Narrow lanes, read-only cards",
         "description": "The shape for a form section rather than a full page: tighter lanes, no search box, card titles that do not open the record, and six cards at a time with Load more.",
         "props": {
-          "lanes": "1=New,2=Active,3=Resolved",
+          "lanes": "",
           "laneWidth": 200,
           "laneColors": true,
           "openOnCardClick": false,

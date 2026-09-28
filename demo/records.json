@@ -117,5 +117,23 @@
                 "cr123_priority": "High"
             }
         }
-    ]
+    ],
+    "dataverse": {
+        "tables": {
+            "cr123_workitem": {
+                "entitySet": "cr123_workitems",
+                "primaryId": "cr123_workitemid",
+                "primaryName": "cr123_subject",
+                "columns": {
+                    "cr123_status": {
+                        "options": [
+                            { "value": 1, "label": "New", "color": "#6b7280" },
+                            { "value": 2, "label": "Active", "color": "#e8d33a" },
+                            { "value": 3, "label": "Resolved", "color": "#22a14a" }
+                        ]
+                    }
+                }
+            }
+        }
+    }
 }

@@ -294,25 +294,47 @@ card that has visibly moved lane.
 
 ## Demo
 
-`limited`, not `mocked`. The write being mocked is not the only stub: load-more
-is inert on a single-page fixture, `openDatasetItem` is logged, and the lanes
-have to be declared rather than derived. Four separate things a visitor would
-otherwise read as bugs, so `demo.limitations` lists them rather than summarising
-them in one word.
+`mocked` since 2026-09-28; `limited` before that.
 
-Two of those entries are admissions worth keeping visible:
+**Until then the demo could not show the default behaviour.** The fixture
+format carried one value per column and could not describe an option set, so
+derived lanes would have been titled 1, 2 and 3. Every preset set the `lanes`
+override instead, which exercised the escape hatch and hid the thing a real view
+does. Load more was inert as well, until pcfhub/pcfhub#51.
 
-- **The demo cannot show the default behaviour.** The fixture format carries one
-  value per column and cannot express an option's number separately from its
-  label, so derived lanes here would be titled 1, 2 and 3. Both presets set the
-  `lanes` override instead — which exercises the escape hatch and hides the
-  thing a real view actually does.
-- **A refused move cannot be demonstrated.** The harness's WebApi mock resolves,
-  so the rollback never runs. That path is the reason this control catches at
-  all, and the demo is the one place you cannot see it.
+pcfhub/pcfhub#52 let a fixture describe its columns. `demo/records.json` now
+carries a stand-in Dataverse whose `cr123_status` lists its three options, each
+with a colour. It was checked with 0.3.3's published bundle against that
+harness, before the push:
 
-→ The fixture limitation is promoted to the skill: `pcfhub-manifest.md`,
-*datasetFixture*.
+- *Sprint board*, Lanes empty: New, Active and Resolved, each in its option's
+  colour, through `getEntityMetadata`. A move to Resolved went through
+  `record.save` and a refresh, and survived a property change.
+- The stand-in makes the demo a model-driven host, so each lane carries a
+  **+**. It asks `openForm` for `cr123_workitem`'s quick create form.
+- *Lanes set by hand* (`1=To do #0f6cbd,…`): the declared labels and colours
+  win, and no metadata call is made.
+- *Narrow lanes* at six a page: Resolved is on the board, empty, until Load more
+  brings its two cards.
+
+**What stays out of reach is a refused move.** The stand-in accepts every
+write, so the rollback never runs. That path is the reason this control catches
+at all, and it is named in `demo.limitations`. It is a gap in the stand-in, not
+a stubbed feature, which is the same line `pcf-row-commands` drew for its
+refused delete.
+
+**The check found a bug in 0.3.3: the Move menu never offers an empty lane.**
+The lane columns render from the option set once it lands, but each
+`LaneColumn` spreads `{...props}`, so the `lanes` a card's menu filters is
+`props.lanes`. That is the synchronous set `index.ts` derives from the cards
+(`KanbanBoardControl.tsx:300–311`), and it holds only lanes some card is in. On
+a real form, a card can be dragged into an empty lane and not moved there from
+its menu, which is the keyboard route. The Narrow lanes preset shows it: before
+Load more, no card's menu offers Resolved. The fix is to pass the rendered
+`lanes` to `LaneColumn` explicitly.
+
+→ The fixture limitation was promoted to the skill (`pcfhub-manifest.md`,
+*datasetFixture*). It is lifted now, and the skill should say so.
 
 ## Not verified
 
@@ -337,8 +359,11 @@ this repository, and the first one is load-bearing.
 - **That a table with no quick create form falls back to the main form** with
   the parameter still applied. Documented behaviour of `openForm`, not
   observed here.
-- **That a choice column's `getValue()` returns the option's numeric value.**
-  The type union includes `number`, and the lane derivation follows from it.
+- ~~That a choice column's `getValue()` returns the option's numeric value.~~
+  It does not: `pcf-data-table`, `pcf-chart-view` and `pcf-calendar-view` each
+  measured the string `"3"` on a model-driven subgrid. The hub's harness hands it
+  over the same way since pcfhub/pcfhub#52, and the board groups, moves and
+  reconciles correctly on the string there.
 - **That the optimistic override reconciles rather than accumulating** across a
   refresh, and that a record leaving a filtered view retires its override.
 - **That a refused write rolls the card back.** Never executed anywhere: the
