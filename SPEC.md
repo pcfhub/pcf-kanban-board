@@ -28,11 +28,11 @@ The quick create keeps its refresh — a new card has to be fetched — and
 
 | | Look at | Right way | Measured |
 | --- | --- | --- | --- |
-| W12 | Page size 4, Load more until every card is on the board, then drag a card from the last page to another lane | Lands, **every card stays on the board**, the lane totals follow | |
-| W13 | The same card, moved again to a third lane | Lands; the totals follow again (no output changed — the board's own count re-asks) | |
-| W14 | A refusal from Dataverse: Lane column = **Status**, transitions enabled, Load more until all are loaded, then drag a card whose reason is **Active** to Inactive. The board sends `{ statecode: 1, statuscode: 2 }`; Active may not go to Inactive, so the server refuses (2147807246, T6) — a Status board has no transition rules of its own to stop it first | The card goes back with the sentence, *Moving…* clears, the loaded cards stay | |
-| W15 | The same card, dragged to Inactive again | Goes back again — no output changed, so no host render; the board's own | |
-| W16 | **+** on a lane, save the quick create | The new card appears; the board is back at its first page (documented) | |
+| W12 | Page size 4, Load more until every card is on the board, then drag a card from the last page to another lane | Lands, **every card stays on the board**, the lane totals follow || **Passed** 2026-09-29 |
+| W13 | The same card, moved again to a third lane | Lands; the totals follow again (no output changed — the board's own count re-asks) || **Passed** 2026-09-29 |
+| W14 | A refusal from Dataverse: Lane column = **Status**, transitions enabled, Load more until all are loaded, then drag a card whose reason is **Active** to Inactive. The board sends `{ statecode: 1, statuscode: 2 }`; Active may not go to Inactive, so the server refuses (2147807246, T6) — a Status board has no transition rules of its own to stop it first | The card goes back with the sentence, *Moving…* clears, the loaded cards stay || **Passed** 2026-09-29 |
+| W15 | The same card, dragged to Inactive again | Goes back again — no output changed, so no host render; the board's own || **Passed** 2026-09-29 |
+| W16 | **+** on a lane, save the quick create | The new card appears; the board is back at its first page (documented) || **Passed** 2026-09-29 |
 
 ## 0.4.0 — lane totals, status transitions, soft lane limits
 
