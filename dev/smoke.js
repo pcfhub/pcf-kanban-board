@@ -402,7 +402,13 @@ check('passes the search switch down', bind({ inputs: { showSearch: false } }).p
 
     check('and not the Web API, which this record did not need', !moved.calls().some((call) => call.startsWith('webAPI.updateRecord')), moved.calls().join(' '));
 
-    check('then refreshing, so the override retires against real data', moved.calls().some((call) => call === 'refresh'), moved.calls().join(' '));
+    /*
+     * **And no refresh, since 0.4.1.** A refresh starts the view again at its
+     * first page — measured on the form, where every card Load more had
+     * brought in vanished on each move. The override holds the card until a
+     * fetch agrees; the board re-asks its totals itself.
+     */
+    check('and no refresh — it would drop what Load more brought in', !moved.calls().some((call) => call === 'refresh'), moved.calls().join(' '));
 
     /*
      * **The override retires against data, not against the promise.** The
@@ -658,6 +664,49 @@ check('passes the search switch down', bind({ inputs: { showSearch: false } }).p
         'opening a card asks the platform to navigate rather than routing itself',
         opened.calls().some((call) => call.startsWith('openDatasetItem')),
         opened.calls().join(' '),
+    );
+
+    /* ---------------------------------- 0.4.1: Load more survives a move */
+
+    /*
+     * Found on the form after W1–W11: Load more twice, move a card from the
+     * last page, and the board fell back to its first page. The rig now
+     * resets on a refresh the way the form did, so this fails on 0.4.0.
+     */
+    const longBoard = bind({ pageSize: 2 });
+
+    longBoard.props().onLoadMore();
+    longBoard.settle();
+    longBoard.props().onLoadMore();
+    longBoard.settle();
+
+    const loadedBefore = longBoard.handle.dataset.sortedRecordIds.length;
+    const lastLoaded = longBoard.handle.dataset.sortedRecordIds[loadedBefore - 1];
+    const lastLane = laneOf(longBoard, lastLoaded);
+    const target = lastLane === 1 ? 3 : 1;
+    const outcome = await longBoard.props().onMove(lastLoaded, target);
+
+    longBoard.settle();
+
+    check(
+        'a move from the third page keeps all three pages on the board',
+        loadedBefore === 6 && longBoard.handle.dataset.sortedRecordIds.length === 6 && (longBoard.props().cards || []).length === 6,
+        `${loadedBefore} loaded, then ${longBoard.handle.dataset.sortedRecordIds.length} ids and ${(longBoard.props().cards || []).length} cards`,
+    );
+    check('with the card in its new lane', laneOf(longBoard, lastLoaded) === target, `${lastLoaded} in ${laneOf(longBoard, lastLoaded)}, wanted ${target}`);
+    check('and the move reports that it landed', outcome && outcome.ok === true && outcome.message === null, JSON.stringify(outcome));
+
+    /*
+     * A refusal is reported the same way, with the sentence — the board puts
+     * the card back from this, since a refusal changes no output and so the
+     * platform brings no render.
+     */
+    const refusedOutcome = await bind({ webApiFails: true, rejection: { message: 'Not today.' }, quirks: { editableAbsent: true } }).props().onMove('w1', 3);
+
+    check(
+        'a refused move reports it, with the sentence to show',
+        refusedOutcome && refusedOutcome.ok === false && /Not today\./.test(String(refusedOutcome.message)),
+        JSON.stringify(refusedOutcome),
     );
 
     /* ------------------------------------------------- 0.4.0: lane totals */

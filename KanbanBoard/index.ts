@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { IInputs, IOutputs } from './generated/ManifestTypes';
-import { KanbanBoardControl, IProps } from './components/KanbanBoardControl';
+import { KanbanBoardControl, IProps, MoveOutcome } from './components/KanbanBoardControl';
 import {
     Card,
     Lane,
@@ -350,7 +350,7 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
             loadRules: status && status.name === STATUS_REASON
                 ? (): Promise<Record<string, number[]>> => this.rulesFor(context, dataset.getTargetEntityType(), status.name)
                 : null,
-            onMove: (recordId: string, toValue: number): void =>
+            onMove: (recordId: string, toValue: number): Promise<MoveOutcome> =>
                 this.moveCard(context, dataset, recordId, toValue),
             onCreate: (laneValue: number): void => this.createCard(context, dataset, laneValue),
             onOpenRecord: (id: string): void => this.openRecord(dataset, id),
@@ -712,17 +712,22 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
      * only as the dataset not changing — survivable for a chip that vanishes
      * and reappears, not for a card that has visibly moved.
      *
-     * `refresh()` runs either way, from `finally`. On success it is what
-     * eventually retires the override; on failure it repaints from data that
-     * never changed, which costs a fetch and removes any doubt about what the
-     * board is showing.
+     * **No `refresh()` afterwards, since 0.4.1.** Through 0.4.0 one ran from
+     * `finally`, either way — and a refresh restarts the view at its first
+     * page, so every card **Load more** had brought in vanished on each move
+     * (found on the form, 2026-09-29). It was there for two reasons, and
+     * neither needs it now: a landed move is already on screen through the
+     * override, which retires at the next fetch that agrees (and the totals
+     * re-ask on their own); and a refused move — which changes no output, so
+     * the platform brings no render — is put back by the component, which
+     * learns the outcome from the promise this returns.
      */
     private moveCard(
         context: ComponentFramework.Context<IInputs>,
         dataset: DataSet,
         recordId: string,
         toValue: number,
-    ): void {
+    ): Promise<MoveOutcome> {
         const status = this.roleColumn(dataset, ROLES.status);
         const title = this.roleColumn(dataset, ROLES.title);
         const record = dataset.records[recordId];
@@ -732,7 +737,7 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
         // check is the one that matters, since it is what stands between an
         // absent API and a TypeError in a promise nobody is awaiting.
         if (!status || !record || !this.canWrite(context, dataset)) {
-            return;
+            return Promise.resolve({ ok: false, message: null });
         }
 
         // Dropping a card back where it started is not a write. Read as a
@@ -740,7 +745,7 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
         const current = this.pending.get(recordId) ?? laneValue(record.getValue(status.name));
 
         if (current === toValue) {
-            return;
+            return Promise.resolve({ ok: true, message: null });
         }
 
         // Read now, not in the catch: by the time a rejection arrives the
@@ -763,7 +768,7 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
          */
         const from = current;
 
-        void Promise.all([
+        return Promise.all([
             this.statesFor(context, dataset.getTargetEntityType(), status.name),
             this.rulesFor(context, dataset.getTargetEntityType(), status.name),
         ])
@@ -788,17 +793,21 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
 
                 return this.write(context, dataset, record, status.name, recordId, movePayload(status.name, source, to));
             })
-            .catch((error: unknown) => {
-                this.pending.delete(recordId);
-                this.failedMoves += 1;
-                this.moveError = `${context.resources
-                    .getString('KanbanBoard_MoveFailed')
-                    .replace('{0}', label)} ${this.describe(error)}`;
-                this.notifyOutputChanged();
-            })
+            .then(
+                (): MoveOutcome => ({ ok: true, message: null }),
+                (error: unknown): MoveOutcome => {
+                    this.pending.delete(recordId);
+                    this.failedMoves += 1;
+                    this.moveError = `${context.resources
+                        .getString('KanbanBoard_MoveFailed')
+                        .replace('{0}', label)} ${this.describe(error)}`;
+                    this.notifyOutputChanged();
+
+                    return { ok: false, message: this.moveError };
+                },
+            )
             .finally(() => {
                 this.moving.delete(recordId);
-                dataset.refresh();
             });
     }
 

@@ -242,6 +242,10 @@
                 laneLimits: params.get('limits') || '',
                 parentLookup: params.get('parent') || '',
             },
+            // ?refuse=1: every write is refused, as a plugin would — the put-back.
+            webApiFails: params.get('refuse') === '1',
+            quirks: params.get('refuse') === '1' ? { saveRejects: true } : {},
+            rejection: params.get('refuse') === '1' ? { message: 'Refused by the preview.' } : null,
             contextInfo: subgrid ? { entityTypeName: 'account', entityId: accounts.contoso, entityRecordName: 'Contoso' } : undefined,
             relationshipFilter: subgrid ? { column: 'new_account', id: accounts.contoso } : null,
         });
@@ -254,7 +258,22 @@
             ReactDOM.render(control.updateView(handle.nextContext()), root);
         };
 
-        control.init(handle.context, function () { setTimeout(render, 0); }, {}, root);
+        /*
+          The platform renders after notifyOutputChanged() only when an output
+          actually changed — measured on a form, and the reason a refused move
+          has to be put back by the board itself. The preview does the same,
+          or it would repaint a refusal no form repaints.
+        */
+        var lastOutputs = '';
+
+        control.init(handle.context, function () {
+            var outputs = JSON.stringify(control.getOutputs());
+
+            if (outputs !== lastOutputs) {
+                lastOutputs = outputs;
+                setTimeout(render, 0);
+            }
+        }, {}, root);
         render();
 
         // A mutator owes a render, the way a fetch does on a form.

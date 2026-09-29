@@ -23,6 +23,17 @@ import {
 } from './lanes';
 import { TotalsAnswer } from '../data/totals';
 
+/**
+ * How a move ended, as the entry point reports it — so the board can put a
+ * refused card back and re-ask its totals without a platform render, which a
+ * refusal never brings and which a landed move no longer asks for (0.4.1).
+ */
+export interface MoveOutcome {
+    ok: boolean;
+    /** The sentence to show when it was refused, or `null`. */
+    message: string | null;
+}
+
 export interface IProps {
     cards: Card[];
     /** Whether a Lane total column is bound, so each lane shows a sum and the board a caption. */
@@ -88,7 +99,8 @@ export interface IProps {
      * that card's Move menu, as the form's own dropdown would be.
      */
     loadRules: (() => Promise<Record<string, number[]>>) | null;
-    onMove: (recordId: string, toValue: number) => void;
+    /** Write a move; resolves with how it ended, never rejects. */
+    onMove: (recordId: string, toValue: number) => Promise<MoveOutcome>;
     /** Open the quick create form with the lane's option preselected. */
     onCreate: (laneValue: number) => void;
     onOpenRecord: (id: string) => void;
@@ -117,8 +129,8 @@ export interface IProps {
 function useOptimisticLanes(
     cards: Card[],
     failedMoves: number,
-): [Record<string, number>, (id: string, lane: number) => void] {
-    const [overlay, setOverlay] = React.useState<Record<string, number>>({});
+): [Record<string, number | null>, (id: string, lane: number | null) => void] {
+    const [overlay, setOverlay] = React.useState<Record<string, number | null>>({});
     const key = boardKey(cards);
 
     React.useEffect(() => {
@@ -126,7 +138,7 @@ function useOptimisticLanes(
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [key, failedMoves]);
 
-    const place = React.useCallback((id: string, lane: number): void => {
+    const place = React.useCallback((id: string, lane: number | null): void => {
         setOverlay((current) => ({ ...current, [id]: lane }));
     }, []);
 
@@ -264,7 +276,22 @@ export function KanbanBoardControl(props: IProps): React.ReactElement | null {
     const { cards, getString, laneWidth } = props;
     const [overlay, place] = useOptimisticLanes(cards, props.failedMoves);
     const fromOptions = useOptionLanes(props.lanesKey, props.loadLanes);
-    const server = useServerTotals(props.totalsWanted ? props.totals : null);
+    /*
+     * Moves this board has seen land. The totals' route key carries the
+     * board's content, which a landed move changes through the platform's
+     * render — except the second move of the same card, whose output is
+     * unchanged and so brings none. Counting landings here re-asks either way,
+     * and only once the write is in, so the server counts it (0.4.1).
+     */
+    const [landed, setLanded] = React.useState(0);
+    const route = props.totalsWanted && props.totals
+        ? { key: `${props.totals.key}#${landed}`, load: props.totals.load }
+        : null;
+    const server = useServerTotals(route);
+
+    /* Cards with a write in flight, and the last refusal — the board's own, see MoveOutcome. */
+    const [busy, setBusy] = React.useState<string[]>([]);
+    const [refusal, setRefusal] = React.useState<string | null>(null);
     const rules = useTransitionRules(props.lanesKey, props.loadRules);
 
     /*
@@ -338,8 +365,25 @@ export function KanbanBoardControl(props: IProps): React.ReactElement | null {
                 .replace('{0}', String(placed.length));
 
     const move = (recordId: string, toValue: number): void => {
+        // Where the card is on screen now — what a refusal puts it back to.
+        const from = placed.find((card) => card.id === recordId)?.lane ?? null;
+
         place(recordId, toValue);
-        props.onMove(recordId, toValue);
+        setRefusal(null);
+        setBusy((current) => [...current, recordId]);
+
+        void props.onMove(recordId, toValue).then((outcome) => {
+            setBusy((current) => current.filter((id) => id !== recordId));
+
+            if (outcome.ok) {
+                setLanded((count) => count + 1);
+
+                return;
+            }
+
+            place(recordId, from);
+            setRefusal(outcome.message);
+        });
     };
 
     /*
@@ -409,9 +453,9 @@ export function KanbanBoardControl(props: IProps): React.ReactElement | null {
 
     return frame(
         <>
-            {props.moveError !== null && (
+            {(refusal ?? props.moveError) !== null && (
                 <p className="KanbanBoard-error" role="alert">
-                    {props.moveError}
+                    {refusal ?? props.moveError}
                 </p>
             )}
 
@@ -479,6 +523,7 @@ export function KanbanBoardControl(props: IProps): React.ReactElement | null {
                          * Found by the hub's demo, 2026-09-28.
                          */
                         lanes={lanes}
+                        moving={[...props.moving, ...busy]}
                         lane={lane}
                         cards={cardsInLane(shown, lane)}
                         total={cardsInLane(placed, lane).length}
