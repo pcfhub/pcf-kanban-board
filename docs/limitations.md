@@ -165,3 +165,8 @@ other, and reversing it means moving the card back.
 The board loads more rather than paging, and the **Load more** button appears
 while the platform reports further records. There is no virtualisation: a board
 with several thousand cards loaded will render several thousand DOM nodes.
+
+Moving a card keeps every card **Load more** has brought in (from 0.4.1; before
+it, each move started the board again at its first page). **Adding a card with
+the + still does**: the new card has to be fetched, and a fetch of the view
+starts at its first page. Press **Load more** again to bring the rest back.

@@ -2,6 +2,38 @@
 
 A Dataverse view as a drag-and-drop board, grouped by a choice column.
 
+## 0.4.1 — a move keeps what Load more brought in
+
+Found on the form right after the 0.4.0 walkthrough (2026-09-29): Load more
+two or three times, move a card from the last page, and the board fell back
+to its first page — the card had landed, and every card past page one
+vanished until Load more was pressed again. Older than 0.4.0: `moveCard`
+ended with `dataset.refresh()` since the board first wrote, and **a refresh
+starts the view again at page one**. The rig kept the loaded range across a
+refresh, so no suite could see it; it resets now (`_template` `d1b1de3`).
+
+**No refresh after a move.** It did two jobs, and each has another route:
+
+- *Showing a landed move* — the override already holds the card in its new
+  lane until a fetch agrees, and the totals re-ask on a count of landings the
+  board keeps (which also covers the second move of the same card, whose
+  unchanged output brings no render).
+- *Putting a refused card back* — a refusal changes no output, so the
+  platform brings no render; the 0.3.5 fix leaned on the refresh's. Now
+  `moveCard` resolves `{ ok, message }` and the board puts the card back,
+  shows the sentence and clears *Moving…* from its own state.
+
+The quick create keeps its refresh — a new card has to be fetched — and
+`docs/limitations.md` says so.
+
+| | Look at | Right way | Measured |
+| --- | --- | --- | --- |
+| W12 | Page size 4, Load more until every card is on the board, then drag a card from the last page to another lane | Lands, **every card stays on the board**, the lane totals follow | |
+| W13 | The same card, moved again to a third lane | Lands; the totals follow again (no output changed — the board's own count re-asks) | |
+| W14 | A refusal from Dataverse: Lane column = **Status**, transitions enabled, Load more until all are loaded, then drag a card whose reason is **Active** to Inactive. The board sends `{ statecode: 1, statuscode: 2 }`; Active may not go to Inactive, so the server refuses (2147807246, T6) — a Status board has no transition rules of its own to stop it first | The card goes back with the sentence, *Moving…* clears, the loaded cards stay | |
+| W15 | The same card, dragged to Inactive again | Goes back again — no output changed, so no host render; the board's own | |
+| W16 | **+** on a lane, save the quick create | The new card appears; the board is back at its first page (documented) | |
+
 ## 0.4.0 — lane totals, status transitions, soft lane limits
 
 Picked by the 29 Sep 2026 demand survey: Kanban was the only control whose hub

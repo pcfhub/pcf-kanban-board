@@ -126,5 +126,7 @@ also hides the move affordances.
 ## What happens if two people move the same card?
 
 The last write wins, which is Dataverse's behaviour rather than the control's.
-Each board refreshes after its own move and will show the other person's change
-the next time it reads the view.
+Each board shows its own move at once, and the other person's the next time it
+reads the view — **Load more**, the subgrid refreshing, or the form reopening.
+A board does not re-read the view after its own move, so that the cards **Load
+more** brought in stay on it.
