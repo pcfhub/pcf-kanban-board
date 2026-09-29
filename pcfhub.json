@@ -42,7 +42,8 @@
       "A refused move rolls back here, as on a form. The demo’s stand-in Dataverse refuses one kind of move, the way a plugin would on a real environment: resolving a work item. Drop any card on Resolved, or choose Resolved from its Move menu, and it lands, then returns to the lane it came from with the reason named above the board — the path this control exists to catch. Every other move saves. The sentence is the fixture’s own; a move refused for a missing privilege carries the platform’s sentence instead and takes the same path.",
       "Sprint board and Narrow lanes read their lanes from the Status column’s option set, as a real view does with Lanes left empty: the labels, their order and each lane’s colour come from the options the stand-in Dataverse describes, through utils.getEntityMetadata. Lanes set by hand fills the Lanes property in instead — the route a canvas app has to take, where the option set cannot be read — and there the declared labels and colours win.",
       "Load more works against the fixture. The board asks for its page size, and loadNextPage() adds the next page to the lanes, as on a real view, until the button goes away with every card shown. The Narrow lanes preset asks for six, so three of the nine cards wait behind Load more and the lane counts grow as they arrive — and because its lanes come from the option set, Resolved is on the board, empty, before any of its cards have loaded. The other presets ask for 50, which is all of them.",
-      "Clicking a card calls dataset.openDatasetItem(). There is no form behind the demo, so the event log names the record that would have opened. The openedRecordId output still updates."
+      "Clicking a card calls dataset.openDatasetItem(). There is no form behind the demo, so the event log names the record that would have opened. The openedRecordId output still updates.",
+      "Lane totals here are the cards on the board, and the line above the lanes says so. On a form the board asks Dataverse for one total per lane over the whole view — the view’s own FetchXML as an aggregate, related to the form’s record on a subgrid — and the demo’s stand-in Dataverse answers no FetchXML, so the event log shows that query refused and the board adds up its cards, exactly as on any host that cannot aggregate. The limit on Active in Pipeline totals is a warning, never a refusal: a fourth card still lands."
     ],
     "presets": [
       {
@@ -86,6 +87,21 @@
           "showSearch": false,
           "allowCreate": true,
           "pageSize": 6
+        }
+      },
+      {
+        "slug": "pipeline",
+        "name": "Pipeline totals",
+        "description": "Each lane adds up the Estimate column under its name, and Active is limited to three cards: over it, its count turns to the warning colour. Move a card into Active to see both change.",
+        "props": {
+          "lanes": "",
+          "laneWidth": 280,
+          "laneColors": true,
+          "openOnCardClick": true,
+          "showSearch": true,
+          "allowCreate": true,
+          "pageSize": 50,
+          "laneLimits": "2=3"
         }
       }
     ]

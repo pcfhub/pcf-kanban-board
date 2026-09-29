@@ -34,6 +34,14 @@
             "alias": "badgeField",
             "order": 3,
             "visualSizeFactor": 90
+        },
+        {
+            "name": "cr123_estimate",
+            "displayName": "Estimate",
+            "dataType": "Currency",
+            "alias": "valueField",
+            "order": 4,
+            "visualSizeFactor": 90
         }
     ],
     "records": [
@@ -43,7 +51,8 @@
                 "cr123_subject": "Rework the onboarding email sequence",
                 "cr123_status": 1,
                 "cr123_assignedto": "Dana Whitfield",
-                "cr123_priority": "High"
+                "cr123_priority": "High",
+                "cr123_estimate": 4200
             }
         },
         {
@@ -52,7 +61,8 @@
                 "cr123_subject": "Audit the supplier contact list",
                 "cr123_status": 1,
                 "cr123_assignedto": "Marcus Reyes",
-                "cr123_priority": "Normal"
+                "cr123_priority": "Normal",
+                "cr123_estimate": 1800
             }
         },
         {
@@ -70,7 +80,8 @@
                 "cr123_subject": "Migrate the reporting dashboard",
                 "cr123_status": 2,
                 "cr123_assignedto": "Dana Whitfield",
-                "cr123_priority": "High"
+                "cr123_priority": "High",
+                "cr123_estimate": 6500
             }
         },
         {
@@ -79,7 +90,8 @@
                 "cr123_subject": "Consolidate duplicate account records",
                 "cr123_status": 2,
                 "cr123_assignedto": "Tomas Lindqvist",
-                "cr123_priority": "Normal"
+                "cr123_priority": "Normal",
+                "cr123_estimate": 2750
             }
         },
         {
@@ -88,7 +100,8 @@
                 "cr123_subject": "Rewrite the escalation runbook",
                 "cr123_status": 2,
                 "cr123_assignedto": "Priya Anand",
-                "cr123_priority": "Normal"
+                "cr123_priority": "Normal",
+                "cr123_estimate": 900
             }
         },
         {
@@ -97,7 +110,8 @@
                 "cr123_subject": "Retire the legacy import job",
                 "cr123_status": 3,
                 "cr123_assignedto": "Marcus Reyes",
-                "cr123_priority": "Low"
+                "cr123_priority": "Low",
+                "cr123_estimate": 12000
             }
         },
         {
@@ -106,7 +120,8 @@
                 "cr123_subject": "Publish the partner integration guide",
                 "cr123_status": 3,
                 "cr123_assignedto": "Aiko Tanaka",
-                "cr123_priority": "Normal"
+                "cr123_priority": "Normal",
+                "cr123_estimate": 3300
             }
         },
         {
@@ -114,7 +129,8 @@
             "values": {
                 "cr123_subject": "Triage the inbound feature requests",
                 "cr123_assignedto": "Aiko Tanaka",
-                "cr123_priority": "High"
+                "cr123_priority": "High",
+                "cr123_estimate": 1500
             }
         }
     ],
@@ -127,9 +143,21 @@
                 "columns": {
                     "cr123_status": {
                         "options": [
-                            { "value": 1, "label": "New", "color": "#6b7280" },
-                            { "value": 2, "label": "Active", "color": "#e8d33a" },
-                            { "value": 3, "label": "Resolved", "color": "#22a14a" }
+                            {
+                                "value": 1,
+                                "label": "New",
+                                "color": "#6b7280"
+                            },
+                            {
+                                "value": 2,
+                                "label": "Active",
+                                "color": "#e8d33a"
+                            },
+                            {
+                                "value": 3,
+                                "label": "Resolved",
+                                "color": "#22a14a"
+                            }
                         ]
                     }
                 }
