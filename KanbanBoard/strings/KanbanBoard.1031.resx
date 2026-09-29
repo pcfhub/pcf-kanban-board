@@ -259,4 +259,7 @@
   <data name="KanbanBoard_LaneTotal" xml:space="preserve">
     <value>Summe {0}</value>
   </data>
+  <data name="KanbanBoard_NotAllowed" xml:space="preserve">
+    <value>Die Statusgrund-Übergänge erlauben keinen Wechsel von {0} zu {1}.</value>
+  </data>
 </root>

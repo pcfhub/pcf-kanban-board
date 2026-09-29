@@ -908,6 +908,105 @@ check('passes the search switch down', bind({ inputs: { showSearch: false } }).p
         JSON.stringify(written(stateHandle)),
     );
 
+    /* ------------------------------- 0.4.0: Status Reason transitions */
+
+    /*
+     * Measured on cll_task (T6): with enforcement on, the server refuses a
+     * disallowed move only where the state changes. The board honours the
+     * transitions as the form's dropdown does — by decision — so it is the
+     * guard for the same-state ones the server lets through.
+     */
+    const withTransitions = (enforced) => ({
+        ...reasons,
+        enforceStateTransitions: enforced,
+        metadata: {
+            ...reasons.metadata,
+            statuscode: {
+                shape: 'descriptor',
+                options: [
+                    { value: 1, label: 'Active', state: 0, transitionData: [858010001, 4] },
+                    { value: 858010001, label: 'In Progress', state: 0, transitionData: [1, 2, 4] },
+                    { value: 2, label: 'Inactive', state: 1, transitionData: [1] },
+                    { value: 4, label: 'Cancelled', state: 1, transitionData: [1] },
+                ],
+            },
+        },
+        records: reasons.records.map((row) => ({
+            ...row,
+            values: { ...row.values, statuscode: row.values.statecode === 1 ? 4 : 1 },
+        })),
+    });
+    const transitionBoard = (enforced) => {
+        const handle = host.createHost(withTransitions(enforced), { getString: marked, pageSize: 50, quirks: { readOnlyColumns: ['statuscode', 'statecode'] }, inputs: { ...INPUTS } });
+        const instance = new registration.ctor();
+
+        instance.init(handle.context, () => undefined, {}, dom.createElement('div'));
+        host.drive(instance, handle, 10);
+
+        return { handle, props: () => host.drive(instance, handle, 10).element.props };
+    };
+
+    const ruled = transitionBoard(true);
+    const rules = await ruled.props().loadRules();
+
+    check(
+        'with enforcement on, the rules are each reason\'s next reasons',
+        JSON.stringify(rules) === JSON.stringify({ 1: [858010001, 4], 858010001: [1, 2, 4], 2: [1], 4: [1] }),
+        JSON.stringify(rules),
+    );
+
+    ruled.props().onMove('w1', 2);
+    await flush();
+    await flush();
+
+    check(
+        'a move the transitions forbid is not sent, even one the server would refuse anyway',
+        written(ruled.handle).length === 0 && /resx:KanbanBoard_NotAllowed/.test(String(ruled.props().moveError)),
+        `${JSON.stringify(written(ruled.handle))} ${ruled.props().moveError}`,
+    );
+    check('and the card goes back', ruled.props().cards.find((c) => c.id === 'w1').lane === 1, String(ruled.props().cards.find((c) => c.id === 'w1').lane));
+
+    // w5 is Cancelled (state 1); Cancelled → Inactive stays in the state — the server would let it through.
+    const sameState = transitionBoard(true);
+
+    sameState.props().onMove('w5', 2);
+    await flush();
+    await flush();
+
+    check(
+        'a forbidden move within one state is refused by the board, where the server would not',
+        written(sameState.handle).length === 0 && /NotAllowed/.test(String(sameState.props().moveError)),
+        `${JSON.stringify(written(sameState.handle))} ${sameState.props().moveError}`,
+    );
+
+    const allowed = transitionBoard(true);
+
+    allowed.props().onMove('w1', 4);
+    await flush();
+    await flush();
+
+    check(
+        'an allowed move across states is sent as the pair',
+        JSON.stringify(written(allowed.handle)) === JSON.stringify([{ statecode: 1, statuscode: 4 }]) && allowed.props().moveError === null,
+        `${JSON.stringify(written(allowed.handle))} ${allowed.props().moveError}`,
+    );
+
+    /*
+     * Defined but not applied — measured: TransitionData filled in on every
+     * reason while EnforceStateTransitions answered false, and nothing was
+     * refused. The board follows the flag, not the data.
+     */
+    const unenforced = transitionBoard(false);
+    const noRules = await unenforced.props().loadRules();
+
+    unenforced.props().onMove('w5', 2);
+    await flush();
+    await flush();
+
+    check('transitions defined but not enforced bind nothing', JSON.stringify(noRules) === '{}', JSON.stringify(noRules));
+    check('and the same-state move goes through', JSON.stringify(written(unenforced.handle)) === JSON.stringify([{ statuscode: 2 }]), JSON.stringify(written(unenforced.handle)));
+    check('a board over a Choice asks for no rules at all', bind({}).props().loadRules === null);
+
     /* --------------------------------------------------- what destroy owes */
 
     /*

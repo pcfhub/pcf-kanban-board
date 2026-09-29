@@ -204,6 +204,16 @@
     font-weight: var(--fontWeightSemibold, 600);
 }
 
+/*
+  0.4.0: a lane the dragged card may not move to under the table's Status
+  Reason transitions — drawn closed only while the drag lasts, as the form's
+  own dropdown would leave it out.
+*/
+.KanbanBoard .KanbanBoard-lane.is-closed {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
 /* 0.4.0: the lane's total, under its name — the number a pipeline is read by. */
 .KanbanBoard-laneTotal {
     padding: 0 var(--spacingHorizontalM, 12px) var(--spacingVerticalXS, 4px);

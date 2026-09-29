@@ -15,6 +15,7 @@ import {
     LaneTotal,
     boardKey,
     cardsInLane,
+    allowsMove,
     laneKey,
     matchesQuery,
     totalsFromCards,
@@ -80,6 +81,13 @@ export interface IProps {
      * `context.utils` (canvas).
      */
     loadLanes: (() => Promise<Lane[]>) | null;
+    /**
+     * The Status Reason transitions in force — reason → the reasons it may
+     * move to, `{}` where none bind — or `null` on any other lane column.
+     * A disallowed lane is closed while a card is dragged, and missing from
+     * that card's Move menu, as the form's own dropdown would be.
+     */
+    loadRules: (() => Promise<Record<string, number[]>>) | null;
     onMove: (recordId: string, toValue: number) => void;
     /** Open the quick create form with the lane's option preselected. */
     onCreate: (laneValue: number) => void;
@@ -216,11 +224,54 @@ function useServerTotals(
     return state;
 }
 
+/**
+ * The transitions in force, held in React for the reason the option lanes
+ * are, keyed the same way. `null` until they arrive — and until then every
+ * lane is open, which is what the board did before it knew of them; the
+ * entry point checks the rule again before it writes.
+ */
+function useTransitionRules(
+    lanesKey: string,
+    loadRules: (() => Promise<Record<string, number[]>>) | null,
+): Record<string, number[]> | null {
+    const [rules, setRules] = React.useState<Record<string, number[]> | null>(null);
+
+    React.useEffect(() => {
+        setRules(null);
+
+        if (!loadRules) {
+            return undefined;
+        }
+
+        let alive = true;
+
+        void loadRules().then((answer) => {
+            if (alive) {
+                setRules(answer);
+            }
+        });
+
+        return () => {
+            alive = false;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [lanesKey]);
+
+    return rules;
+}
+
 export function KanbanBoardControl(props: IProps): React.ReactElement | null {
     const { cards, getString, laneWidth } = props;
     const [overlay, place] = useOptimisticLanes(cards, props.failedMoves);
     const fromOptions = useOptionLanes(props.lanesKey, props.loadLanes);
     const server = useServerTotals(props.totalsWanted ? props.totals : null);
+    const rules = useTransitionRules(props.lanesKey, props.loadRules);
+
+    /*
+     * The card being dragged, so a lane can say whether it would take it —
+     * `dataTransfer` cannot be read during `dragover`, only on the drop.
+     */
+    const [dragging, setDragging] = React.useState<number | null | undefined>(undefined);
 
     /*
      * The search text lives here and nowhere else. A virtual control cannot
@@ -255,7 +306,7 @@ export function KanbanBoardControl(props: IProps): React.ReactElement | null {
      * shown, and the lanes' totals no longer add up to the caption's number.
      */
     const lanes = server.answer && server.answer.byLane[''] && !drawn.some((lane) => lane.value === null)
-        ? [{ value: null, label: props.unassignedLabel, color: null, state: null, defaultStatus: null }, ...drawn]
+        ? [{ value: null, label: props.unassignedLabel, color: null, state: null, defaultStatus: null, next: null }, ...drawn]
         : drawn;
 
     /*
@@ -433,6 +484,9 @@ export function KanbanBoardControl(props: IProps): React.ReactElement | null {
                         total={cardsInLane(placed, lane).length}
                         laneTotal={props.totalsWanted ? totalOf(lane) : null}
                         limit={lane.value === null ? null : props.limits[String(lane.value)] ?? null}
+                        rules={rules}
+                        dragging={dragging}
+                        onDragCard={setDragging}
                         searching={searching}
                         width={laneWidth}
                         onDrop={move}
@@ -465,6 +519,11 @@ interface ILaneProps extends IProps {
     laneTotal: LaneTotal | null;
     /** The lane's soft limit, or `null`. */
     limit: number | null;
+    /** The transitions in force, or `null` — see `loadRules`. */
+    rules: Record<string, number[]> | null;
+    /** The lane of the card being dragged; `undefined` when nothing is. */
+    dragging: number | null | undefined;
+    onDragCard: (lane: number | null | undefined) => void;
     searching: boolean;
     width: number;
     onDrop: (recordId: string, toValue: number) => void;
@@ -481,7 +540,14 @@ function LaneColumn(props: ILaneProps): React.ReactElement {
      * moving a card, and not one a drag should be able to express by accident.
      * Cards can be dragged *out* of it.
      */
-    const droppable = lane.value !== null && !props.disabled && props.canMove;
+    /*
+     * A lane the dragged card's reason may not move to is closed: it takes
+     * no drop and says so while the drag lasts. The form's own dropdown
+     * would not offer it, and the server catches only the ones that change
+     * the state (measured) — so the board is the guard for the rest.
+     */
+    const closed = props.dragging !== undefined && !allowsMove(props.rules, props.dragging, lane.value);
+    const droppable = lane.value !== null && !props.disabled && props.canMove && !closed;
 
     /*
      * The count reads "2 of 5" while a search narrows the lane and "5" the rest
@@ -518,7 +584,8 @@ function LaneColumn(props: ILaneProps): React.ReactElement {
 
     return (
         <section
-            className={over ? 'KanbanBoard-lane is-over' : 'KanbanBoard-lane'}
+            className={['KanbanBoard-lane', over ? 'is-over' : '', closed ? 'is-closed' : ''].filter(Boolean).join(' ')}
+            aria-disabled={closed || undefined}
             style={{ width: `${props.width}px` }}
             aria-label={`${lane.label}, ${getString('KanbanBoard_CardCount').replace('{0}', spoken)}${
                 // A lane with nothing to add up draws "—"; spoken, it would be "Total dash".
@@ -538,6 +605,9 @@ function LaneColumn(props: ILaneProps): React.ReactElement {
             onDrop={(event): void => {
                 event.preventDefault();
                 setOver(false);
+                // The card's own dragend can be lost when the drop re-renders
+                // it into another lane, which would leave lanes closed.
+                props.onDragCard(undefined);
 
                 const id = event.dataTransfer.getData('text/plain');
 
@@ -629,7 +699,9 @@ function CardItem(props: ILaneProps & { card: Card }): React.ReactElement {
      * status produces exactly one lane — and then there is nowhere to move to,
      * for any card on the board.
      */
-    const targets = lanes.filter((lane) => lane.value !== null && lane.value !== card.lane);
+    const targets = lanes.filter((lane) => lane.value !== null && lane.value !== card.lane
+        // …and one the table's transitions allow, as the form's dropdown would.
+        && allowsMove(props.rules, card.lane, lane.value));
 
     return (
         <li
@@ -638,7 +710,9 @@ function CardItem(props: ILaneProps & { card: Card }): React.ReactElement {
             onDragStart={(event): void => {
                 event.dataTransfer.setData('text/plain', card.id);
                 event.dataTransfer.effectAllowed = 'move';
+                props.onDragCard(card.lane);
             }}
+            onDragEnd={(): void => props.onDragCard(undefined)}
         >
             <div className="KanbanBoard-cardTop">
                 {/*

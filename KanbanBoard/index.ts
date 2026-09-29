@@ -7,6 +7,7 @@ import {
     ROLES,
     STATUS,
     STATUS_REASON,
+    allowsMove,
     boardKey,
     deriveLanes,
     describeShape,
@@ -16,6 +17,7 @@ import {
     optionLanes,
     parseLanes,
     parseLimits,
+    transitionRules,
     withUnassigned,
 } from './components/lanes';
 import { TotalsAnswer, loadTotals } from './data/totals';
@@ -258,6 +260,7 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
     private readonly states = new Map<string, Promise<Lane[]>>();
 
     /** Same-origin metadata reads, cached for the life of the control. */
+    private enforced: Promise<boolean> | null = null;
     private primaryId: Promise<string> | null = null;
     private parentCandidates: Promise<{ column: string; target: string }[]> | null = null;
 
@@ -349,6 +352,9 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
             unassignedLabel: getString('KanbanBoard_Unassigned'),
             lanesKey: status ? `${dataset.getTargetEntityType()}:${status.name}` : '',
             loadLanes: this.laneLoader(context, dataset, status),
+            loadRules: status && status.name === STATUS_REASON
+                ? (): Promise<Record<string, number[]>> => this.rulesFor(context, dataset.getTargetEntityType(), status.name)
+                : null,
             onMove: (recordId: string, toValue: number): void =>
                 this.moveCard(context, dataset, recordId, toValue),
             onCreate: (laneValue: number): void => this.createCard(context, dataset, laneValue),
@@ -762,11 +768,28 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
          */
         const from = current;
 
-        void this.statesFor(context, dataset.getTargetEntityType(), status.name)
-            .then((options) => {
+        void Promise.all([
+            this.statesFor(context, dataset.getTargetEntityType(), status.name),
+            this.rulesFor(context, dataset.getTargetEntityType(), status.name),
+        ])
+            .then(([options, rules]) => {
                 const to = options.find((lane) => lane.value === toValue)
-                    ?? { value: toValue, label: '', color: null, state: null, defaultStatus: null };
+                    ?? { value: toValue, label: '', color: null, state: null, defaultStatus: null, next: null };
                 const source = options.find((lane) => lane.value === from);
+
+                /*
+                 * The board draws a disallowed lane as closed and leaves it
+                 * out of the Move menu; this is the same rule, once more,
+                 * before anything is sent — so no path to `write` can send a
+                 * move the table's transitions forbid, whether or not the
+                 * server would have caught it (it catches only a change of
+                 * state, measured).
+                 */
+                if (!allowsMove(rules, typeof from === 'number' ? from : null, toValue)) {
+                    throw new Error(context.resources.getString('KanbanBoard_NotAllowed')
+                        .replace('{0}', source?.label ?? String(from))
+                        .replace('{1}', to.label || String(toValue)));
+                }
 
                 return this.write(context, dataset, record, status.name, recordId, movePayload(status.name, source, to));
             })
@@ -852,6 +875,43 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
      * The executor form for the same reason as `laneLoader`: canvas publishes
      * `getEntityMetadata` and throws from the call.
      */
+    /**
+     * The Status Reason transitions in force, reason → the reasons it may
+     * move to — `{}` wherever none bind: any other column, a table that does
+     * not enforce them, a host that cannot say.
+     *
+     * `EnforceStateTransitions` is read, not inferred: measured, every reason
+     * carried its `TransitionData` while the flag answered `false`, and then
+     * nothing was refused. It is not on anything `getEntityMetadata` was seen
+     * to return, so it is one same-origin `EntityDefinitions` read per table,
+     * cached for the life of the control.
+     */
+    private rulesFor(
+        context: ComponentFramework.Context<IInputs>,
+        entity: string,
+        column: string,
+    ): Promise<Record<string, number[]>> {
+        if (column !== STATUS_REASON) {
+            return Promise.resolve({});
+        }
+
+        const clientUrl = clientUrlOf(context);
+
+        if (!this.enforced) {
+            this.enforced = clientUrl === null
+                ? Promise.resolve(false)
+                : readMetadata<{ EnforceStateTransitions?: unknown }>(
+                    clientUrl,
+                    `EntityDefinitions(LogicalName='${encodeURIComponent(entity)}')?$select=EnforceStateTransitions`,
+                )
+                    .then((body) => body.EnforceStateTransitions === true)
+                    .catch(() => false);
+        }
+
+        return Promise.all([this.statesFor(context, entity, column), this.enforced])
+            .then(([lanes, enforced]) => transitionRules(lanes, enforced));
+    }
+
     private statesFor(
         context: ComponentFramework.Context<IInputs>,
         entity: string,

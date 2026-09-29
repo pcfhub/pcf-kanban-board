@@ -259,4 +259,7 @@
   <data name="KanbanBoard_LaneTotal" xml:space="preserve">
     <value>合計 {0}</value>
   </data>
+  <data name="KanbanBoard_NotAllowed" xml:space="preserve">
+    <value>ステータス理由の遷移では {0} から {1} への移動は許可されていません。</value>
+  </data>
 </root>

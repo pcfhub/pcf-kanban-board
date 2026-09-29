@@ -259,4 +259,7 @@
   <data name="KanbanBoard_LaneTotal" xml:space="preserve">
     <value>Total {0}</value>
   </data>
+  <data name="KanbanBoard_NotAllowed" xml:space="preserve">
+    <value>Les transitions de raison du statut n'autorisent pas le passage de {0} à {1}.</value>
+  </data>
 </root>

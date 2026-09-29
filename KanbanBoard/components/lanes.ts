@@ -32,6 +32,15 @@ export interface Lane {
      * for any other column.
      */
     defaultStatus: number | null;
+    /**
+     * The reasons a card in this **Status Reason** lane may move to — the
+     * option's `TransitionData`, which `getEntityMetadata` hands over as a
+     * **list of values** (measured 2026-09-29; `EntityDefinitions` carries
+     * the XML string instead, and both are read). `null` where none are
+     * defined. Defined is not applied: whether they bind is the table's
+     * `EnforceStateTransitions`, read separately.
+     */
+    next: number[] | null;
 }
 
 export interface Card {
@@ -125,7 +134,7 @@ export function parseLanes(spec: string): Lane[] {
         }
 
         seen.add(value);
-        lanes.push({ value, label, color, state: null, defaultStatus: null });
+        lanes.push({ value, label, color, state: null, defaultStatus: null, next: null });
     }
 
     return lanes;
@@ -175,7 +184,7 @@ export function deriveLanes(cards: Card[]): Lane[] {
 
     return [...seen.entries()]
         .sort((a, b) => a[0] - b[0])
-        .map(([value, label]) => ({ value, label: label || String(value), color: null, state: null, defaultStatus: null }));
+        .map(([value, label]) => ({ value, label: label || String(value), color: null, state: null, defaultStatus: null, next: null }));
 }
 
 /**
@@ -191,7 +200,7 @@ export function withUnassigned(lanes: Lane[], cards: Card[], label: string): Lan
         return lanes;
     }
 
-    return [{ value: null, label, color: null, state: null, defaultStatus: null }, ...lanes];
+    return [{ value: null, label, color: null, state: null, defaultStatus: null, next: null }, ...lanes];
 }
 
 /** The cards in a lane, in the order the view supplied them. */
@@ -255,6 +264,77 @@ export function movePayload(column: string, from: Lane | undefined, to: Lane): R
     }
 
     return { [column]: value };
+}
+
+/**
+ * An option's `TransitionData` as the reasons it may move to, or `null`.
+ *
+ * Two shapes, both measured 2026-09-29 on `cll_task`: `getEntityMetadata`'s
+ * descriptor hands over a **list of values** (`[858010001, 858010002]`), and
+ * `EntityDefinitions` the documented XML string
+ * (`<allowedtransition sourcestatusid="1" tostatusid="858010001"/>…`).
+ * Anything else — `null` where none are defined — is no rule at all.
+ */
+export function nextReasons(raw: unknown): number[] | null {
+    if (Array.isArray(raw)) {
+        const values = raw.map((entry) => laneValue(entry)).filter((entry): entry is number => entry !== null);
+
+        return values.length === raw.length ? values : null;
+    }
+
+    if (typeof raw === 'string' && raw.indexOf('tostatusid') !== -1) {
+        const found: number[] = [];
+        const pattern = /tostatusid="(\d+)"/g;
+
+        for (let match = pattern.exec(raw); match !== null; match = pattern.exec(raw)) {
+            found.push(Number(match[1]));
+        }
+
+        return found;
+    }
+
+    return null;
+}
+
+/**
+ * The transitions in force: a reason's value to the reasons it may move to —
+ * **empty** where the table does not enforce them, whatever is defined.
+ * Measured: `TransitionData` was filled in on every reason while
+ * `EnforceStateTransitions` still answered `false`, and nothing was refused.
+ */
+export function transitionRules(lanes: Lane[], enforced: boolean): Record<string, number[]> {
+    const rules: Record<string, number[]> = {};
+
+    if (!enforced) {
+        return rules;
+    }
+
+    for (const lane of lanes) {
+        if (lane.value !== null && lane.next !== null) {
+            rules[String(lane.value)] = lane.next;
+        }
+    }
+
+    return rules;
+}
+
+/**
+ * Whether a card in lane `from` may be moved to lane `to` under `rules`.
+ *
+ * The board honours an enforced transition **as the form's own dropdown
+ * does** — by the user's decision, 2026-09-29 — and not only where the server
+ * would refuse: measured, the server refuses a disallowed move only where the
+ * state changes, and lets a disallowed reason within one state through. A
+ * reason with no rule, and a card with no lane, go anywhere.
+ */
+export function allowsMove(rules: Record<string, number[]> | null, from: number | null, to: number | null): boolean {
+    if (!rules || from === null || to === null || from === to) {
+        return true;
+    }
+
+    const next = rules[String(from)];
+
+    return next === undefined || next.indexOf(to) !== -1;
 }
 
 /**
@@ -429,6 +509,7 @@ export function optionLanes(metadata: unknown, columnName: string): Lane[] {
                 color: hexColor(get(option, 'Color')),
                 state: typeof state === 'number' ? state : null,
                 defaultStatus: typeof defaultStatus === 'number' ? defaultStatus : null,
+                next: nextReasons(get(option, 'TransitionData')),
             });
         }
     }
