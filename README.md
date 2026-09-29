@@ -102,7 +102,7 @@ Notes that do not fit a table:
   display name, so a lookup role would print `{"id":…}` on every card there.
 - **React and Fluent come from the platform**, not the bundle —
   `control-type="virtual"` with `<platform-library>` entries. The shipping
-  bundle is 16 KB.
+  bundle is 38 KB at 0.4.0 — the lane totals brought the shared view-aggregate library.
 - **Localised into five languages**: English (1033), Spanish (3082), French
   (1036), German (1031) and Japanese (1041).
 - **Two permissions** are requested at install: `WebAPI` to write a move and
