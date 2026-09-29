@@ -466,6 +466,27 @@ check('passes the search switch down', bind({ inputs: { showSearch: false } }).p
         String(refusedSave.props().moveError),
     );
 
+    /*
+     * **Each refusal is counted, the same card's included.** The board clears
+     * its optimistic placement on this count, because a refusal changes no
+     * card: the lanes after it read exactly as they did before the drop. A
+     * second refusal of the card that moved last changes no output either, so
+     * a form brings no render until the refresh — and the count is what that
+     * refresh carries. Before 0.3.5 the card stayed in the refused lane.
+     */
+    check('a refusal is counted for the board', refusedSave.props().failedMoves === 1, String(refusedSave.props().failedMoves));
+
+    refusedSave.props().onMove('w1', 3);
+    refusedSave.settle();
+    await flush();
+    refusedSave.settle();
+
+    check(
+        'and a second refusal of the same card is counted again',
+        refusedSave.props().failedMoves === 2 && laneOf(refusedSave, 'w1') === 1,
+        `count ${refusedSave.props().failedMoves}, lane ${laneOf(refusedSave, 'w1')}`,
+    );
+
     /* ----------------------------------------------------------- the create */
 
     /*

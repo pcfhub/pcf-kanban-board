@@ -211,6 +211,13 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
 
     private moveError: string | null = null;
 
+    /**
+     * Refused moves so far. The board clears its optimistic placement when
+     * this changes, because a refusal changes nothing else it could see: the
+     * card never left its lane in the data. See `useOptimisticLanes`.
+     */
+    private failedMoves = 0;
+
     public init(
         context: ComponentFramework.Context<IInputs>,
         notifyOutputChanged: () => void,
@@ -263,6 +270,7 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
             showSearch: context.parameters.showSearch.raw ?? true,
             moving: [...this.moving],
             moveError: this.moveError,
+            failedMoves: this.failedMoves,
             loading: dataset.loading,
             error: dataset.error,
             errorMessage: dataset.errorMessage,
@@ -687,6 +695,7 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
         void this.write(context, dataset, record, status.name, recordId, toValue)
             .catch((error: unknown) => {
                 this.pending.delete(recordId);
+                this.failedMoves += 1;
                 this.moveError = `${context.resources
                     .getString('KanbanBoard_MoveFailed')
                     .replace('{0}', label)} ${this.describe(error)}`;

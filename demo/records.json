@@ -134,6 +134,15 @@
                     }
                 }
             }
-        }
+        },
+        "faults": [
+            {
+                "operation": "update",
+                "table": "cr123_workitem",
+                "column": "cr123_status",
+                "value": 3,
+                "message": "Only a team lead can resolve a work item."
+            }
+        ]
     }
 }

@@ -7,7 +7,7 @@
   -->
   <control namespace="PCFHub"
            constructor="KanbanBoard"
-           version="0.3.4"
+           version="0.3.5"
            display-name-key="KanbanBoard_Name"
            description-key="KanbanBoard_Desc"
            control-type="virtual">

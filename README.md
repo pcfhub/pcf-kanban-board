@@ -113,9 +113,11 @@ It was `limited` until 2026-09-28, for three reasons, and two are gone:
 - **A move is written and kept.** It goes through the record's `setValue` and
   `save`, into the stand-in, so it survives the next render and a property
   change.
-- **Still true: a refused move can't be shown.** The stand-in accepts every
-  write, so the rollback never runs. That rollback is the reason this control
-  catches at all, so it is named in `demo.limitations`.
+- **A refused move rolls back.** The fixture declares a fault
+  (pcfhub/pcfhub#53) refusing any move into Resolved, so the card lands, then
+  returns to its lane with the reason above the board. Seeing that also needed
+  the harness to re-render after `notifyOutputChanged()` (pcfhub/pcfhub#54),
+  and 0.3.5, for a card refused twice in a row.
 
 The stand-in Dataverse also makes the demo a model-driven host, so each lane
 carries a **+**. It asks `navigation.openForm` for the quick create form, and

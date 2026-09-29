@@ -24,6 +24,8 @@ export interface IProps {
     showSearch: boolean;
     moving: string[];
     moveError: string | null;
+    /** How many moves have been refused, so the board drops a refused card's placement. */
+    failedMoves: number;
     loading: boolean;
     error: boolean;
     errorMessage: string;
@@ -64,19 +66,25 @@ export interface IProps {
 /**
  * Where this component thinks each card is, over the top of what props say.
  *
- * On a real form the overlay is redundant: the platform re-renders after
- * `notifyOutputChanged()` and the control has already applied its own pending
- * move, so the card arrives in the new lane. PCFHub's demo harness does not —
- * it posts outputs to the parent window and rebuilds the DataSet on every
- * render — so a board that placed cards straight from props would look dead in
- * the published demo: every drag accepted, nothing moving.
+ * The platform re-renders after `notifyOutputChanged()` only when an output
+ * changed. A move changes `movedRecordId` — unless it is the card that moved
+ * last, and then no render comes until the write settles and the dataset
+ * refreshes. The control's own pending move reaches the board only through a
+ * render, so without this a second move of the same card would sit still for
+ * a round trip.
  *
- * `pcf-data-table` needs the same trick for selection and documents it the same
- * way. The resync key is the board's *content*, not its identity: every
- * `updateView` hands down freshly built card objects.
+ * The overlay clears when the board's *content* changes — every `updateView`
+ * hands down freshly built card objects, so identity says nothing — **or when
+ * a move is refused.** A refusal alone changes no content: the card never left
+ * its lane in the data, so the refreshed board reads exactly as it did before
+ * the drop. When the refused card was also the last one moved, no render ever
+ * showed its pending move either, and the overlay kept it in the lane it was
+ * refused. `failedMoves` is the signal that survives both; the refresh after a
+ * refusal always renders.
  */
 function useOptimisticLanes(
     cards: Card[],
+    failedMoves: number,
 ): [Record<string, number>, (id: string, lane: number) => void] {
     const [overlay, setOverlay] = React.useState<Record<string, number>>({});
     const key = boardKey(cards);
@@ -84,7 +92,7 @@ function useOptimisticLanes(
     React.useEffect(() => {
         setOverlay({});
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [key]);
+    }, [key, failedMoves]);
 
     const place = React.useCallback((id: string, lane: number): void => {
         setOverlay((current) => ({ ...current, [id]: lane }));
@@ -142,7 +150,7 @@ function useOptionLanes(
 
 export function KanbanBoardControl(props: IProps): React.ReactElement | null {
     const { cards, getString, laneWidth } = props;
-    const [overlay, place] = useOptimisticLanes(cards);
+    const [overlay, place] = useOptimisticLanes(cards, props.failedMoves);
     const fromOptions = useOptionLanes(props.lanesKey, props.loadLanes);
 
     /*

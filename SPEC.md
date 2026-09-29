@@ -317,11 +317,42 @@ harness, before the push:
 - *Narrow lanes* at six a page: Resolved is on the board, empty, until Load more
   brings its two cards.
 
-**What stays out of reach is a refused move.** The stand-in accepts every
-write, so the rollback never runs. That path is the reason this control catches
-at all, and it is named in `demo.limitations`. It is a gap in the stand-in, not
-a stubbed feature, which is the same line `pcf-row-commands` drew for its
-refused delete.
+**A refused move shows since 2026-09-28.** Until then the stand-in accepted
+every write, so the rollback never ran. pcfhub/pcfhub#53 let a fixture declare
+faults, and this one refuses an update setting `cr123_status` to 3, resolving a
+work item, as a plugin might. A value fault rather than a column fault, so every
+other move still saves.
+
+Seeing the card come back took two more fixes, one on each side:
+
+- **The harness did not re-render after `notifyOutputChanged()`.** With 0.3.4
+  and the fault, the message appeared and the card stayed in Resolved. The
+  overlay in `useOptimisticLanes` clears only when the board's content changes,
+  and the render showing the pending move never came. pcfhub/pcfhub#54 added
+  it. It also had to be a microtask rather than a later task, because the
+  stand-in's refusal arrives within the same turn and its handler ran first.
+- **0.3.5: a card refused twice in a row stayed in the refused lane.** Found on
+  the #54 harness. The second move changes no output (`movedRecordId` names the
+  same card), and a notify with unchanged outputs brings no `updateView` — the
+  rule measured on a form above, for the lanes. So no render showed the pending
+  move. After the refusal, the refreshed board read exactly as it had before the
+  drop, so the content key never moved and the overlay stayed. That is a form
+  bug, not only a demo one.
+
+  0.3.5 counts refused moves in `failedMoves` and hands the count to the board,
+  which clears the overlay when it changes. The refresh after a refusal always
+  renders, so the count always arrives. `dev/smoke.js` asserts that the count
+  rises for each refusal, the same card's included. It cannot see the overlay
+  itself, which lives in a rendered component.
+
+Checked with the 0.3.5 build on the #54 harness, *Sprint board*, before the
+push:
+
+- Rework refused into Resolved twice running, and Audit likewise after a move
+  to Active: each returned to its lane, under "Rework the onboarding email
+  sequence could not be moved, and was put back. Only a team lead can resolve a
+  work item.";
+- Audit's move to Active landed and stayed.
 
 **The check found a bug in 0.3.3, fixed in 0.3.4: the Move menu never offered
 an empty lane.** The lane columns render from the option set once it lands, but
