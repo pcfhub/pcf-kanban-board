@@ -406,6 +406,14 @@ this repository, and the first one is load-bearing.
   reconciles correctly on the string there.
 - **That the optimistic override reconciles rather than accumulating** across a
   refresh, and that a record leaving a filtered view retires its override.
+  Until 2026-09-29 it could not reconcile on a form at all: `reconcile()`
+  compared `getValue()` — the string `"3"`, measured — with the number it
+  asked for, so an override retired only when the record left the view, and
+  a card dropped back where it started was written again through the record.
+  The old rig answered a number and hid both; the template's answers the
+  string, and the suite now asserts both routes. Harmless while the override
+  equalled the data; a card another user moved afterwards would have stayed
+  where this board last put it.
 - **That a refused write rolls the card back.** Never executed anywhere: the
   demo harness's mock resolves, and no real environment has refused one yet.
 - **That the canvas lookup-JSON behaviour above is real.** Read from

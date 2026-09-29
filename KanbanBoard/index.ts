@@ -460,7 +460,10 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
                 continue;
             }
 
-            if (record.getValue(status.name) === wanted) {
+            // Through `laneValue`: a Choice answers the numeric *string*
+            // `"3"` on a form, and `===` against the number asked for never
+            // matched — so an override never retired against data.
+            if (laneValue(record.getValue(status.name)) === wanted) {
                 this.pending.delete(id);
             }
         }
@@ -674,8 +677,9 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
             return;
         }
 
-        // Dropping a card back where it started is not a write.
-        const current = this.pending.get(recordId) ?? record.getValue(status.name);
+        // Dropping a card back where it started is not a write. Read as a
+        // lane number — the record's own answer is the string "3".
+        const current = this.pending.get(recordId) ?? laneValue(record.getValue(status.name));
 
         if (current === toValue) {
             return;
