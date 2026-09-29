@@ -68,23 +68,29 @@ designer added its default filter. The rewrite carried it, as it should.
 Still open: **T6** (transitions defined and enforced) and T3's descriptor key
 names — a second run once `cll_task` has transitions.
 
-### The 0.3.7 build: the probe again, and the first look
+### The walkthrough, on 0.4.0
 
-0.3.7 is every line of 0.4.0 **plus the same probe** (`kanban-probe-0.3.7`),
-so the second probe run and the first look on the form share one import.
-Bind **Lane total** to `cll_estimatedvalue` on the Accounts form's
-Status Reason board first.
+0.3.7 carried the probe and the first look; T6 was answered on it
+(2026-09-29), the transitions were built on the answer, and the probe is
+gone. **0.4.0 is the walkthrough build** — tagged only after W1–W11, and
+0.4.1 if anything is fixed. On the Accounts form: the Status Reason board on
+`cll_task`, **Lane total** = `cll_estimatedvalue`, the fifteen tasks
+(three plus the twelve `[Kanban test]` ones), transitions enabled as for T6.
+Changes since 0.3.7 are the transitions (W9–W11); W2 was seen on 0.3.7.
 
 | | Look at | Right way | Measured |
 | --- | --- | --- | --- |
-| W1 | The line above the lanes, and each lane's sum | *Totals: all 3 records in the view*; sums as the grid would add them; no `KanbanBoard:` warning in the console | |
-| W2 | Move a card Active → Inactive, then back | Lands and stays; `read(id)` shows `statecode` 1 then 0 — the pair, not a refusal | |
-| W3 | Move a card Active → In Progress | Lands; the update carried `statuscode` alone (network tab, or `read`) | |
+| W1 | The line above the lanes, and each lane's sum | *Totals: all 15 records in the view*; sums as the grid would add them; no `KanbanBoard:` warning in the console | |
+| W2 | Move a card Active → In Progress → Inactive, then back to Active | Each lands and stays; the status changes with it (the pair) | **0.3.7:** Active → Inactive by drag landed and stayed, before enforcement was on |
+| W3 | Move a card Active → In Progress | Lands; the update carried `statuscode` alone (network tab) | |
 | W4 | The sums after W2 | Moved with the card, without a reload | |
 | W5 | **Lane limits** `858010001=1`, two cards In Progress | Count reads *2 / 1* in the warning colour; the second card still landed | |
-| W6 | **Page size** 1 | A lane with more than one card reads *1 of 2*; the caption still says all 3 | |
+| W6 | **Page size** 4 | Lanes with unloaded cards read *1 of 5*-style; the caption still says all 15; **Load more** grows them | |
 | W7 | Lane total unbound, Lane limits empty | No totals, no caption, no aggregate request | |
 | W8 | A Status board (Lane column = Status) | A move to Inactive writes `statecode` 1 with its default reason | |
+| W9 | Drag an **Active** card | Inactive is drawn closed and takes no drop; In Progress and Cancelled stay open | |
+| W10 | The **Move to…** menu on an Active card, then on a Cancelled one | Active: In Progress, Cancelled — no Inactive. Cancelled: Active only | |
+| W11 | Transitions **disabled** (untick Enable, publish), reload | Every lane open again, every lane in the menu | |
 
 ## 0.3.0 — the second write route, search, and the +
 

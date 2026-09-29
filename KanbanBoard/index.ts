@@ -24,8 +24,6 @@ import { TotalsAnswer, loadTotals } from './data/totals';
 import { Filter, filterToFetchXml } from './lib/view-aggregate/fetchXml';
 import { ParentReading, rowsConfirm } from './lib/view-aggregate/parent';
 import { WebApiReader } from './lib/view-aggregate/aggregate';
-// 0.3.6 probe only — delete with probe.ts before 0.4.0.
-import { Probe } from './probe';
 
 type DataSet = ComponentFramework.PropertyTypes.DataSet;
 type Column = ComponentFramework.PropertyHelper.DataSetApi.Column;
@@ -247,8 +245,6 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
      */
     private failedMoves = 0;
 
-    /** 0.3.6 probe only. See probe.ts. */
-    private readonly probe = new Probe();
 
     /**
      * The lane column's options, read for their **state** — what a move
@@ -294,7 +290,6 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
     public updateView(context: ComponentFramework.Context<IInputs>): React.ReactElement {
         const dataset = context.parameters.records;
 
-        this.probe.observe(context);
         this.applyPageSize(context, dataset);
 
         const status = this.roleColumn(dataset, ROLES.status);

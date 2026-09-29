@@ -170,6 +170,11 @@ Inactive one writes both, the way the form's own *Deactivate* does; a move
 between two reasons of the same status writes the reason alone. A board grouped
 by **Status** itself writes the status with its default reason.
 
+**Status reason transitions are honoured.** Where the table has them enabled,
+a lane the card's reason may not move to is closed while the card is dragged and
+left out of its **Move to…** menu — the choices the form's dropdown would give.
+Nothing needs configuring: the board reads the transitions with the lanes.
+
 Either way the card lands where it was dropped before the write returns, and
 returns to its lane with a message if the write is refused.
 
