@@ -245,9 +245,18 @@ export function KanbanBoardControl(props: IProps): React.ReactElement | null {
 
     // The option set when it answered, otherwise whatever index.ts could work
     // out synchronously — the maker's override, or lanes derived from the cards.
-    const lanes = fromOptions
+    const drawn = fromOptions
         ? withUnassigned(fromOptions, placed, props.unassignedLabel)
         : props.lanes;
+
+    /*
+     * The unassigned lane also appears when the **server** counted cards in
+     * it that are not loaded yet — otherwise their total has nowhere to be
+     * shown, and the lanes' totals no longer add up to the caption's number.
+     */
+    const lanes = server.answer && server.answer.byLane[''] && !drawn.some((lane) => lane.value === null)
+        ? [{ value: null, label: props.unassignedLabel, color: null, state: null, defaultStatus: null }, ...drawn]
+        : drawn;
 
     /*
      * Lane totals: the server's where it answered, the placed cards'
@@ -486,11 +495,19 @@ function LaneColumn(props: ILaneProps): React.ReactElement {
      */
     const limitCount = props.laneTotal ? props.laneTotal.count : props.total;
     const overLimit = props.limit !== null && limitCount > props.limit;
+    /*
+     * Where the server counted more than is loaded, the count says so —
+     * "1 of 3", the search's own wording for "shown of all" — or a lane
+     * reading "1" sits above a total over three cards. Found in the preview
+     * on a paged main grid, 2026-09-29.
+     */
     const count = props.searching
         ? getString('KanbanBoard_MatchCount').replace('{0}', String(cards.length)).replace('{1}', String(props.total))
         : props.limit !== null
             ? `${limitCount} / ${props.limit}`
-            : String(props.total);
+            : limitCount > props.total
+                ? getString('KanbanBoard_MatchCount').replace('{0}', String(props.total)).replace('{1}', String(limitCount))
+                : String(props.total);
     const spoken = overLimit
         ? getString('KanbanBoard_OverLimit').replace('{0}', String(limitCount)).replace('{1}', String(props.limit))
         : count;
@@ -504,7 +521,8 @@ function LaneColumn(props: ILaneProps): React.ReactElement {
             className={over ? 'KanbanBoard-lane is-over' : 'KanbanBoard-lane'}
             style={{ width: `${props.width}px` }}
             aria-label={`${lane.label}, ${getString('KanbanBoard_CardCount').replace('{0}', spoken)}${
-                sum !== null ? `, ${getString('KanbanBoard_LaneTotal').replace('{0}', sum)}` : ''
+                // A lane with nothing to add up draws "—"; spoken, it would be "Total dash".
+                sum !== null && sum !== '—' ? `, ${getString('KanbanBoard_LaneTotal').replace('{0}', sum)}` : ''
             }`}
             onDragOver={(event): void => {
                 if (!droppable) {

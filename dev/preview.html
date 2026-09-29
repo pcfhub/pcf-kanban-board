@@ -179,11 +179,19 @@
         var canvas = params.get('canvas') === '1';
         var width = Number(params.get('width')) || window.innerWidth - 32;
 
+        /*
+          A subgrid under one account, the way the form has it: the rows are
+          narrowed by a relationship the control cannot see, and contextInfo
+          names the account. `?grid=main` is a main grid — every account, no
+          parent. The demo fixture has no accounts, so it gets a main grid.
+        */
+        var accounts = fixture.accounts;
+        var subgrid = !canvas && accounts && params.get('grid') !== 'main';
+
         var handle = host.createHost(fixture, {
             host: canvas ? 'canvas' : 'model-driven',
-            webApi: canvas ? 'absent' : 'works',
             width: width,
-            pageSize: 50,
+            pageSize: Number(params.get('page')) || 50,
             inputs: {
                 lanes: params.get('lanes') || '',
                 laneWidth: Number(params.get("lane")) || 250,
@@ -191,8 +199,12 @@
                 openOnCardClick: true,
                 showSearch: params.get('search') !== '0',
                 allowCreate: params.get('create') !== '0',
+                // 0.4.0: ?limits=2=1,1=3 and ?parent=new_account|none
+                laneLimits: params.get('limits') || '',
+                parentLookup: params.get('parent') || '',
             },
-            contextInfo: canvas ? undefined : { entityTypeName: 'account', entityId: '85f67958-7637-f111-88b5-7ced8d3b545a', entityRecordName: 'Preview parent' },
+            contextInfo: subgrid ? { entityTypeName: 'account', entityId: accounts.contoso, entityRecordName: 'Contoso' } : undefined,
+            relationshipFilter: subgrid ? { column: 'new_account', id: accounts.contoso } : null,
         });
 
         var control = new registration.ctor();
