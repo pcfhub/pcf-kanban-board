@@ -15,8 +15,9 @@ moved.
 2. With the subgrid selected, open **Components** → **Get more components** and
    add **Kanban Board**, then switch the control to it for Web, Tablet and
    Phone.
-3. Bind the four column roles under the control's properties. **Lane column**
-   and **Card title** are required; **Assignee** and **Badge** are optional.
+3. Bind the column roles under the control's properties. **Lane column**
+   and **Card title** are required; **Assignee**, **Badge** and **Lane total**
+   are optional.
 4. Save and publish.
 :::
 
@@ -27,10 +28,11 @@ bound to a column in *your* table — the control never assumes a schema name.
 
 | Role | Bind it to | Required |
 | --- | --- | --- |
-| Lane column | The choice column that decides which lane a card is in | Yes |
+| Lane column | The choice column — or **Status Reason** — that decides which lane a card is in | Yes |
 | Card title | The column shown as the card's headline | Yes |
 | Assignee | A **text** column shown under the title, such as a contact or an owner name | No |
 | Badge | A short **text** value shown as a chip, such as a priority or category | No |
+| Lane total | A **number or currency** column added up for each lane, such as an estimated value | No |
 
 :::callout{type=warning}
 **Lane column must be a choice column.** The lanes are that column's options,
@@ -54,7 +56,7 @@ lets the read-only canvas board stay readable.
 
 ## Which columns the view needs
 
-The four roles are read through the view, so **every column you bind must be in
+The roles are read through the view, so **every column you bind must be in
 the view**. A role bound to a column the view does not select arrives empty, and
 the board treats a missing Lane column the same as an unbound one.
 
@@ -81,6 +83,51 @@ they are noise rather than meaning.
 
 Setting **Lanes** yourself replaces the option set as the source, so the colours
 go with it unless you declare them: `1=New #6b7280,2=Active #e8d33a`.
+
+## Lane totals
+
+Bind **Lane total** to a number or currency column and each lane shows the sum
+of that column under its name — the pipeline's value by stage. A line above the
+lanes says what the sums are over:
+
+| The line reads | Where the sums come from |
+| --- | --- |
+| *Totals: all 12 records in the view* | Dataverse, over every record the view means — cards not loaded yet included |
+| *Totals: the 50 cards loaded so far* | The cards on the board, while **Load more** still has more |
+| *Totals: the 7 cards on the board* | The cards on the board, and there are no more to load |
+
+The first is the normal case on a form. The board asks Dataverse for one total
+per lane, over the view's own definition, and asks again whenever the cards
+change — a move that lands, a refresh, **Load more**. Where Dataverse has
+counted more cards in a lane than are loaded, the count reads *1 of 3*.
+
+A blank value is not a zero: a card with no value adds nothing, and a lane whose
+every card is blank shows a dash.
+
+### On a subgrid: Parent lookup
+
+A subgrid lists only the records related to the form's record, and that
+relationship is applied by the platform where the control cannot see it. So to
+total the same records the subgrid shows, the board works out which lookup on
+the table points at the form's record — the only one there is, or the one every
+loaded card points through — and adds it to the question it asks.
+
+When it cannot tell — two lookups to the same table, and the view carrying
+neither — it totals the loaded cards instead, and says so in the browser's
+console. Set **Parent lookup** to the lookup's logical name
+(`parentcustomerid`, `cll_account`) to settle it, or to `none` for a subgrid
+that is not related to the record at all.
+
+## Lane limits
+
+**Lane limits** caps how many cards a lane should hold: `858010001=5,2=3` — a
+lane's option value, then its limit. The lane's count then reads *4 / 5*, and a
+lane over its limit shows the count in the warning colour.
+
+It is a warning, not a lock. A card can still be dropped into a full lane,
+because the board would be the only thing enforcing a rule that people editing
+the record on a form, flows and imports never see. The count used is the same
+one the totals use — every record in the view where Dataverse has answered.
 
 ## The command bar
 
@@ -114,6 +161,14 @@ A dropped card writes its lane column one of two ways, chosen per record:
   column, and a plain update writes it. This is why the control still declares
   `WebAPI` — as `required="false"`, so a host without it loads the board
   read-only rather than refusing it.
+
+**A Status Reason board moves the status too.** Each status reason belongs to
+a status — *In Progress* to *Active*, *Cancelled* to *Inactive* — and
+Dataverse refuses a reason from the other status on its own rather than
+changing the status to match. So a card moved from an Active reason to an
+Inactive one writes both, the way the form's own *Deactivate* does; a move
+between two reasons of the same status writes the reason alone. A board grouped
+by **Status** itself writes the status with its default reason.
 
 Either way the card lands where it was dropped before the write returns, and
 returns to its lane with a message if the write is refused.

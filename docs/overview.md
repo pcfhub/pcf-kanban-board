@@ -29,6 +29,13 @@ chosen; the search box narrows the board to the cards that match.
 - **It searches.** The box above the lanes narrows every lane to the cards
   whose title, assignee or badge contain what was typed, and says how many
   matched — *2 of 9* — while the lanes stay where they are.
+- **It adds up.** Bind a number or currency column and every lane shows its
+  total — the pipeline's value by stage — over every record in the view, not
+  only the cards loaded so far, with a line saying which. A lane can carry a
+  soft card limit that marks it when it is over.
+- **It knows Status Reason.** Group by Status Reason and a move to a reason of
+  the other status writes the status too, the way the form's own *Deactivate*
+  does, instead of being refused.
 - **The move is optimistic, and honest about it.** The card lands where you
   dropped it immediately rather than after a round trip — and if the write is
   refused, it goes back to the lane it came from and says so. A card sitting in

@@ -90,11 +90,31 @@ unreliable across mobile browsers, so the **Move to…** menu on each card is th
 dependable path there — it is the same menu that makes the board usable from a
 keyboard.
 
-## Why does the control ask for Web API permission?
+## Why does the control ask for Web API and Utility permission?
 
-Because moving a card writes to Dataverse. That is the only permission it asks
-for; there is no device access, no external service, and no metadata call. See
-[Installation](installation.md).
+**Web API** because moving a card writes to Dataverse, and because lane totals
+ask Dataverse for one sum per lane. **Utility** because the lanes come from the
+column's option set, which is where each option's label, order and colour — and
+each status reason's status — are read. Both are declared optional, so a host
+without them loads the board read-only rather than refusing it. There is no
+device access and no external service. See [Installation](installation.md).
+
+## The lane totals do not match the grid
+
+Read the line above the lanes first. *Totals: the 50 cards loaded so far* means
+the board could not ask Dataverse and added up the cards it has; press **Load
+more**, or see why in the browser's console. *Totals: all 12 records in the
+view* is Dataverse's answer over the whole view — larger than the grid's page,
+which is the point.
+
+On a subgrid, a total larger than the subgrid can hold means the board related
+it to the form's record through the wrong lookup. Set **Parent lookup** to the
+right one — see [Model-driven apps](model-driven.md#on-a-subgrid-parent-lookup).
+
+## A card over the lane limit was not stopped
+
+By design: a lane limit marks a lane, it never refuses a card. See
+[Model-driven apps](model-driven.md#lane-limits).
 
 ## Can I use it without letting anyone move cards?
 

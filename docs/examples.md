@@ -28,6 +28,39 @@ Note that **Assignee** and **Badge** are text columns, not `ownerid` and
 column will not appear in the picker for them — see
 [Model-driven apps](model-driven.md) for why.
 
+## A pipeline board with totals and a limit
+
+Opportunities by sales stage, the value of each stage under its name, and a
+warning when too many deals pile up in negotiation.
+
+| Property | Value |
+| --- | --- |
+| Lane column | `cr123_stage` |
+| Card title | `name` |
+| Badge | `cr123_rating` |
+| Lane total | `estimatedvalue` |
+| Lane limits | `3=8` |
+
+With the board on an account's subgrid, the totals are that account's deals —
+the board relates them through the one lookup to account it finds, or the one
+**Parent lookup** names. Leave **Lane total** unbound and set only **Lane
+limits** for a board that counts without adding up.
+
+## A board over Status Reason
+
+Group by the built-in **Status Reason** and a card moved from *In Progress*
+(Active) to *Cancelled* (Inactive) deactivates the record with that reason, as
+the form's **Deactivate** would. Moving it back to *In Progress* reactivates it.
+
+| Property | Value |
+| --- | --- |
+| Lane column | `statuscode` |
+| Card title | `subject` |
+| Lanes | *(empty — every reason, in the order Dataverse keeps them)* |
+
+A view filtered to active records drops a card the moment it is deactivated,
+so bind a view that shows both, or the Inactive lanes will always be empty.
+
 ## Making an empty lane visible
 
 The same board, on a view that is often empty at one end — nothing is *Resolved*

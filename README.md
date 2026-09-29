@@ -46,13 +46,21 @@ both Dataverse-dependent and absent there. Both features are declared
 control renders and declines to move cards, instead of failing to load and
 leaving a blank space whose cause is one XML attribute.
 
+**Lane totals come from Dataverse, over the whole view.** A sum over the cards
+loaded is a confident number about the wrong thing on any board with **Load
+more**, so a bound Lane total is one aggregate query per board — the view's own
+FetchXML, grouped by the lane — through the template's shared view-aggregate
+library, related to the form's record on a subgrid the way the subgrid is.
+Where that cannot be done honestly, the board adds up its cards and a line
+above the lanes says so.
+
 Every card also carries a **Move to…** menu. HTML5 drag-and-drop has no keyboard
 equivalent, so a board that only supported dragging could not be operated
 without a mouse at all.
 
 ## Properties
 
-Bind the dataset to a view, then bind the four column roles. **Lane column** and
+Bind the dataset to a view, then bind the column roles. **Lane column** and
 **Card title** are required; every column bound to a role must be in the view.
 
 | Role | `property-set` | Type | Required | What it is |
@@ -61,6 +69,7 @@ Bind the dataset to a view, then bind the four column roles. **Lane column** and
 | Card title | `titleField` | SingleLine.Text | **yes** | The card headline, and the name used when a move fails. |
 | Assignee | `assigneeField` | SingleLine.Text | no | A second line under the title. Text, not a lookup — see below. |
 | Badge | `badgeField` | SingleLine.Text | no | A short value shown as a chip. |
+| Lane total | `valueField` | Whole, Decimal, FP or Currency | no | Added up per lane and shown under its name, over the whole view where Dataverse can answer. |
 
 The first column is what a maker sees in the property pane; the second is the
 name in the manifest, which is what a column carries in `alias` and what the
@@ -72,12 +81,15 @@ code looks it up by.
 | `laneWidth` | Whole.None | `280` | Lane width in pixels. Floors at 160. |
 | `laneColors` | TwoOptions | `true` | Show each lane's option colour as a bar. No effect where the lanes did not come from the option set. |
 | `openOnCardClick` | TwoOptions | `true` | Card titles open the record. The move menu stays either way. |
-| `pageSize` | Whole.None | `50` | Records per fetch. The board loads more rather than paging; the platform clamps large values. |
+| `pageSize` | Whole.None | — | Records per fetch; unset, the host's own. The board loads more rather than paging; the platform clamps large values. |
+| `parentLookup` | SingleLine.Text | — | On a subgrid, the lookup relating its rows to the form's record, for lane totals. Unset, found; `none` for an unrelated subgrid. |
+| `laneLimits` | SingleLine.Text | — | `858010001=5,2=3` — a soft limit per lane. Over it, the count is marked; nothing is refused. |
 
 | Output | Type | Set when |
 | --- | --- | --- |
 | `movedRecordId` | SingleLine.Text | A card is dropped into another lane |
 | `openedRecordId` | SingleLine.Text | A card title is clicked |
+| `createdRecordId` | SingleLine.Text | The quick create opened from a lane's **+** saves |
 
 Both outputs are set **before** the platform call they describe, so a form can
 observe the intent even where the call does nothing — the canvas case for
@@ -93,8 +105,9 @@ Notes that do not fit a table:
   bundle is 16 KB.
 - **Localised into five languages**: English (1033), Spanish (3082), French
   (1036), German (1031) and Japanese (1041).
-- **Two permissions** are requested at install: `WebAPI` to write a move, and
-  `Utility` to read the option set. Both are optional features, so a host
+- **Two permissions** are requested at install: `WebAPI` to write a move and
+  ask for lane totals, and `Utility` to read the option set (and each status
+  reason's status). Both are optional features, so a host
   without them loads the control anyway.
 
 ## On the hub
