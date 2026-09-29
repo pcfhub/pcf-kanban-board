@@ -8,7 +8,7 @@ order: 1
 
 A Dataverse view as a drag-and-drop board, grouped by a choice column.
 
-::image{src=media/screenshot-board.png alt="A sprint board: a search box above four lanes, each headed by its option, a count and a + button, with cards showing a title, an assignee and a priority badge" zoom}
+::image{src=media/screenshot-board.png alt="A sprint board: the line Totals: all 9 records in the view and a search box above four lanes — Unassigned, New, Active and Resolved, each in its option's colour — each headed by its name, a count and a + button with the lane's total under it, and cards showing a title, an assignee and a priority badge" zoom}
 
 Bind it to a view, tell it which column holds the status and which holds the
 card title, and every record becomes a card in the lane matching its choice

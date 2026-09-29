@@ -28,7 +28,7 @@
 
   "media": {
     "logo": "media/logo.png",
-    "screenshots": ["media/screenshot-board.png", "media/screenshot-search.png"]
+    "screenshots": ["media/screenshot-board.png", "media/screenshot-totals.png", "media/screenshot-limits.png", "media/screenshot-search.png"]
   },
 
   "demo": {

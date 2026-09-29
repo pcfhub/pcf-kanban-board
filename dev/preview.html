@@ -170,6 +170,45 @@
             var response = await fetch('../demo/records.json');
 
             fixture = await response.json();
+
+            /*
+              The demo describes its option set the hub harness's way —
+              `dataverse.tables[table].columns[column].options` — and the rig
+              reads `metadata[column]`. Translated here, so the preview's lanes
+              are the demo's: New, Active, Resolved, in their colours, rather
+              than 1, 2 and 3 derived from the cards.
+            */
+            var table = ((fixture.dataverse || {}).tables || {})[fixture.targetEntityType] || {};
+            var metadata = {};
+
+            Object.keys(table.columns || {}).forEach(function (column) {
+                var options = table.columns[column].options;
+
+                if (options) {
+                    metadata[column] = { shape: 'descriptor', options: options };
+                }
+            });
+
+            fixture = Object.assign({}, fixture, { metadata: metadata });
+        }
+
+        /*
+          `?view=1` gives a fixture without one a view of its whole table, so
+          the lane totals come from the rig's aggregate — "all 9 records in
+          the view", what a form shows — rather than from the cards. The demo
+          fixture has none because the hub's harness answers no FetchXML.
+        */
+        if (params.get('view') === '1' && !fixture.viewId) {
+            fixture = Object.assign({}, fixture, {
+                viewId: '00000000-0000-0000-0000-00000000f1e3',
+                views: {
+                    '00000000-0000-0000-0000-00000000f1e3': {
+                        table: 'savedquery',
+                        name: fixture.title,
+                        fetchxml: '<fetch><entity name="' + fixture.targetEntityType + '"></entity></fetch>',
+                    },
+                },
+            });
         }
 
         if (params.get('empty') === '1') {

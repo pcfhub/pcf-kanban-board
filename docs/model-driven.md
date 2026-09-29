@@ -90,6 +90,8 @@ Bind **Lane total** to a number or currency column and each lane shows the sum
 of that column under its name — the pipeline's value by stage. A line above the
 lanes says what the sums are over:
 
+::image{src=media/screenshot-totals.png alt="A board with five cards of nine loaded: the line above the lanes reads Totals: all 9 records in the view, each lane shows its sum under its name, and Active reads 2 of 3 and Resolved 0 of 2 where Dataverse counted more cards than are loaded, with Load more below" zoom}
+
 | The line reads | Where the sums come from |
 | --- | --- |
 | *Totals: all 12 records in the view* | Dataverse, over every record the view means — cards not loaded yet included |
@@ -123,6 +125,8 @@ that is not related to the record at all.
 **Lane limits** caps how many cards a lane should hold: `858010001=5,2=3` — a
 lane's option value, then its limit. The lane's count then reads *4 / 5*, and a
 lane over its limit shows the count in the warning colour.
+
+::image{src=media/screenshot-limits.png alt="Lane limits on the board: New reads 3 / 3, at its limit, and Active reads 3 / 2 in the warning colour, over its limit, while every lane still shows its total" zoom}
 
 It is a warning, not a lock. A card can still be dropped into a full lane,
 because the board would be the only thing enforcing a rule that people editing
