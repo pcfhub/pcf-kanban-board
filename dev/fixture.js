@@ -61,6 +61,25 @@
         title: 'Active work items',
 
         /*
+         * What `utils.getEntityMetadata('new_workitem', ['new_stage'])` carries
+         * for the lane column, in the rig's measured shape: the descriptor
+         * array, maker's order, with `Color` only where the option has one.
+         * Lane 4 has no card in `records`, so a board that shows it read the
+         * option set rather than the cards.
+         */
+        metadata: {
+            new_stage: {
+                shape: 'descriptor',
+                options: [
+                    { value: 1, label: 'New', color: '#0f6cbd' },
+                    { value: 2, label: 'Active', color: '#e8d33a' },
+                    { value: 3, label: 'Resolved' },
+                    { value: 4, label: 'Blocked', color: '#c50f1f' },
+                ],
+            },
+        },
+
+        /*
          * `order` is not the array order: a view hands its columns over in
          * whatever order it likes and carries the intended position in `order`.
          */

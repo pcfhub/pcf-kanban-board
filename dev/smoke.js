@@ -297,14 +297,14 @@ check('reports that it can write where the host allows it', plain.props().canMov
  */
 check(
     'and still where there is no Web API but the record can be written',
-    bind({ webApi: 'absent' }).props().canMove === true,
-    String(bind({ webApi: 'absent' }).props().canMove),
+    bind({ webAPI: false }).props().canMove === true,
+    String(bind({ webAPI: false }).props().canMove),
 );
 
 check(
     'and that it cannot where there is neither',
-    bind({ webApi: 'absent', quirks: { editableAbsent: true } }).props().canMove === false,
-    String(bind({ webApi: 'absent', quirks: { editableAbsent: true } }).props().canMove),
+    bind({ webAPI: false, quirks: { editableAbsent: true } }).props().canMove === false,
+    String(bind({ webAPI: false, quirks: { editableAbsent: true } }).props().canMove),
 );
 
 /*
@@ -312,7 +312,7 @@ check(
  * probe on a real canvas app, 2026-09-22: fifteen of fifteen surfaces present,
  * the callable ones throwing `Method not implemented.`
  *
- * The assertion above uses `webApi: 'absent'` — a host this rig invents, and
+ * The assertion above uses `webAPI: false` — a host this rig invents, and
  * not what canvas is. On canvas the Web API fallback answered `true`, so a
  * board whose records were not editable offered a drag that could only fail.
  *
@@ -397,21 +397,33 @@ check('passes the search switch down', bind({ inputs: { showSearch: false } }).p
 
     check('then saving the record', moved.calls().some((call) => call.startsWith('record.save')), moved.calls().join(' '));
 
-    check('and not the Web API, which this record did not need', !moved.calls().some((call) => call.startsWith('updateRecord')), moved.calls().join(' '));
+    check('and not the Web API, which this record did not need', !moved.calls().some((call) => call.startsWith('webAPI.updateRecord')), moved.calls().join(' '));
 
     check('then refreshing, so the override retires against real data', moved.calls().some((call) => call === 'refresh'), moved.calls().join(' '));
 
     /*
      * **The override retires against data, not against the promise.** The
-     * rig applies a committed value on the next fetch, the way a re-read
-     * does, and the card is then placed from the record.
+     * rig holds a committed value until `reread()`, the way the platform's
+     * own repaint after a save still carried the old one (Q3), and the card
+     * is then placed from the record.
+     *
+     * The record answers the **string** `"3"`, as a Choice does on a form. A
+     * reconcile comparing it with the number it asked for never retires the
+     * override, so this asserts on the control's pending set too.
      */
+    moved.handle.reread();
     moved.settle();
 
     check(
-        'after which the card is placed from the record, with no override left',
-        laneOf(moved, 'w1') === 3 && moved.handle.dataset.records.w1.getValue('new_stage') === 3,
-        `lane ${laneOf(moved, 'w1')}, record says ${moved.handle.dataset.records.w1.getValue('new_stage')}`,
+        'after which the card is placed from the record',
+        laneOf(moved, 'w1') === 3 && moved.handle.dataset.records.w1.getValue('new_stage') === '3',
+        `lane ${laneOf(moved, 'w1')}, record says ${JSON.stringify(moved.handle.dataset.records.w1.getValue('new_stage'))}`,
+    );
+
+    check(
+        'with no override left once the record agrees, though it answers a string',
+        moved.instance.pending.size === 0,
+        `${moved.instance.pending.size} pending: ${JSON.stringify([...moved.instance.pending])}`,
     );
 
     /*
@@ -425,7 +437,7 @@ check('passes the search switch down', bind({ inputs: { showSearch: false } }).p
     readOnly.props().onMove('w1', 3);
     await flush();
 
-    const viaApi = readOnly.calls().find((call) => call.startsWith('updateRecord'));
+    const viaApi = readOnly.calls().find((call) => call.startsWith('webAPI.updateRecord'));
 
     check(
         'a column the record refuses to edit is written through the Web API instead',
@@ -444,7 +456,7 @@ check('passes the search switch down', bind({ inputs: { showSearch: false } }).p
     bare.props().onMove('w1', 3);
     await flush();
 
-    check('a record with no write half goes straight to the Web API', bare.calls().some((call) => call.startsWith('updateRecord')), bare.calls().join(' '));
+    check('a record with no write half goes straight to the Web API', bare.calls().some((call) => call.startsWith('webAPI.updateRecord')), bare.calls().join(' '));
 
     /*
      * **A refused `save()` rolls back like a refused update.** Same override,
@@ -551,9 +563,9 @@ check('passes the search switch down', bind({ inputs: { showSearch: false } }).p
      * reads the label *before* the write, because by the time a rejection
      * arrives the record may be gone from a refreshed dataset.
      */
-    // `webApi: 'rejects'` reaches the write only on a record that cannot take
+    // `webApiFails: true` reaches the write only on a record that cannot take
     // it itself; the record route is the one refusing above.
-    const refused = bind({ webApi: 'rejects', quirks: { editableAbsent: true } });
+    const refused = bind({ webApiFails: true, quirks: { editableAbsent: true } });
     const before = laneOf(refused, 'w1');
 
     refused.props().onMove('w1', 3);
@@ -587,7 +599,7 @@ check('passes the search switch down', bind({ inputs: { showSearch: false } }).p
         refused.props().moveError,
     );
 
-    const odd = bind({ webApi: 'rejects', rejection: 'a bare string', quirks: { editableAbsent: true } });
+    const odd = bind({ webApiFails: true, rejection: 'a bare string', quirks: { editableAbsent: true } });
 
     odd.props().onMove('w2', 3);
     await flush();
@@ -609,9 +621,12 @@ check('passes the search switch down', bind({ inputs: { showSearch: false } }).p
     nudged.props().onMove('w3', home);
     await flush();
 
+    // Either route. Checking the Web API alone passed while every drop back
+    // home went through `record.setValue`: the record answers the string
+    // "2" and the control compared it with the number 2.
     check(
-        'dropping a card back where it started writes nothing',
-        !nudged.calls().some((call) => call.startsWith('updateRecord')),
+        'dropping a card back where it started writes nothing, by either route',
+        !nudged.calls().some((call) => call.startsWith('webAPI.updateRecord') || call.startsWith('record.setValue')),
         nudged.calls().join(' ') || 'no calls',
     );
 
@@ -619,14 +634,14 @@ check('passes the search switch down', bind({ inputs: { showSearch: false } }).p
      * The guard that stands between an absent API and a TypeError inside a
      * promise nobody is awaiting.
      */
-    const unwritable = bind({ webApi: 'absent', quirks: { editableAbsent: true } });
+    const unwritable = bind({ webAPI: false, quirks: { editableAbsent: true } });
 
     unwritable.props().onMove('w1', 3);
     await flush();
 
     check(
         'a host that cannot write is not asked to, by either route',
-        !unwritable.calls().some((call) => call.startsWith('updateRecord') || call.startsWith('record.')),
+        !unwritable.calls().some((call) => call.startsWith('webAPI.updateRecord') || call.startsWith('record.')),
         unwritable.calls().join(' ') || 'no calls',
     );
 
