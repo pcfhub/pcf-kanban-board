@@ -30,16 +30,43 @@ values, for A2.
 
 | | Question | Decides | Measured |
 | --- | --- | --- | --- |
-| T1 | Can the Lane role bind Status Reason, or Status? | Whether transitions exist at all | |
-| T2 | `attributeDescriptor.OptionSet` for `statuscode`: `State`? `TransitionData` as what? | Where a reason's state and next reasons are read | |
-| T3 | *Enforce transitions* readable from the entity descriptor, or only `EntityDefinitions`? | Greying lanes only where the platform enforces | |
-| T4 | `updateRecord({ statuscode })` into the other state: inferred or refused? | Whether the write pairs the state | |
-| T5 | `updateRecord({ statecode, statuscode })` together | The paired write | |
-| T6 | A transition outside `TransitionData`, enforced: refused? The message | Whether the server is the guard and the board only hints | |
-| T7 | `isEditable` for statecode, statuscode, the lane; statecode's `getValue` off-view | The route per column | |
-| A1 | `getViewId()`, the view FetchXML readable | The server route at all | |
-| A2 | Aggregate grouped by the lane + sum + count: row shapes | Reading totals | |
-| A3 | The subgrid's relationship resolved; count against loaded and `totalResultCount` | The parent condition, or withholding | |
+| T1 | Can the Lane role bind Status Reason, or Status? | Whether transitions exist at all | **Yes, Status Reason** — the designer offered it; the column arrived `{ name: "statuscode", alias: "statusField", dataType: "OptionSet" }` on `cll_task`. Status (`statecode`) not tried |
+| T2 | `attributeDescriptor.OptionSet` for `statuscode`: `State`? `TransitionData` as what? | Where a reason's state and next reasons are read | **Both present.** `statuscode` options: `{ Label, Value, State, TransitionData, IsHidden }` — `State` a number, **no `Color` key**; `TransitionData` `null` on all three (none defined). `statecode` options: `{ Label, Value, DefaultStatus, TransitionData, InvariantName, IsHidden }`. `EntityDefinitions` agrees: `State` per option, `Color: null`, `TransitionData: null` |
+| T3 | *Enforce transitions* readable from the entity descriptor, or only `EntityDefinitions`? | Greying lanes only where the platform enforces | **Half.** `EntityDefinitions(…)?$select=EnforceStateTransitions` answers `false` (none defined on `cll_task`). The entity descriptor has 64 keys, three matching transition/enforce/state — printed collapsed, names not read yet |
+| T4 | `updateRecord({ statuscode })` into the other state: inferred or refused? | Whether the write pairs the state | **Refused — the state is not inferred.** From `{statecode: 1, statuscode: 2}`, `{ statuscode: 858010001 }` (an Active reason) rejected `{ errorCode: 2147779592, title: "State code or status code is invalid.", message: "State code is invalid or state code is valid but status code is invalid for a specified state code." }` — the platform's own console named it better: *858010001 is not a valid status code for state code cll_TaskState.Inactive*. Within one state, `{ statuscode }` alone is accepted (1 → 858010001, both State 0) |
+| T5 | `updateRecord({ statecode, statuscode })` together | The paired write | **Accepted** — `{ statecode: 1, statuscode: 2 }` from `{0, 1}` resolved `{ id, entityType }`, read back `{1, 2}` |
+| T6 | A transition outside `TransitionData`, enforced: refused? The message | Whether the server is the guard and the board only hints | **Not yet** — no transitions defined, so nothing to break. Needs transitions on `cll_task` and a second run |
+| T7 | `isEditable` for statecode, statuscode, the lane; statecode's `getValue` off-view | The route per column | **Both `false`** — `isEditable("statecode")`, `isEditable("statuscode")` (the lane); `getValue` `"0"` and `"1"`, strings. Both were in the view, so off-view not asked |
+| A1 | `getViewId()`, the view FetchXML readable | The server route at all | **Yes** — `"0920e970-…"`, read from `savedquery`. `getFilter()` `null`; loaded 3, `totalResultCount` 3, `pageSize` 4 |
+| A2 | Aggregate grouped by the lane + sum + count: row shapes | Reading totals | **As Data Table measured.** One row per lane: `g0` the **number** `1` (the record says `"1"`) with `FormattedValue` "Active"; a Money sum `m0` the number `25` with "$25.00"; `n` 10. Every alias carries `AttributeName` |
+| A3 | The subgrid's relationship resolved; count against loaded and `totalResultCount` | The parent condition, or withholding | **Resolved, and it matters.** One candidate, `cll_account`, loaded, 3 of 3 rows pointing at the record. Without it `n` = **10** (the table); with it **3** = loaded = `totalResultCount` |
+
+**First run answered 2026-09-29** on the Accounts form's Kanban subgrid,
+bound to `cll_task.statuscode` (Active 1 and In Progress 858010001 in state
+0, Inactive 2 in state 1), with a new Currency column `cll_estimatedvalue`.
+What it decides:
+
+- **A move across states sends both columns**: `{ statecode: <the target
+  reason's State>, statuscode }`, the state read off the descriptor option
+  `getEntityMetadata` already returns — no new call, no new feature. Within a
+  state, `statuscode` alone, as today. A `statecode` board sends
+  `{ statecode, statuscode: DefaultStatus }`, on the same measured shape.
+- **The server's refusal of a bare cross-state reason is unreadable**
+  ("State code is invalid or…"), which is one more reason never to send it.
+- **Lane totals take the Data Table route unchanged**, parent resolver
+  included: without the condition the total counted the whole table (10 for
+  3). The aggregate's group value is a number and the record's a string —
+  `readGroupValue` already joins them.
+- **A Status Reason board has no lane colours** unless **Lanes** sets them:
+  the reasons carry no `Color` at all.
+
+One oddity to keep: `dump()` printed the view's FetchXML with **no**
+`<filter>`, and `agg()` a minute later sent `statecode eq 0` from the same
+view — so the view was re-saved between the two (adding the column), and the
+designer added its default filter. The rewrite carried it, as it should.
+
+Still open: **T6** (transitions defined and enforced) and T3's descriptor key
+names — a second run once `cll_task` has transitions.
 
 ## 0.3.0 — the second write route, search, and the +
 
