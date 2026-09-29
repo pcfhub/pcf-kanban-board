@@ -2,6 +2,45 @@
 
 A Dataverse view as a drag-and-drop board, grouped by a choice column.
 
+## 0.4.0 — lane totals, status transitions, soft lane limits
+
+Picked by the 29 Sep 2026 demand survey: Kanban was the only control whose hub
+downloads moved (8 → 11), and the two boards it is compared with each have
+what this one lacks: `PCF-pipeline-kanban` sums a currency column per lane
+("pipeline value by stage"), and PowerKanban honours Status Reason
+transitions. Decided with the user the same day: totals come from the
+**server** (the view's own FetchXML as an aggregate, grouped by the lane
+column) with the loaded cards as the fallback and a caption saying which;
+a per-lane limit is a **soft** warning, never a refused drop; the aggregate
+code is lifted into `_template` rather than copied a third time.
+
+### The 0.3.6 probe
+
+Built 2026-09-29, a throwaway build with `probe.ts` and no feature code:
+`window.__pcfKanbanProbe` — `dump()` for everything that needs no write,
+`agg(column)` for the aggregate, `write(id, payload)` for one Web API
+update read back. Confirm the page runs it: the bundle carries
+`kanban-probe-0.3.6`.
+
+**Needs on the environment first:** a board bound to **Status Reason** on
+`cll_task` (T1 says whether the designer allows it); at least two reasons in
+each state; *Status reason transitions* defined with one transition left
+out, and enforcement on; a Currency or Decimal column on `cll_task` with
+values, for A2.
+
+| | Question | Decides | Measured |
+| --- | --- | --- | --- |
+| T1 | Can the Lane role bind Status Reason, or Status? | Whether transitions exist at all | |
+| T2 | `attributeDescriptor.OptionSet` for `statuscode`: `State`? `TransitionData` as what? | Where a reason's state and next reasons are read | |
+| T3 | *Enforce transitions* readable from the entity descriptor, or only `EntityDefinitions`? | Greying lanes only where the platform enforces | |
+| T4 | `updateRecord({ statuscode })` into the other state: inferred or refused? | Whether the write pairs the state | |
+| T5 | `updateRecord({ statecode, statuscode })` together | The paired write | |
+| T6 | A transition outside `TransitionData`, enforced: refused? The message | Whether the server is the guard and the board only hints | |
+| T7 | `isEditable` for statecode, statuscode, the lane; statecode's `getValue` off-view | The route per column | |
+| A1 | `getViewId()`, the view FetchXML readable | The server route at all | |
+| A2 | Aggregate grouped by the lane + sum + count: row shapes | Reading totals | |
+| A3 | The subgrid's relationship resolved; count against loaded and `totalResultCount` | The parent condition, or withholding | |
+
 ## 0.3.0 — the second write route, search, and the +
 
 Picked by the 14 Sep 2026 demand survey: Kanban is named in every "most
