@@ -61,8 +61,8 @@ interface LooseApi {
     updateRecord(entity: string, id: string, data: Record<string, unknown>): Promise<unknown>;
 }
 
-const TAG = '[KanbanProbe 0.3.6]';
-const BUILD = 'kanban-probe-0.3.6';
+const TAG = '[KanbanProbe 0.3.7]';
+const BUILD = 'kanban-probe-0.3.7';
 
 /** Everything a rejection carries, own and inherited, without `[object Object]`. */
 function whole(error: unknown): unknown {

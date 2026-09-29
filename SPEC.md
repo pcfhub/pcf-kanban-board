@@ -68,6 +68,24 @@ designer added its default filter. The rewrite carried it, as it should.
 Still open: **T6** (transitions defined and enforced) and T3's descriptor key
 names — a second run once `cll_task` has transitions.
 
+### The 0.3.7 build: the probe again, and the first look
+
+0.3.7 is every line of 0.4.0 **plus the same probe** (`kanban-probe-0.3.7`),
+so the second probe run and the first look on the form share one import.
+Bind **Lane total** to `cll_estimatedvalue` on the Accounts form's
+Status Reason board first.
+
+| | Look at | Right way | Measured |
+| --- | --- | --- | --- |
+| W1 | The line above the lanes, and each lane's sum | *Totals: all 3 records in the view*; sums as the grid would add them; no `KanbanBoard:` warning in the console | |
+| W2 | Move a card Active → Inactive, then back | Lands and stays; `read(id)` shows `statecode` 1 then 0 — the pair, not a refusal | |
+| W3 | Move a card Active → In Progress | Lands; the update carried `statuscode` alone (network tab, or `read`) | |
+| W4 | The sums after W2 | Moved with the card, without a reload | |
+| W5 | **Lane limits** `858010001=1`, two cards In Progress | Count reads *2 / 1* in the warning colour; the second card still landed | |
+| W6 | **Page size** 1 | A lane with more than one card reads *1 of 2*; the caption still says all 3 | |
+| W7 | Lane total unbound, Lane limits empty | No totals, no caption, no aggregate request | |
+| W8 | A Status board (Lane column = Status) | A move to Inactive writes `statecode` 1 with its default reason | |
+
 ## 0.3.0 — the second write route, search, and the +
 
 Picked by the 14 Sep 2026 demand survey: Kanban is named in every "most
