@@ -80,17 +80,17 @@ Changes since 0.3.7 are the transitions (W9–W11); W2 was seen on 0.3.7.
 
 | | Look at | Right way | Measured |
 | --- | --- | --- | --- |
-| W1 | The line above the lanes, and each lane's sum | *Totals: all 15 records in the view*; sums as the grid would add them; no `KanbanBoard:` warning in the console | |
-| W2 | Move a card Active → In Progress → Inactive, then back to Active | Each lands and stays; the status changes with it (the pair) | **0.3.7:** Active → Inactive by drag landed and stayed, before enforcement was on |
-| W3 | Move a card Active → In Progress | Lands; the update carried `statuscode` alone (network tab) | |
-| W4 | The sums after W2 | Moved with the card, without a reload | |
-| W5 | **Lane limits** `858010001=1`, two cards In Progress | Count reads *2 / 1* in the warning colour; the second card still landed | |
-| W6 | **Page size** 4 | Lanes with unloaded cards read *1 of 5*-style; the caption still says all 15; **Load more** grows them | |
-| W7 | Lane total unbound, Lane limits empty | No totals, no caption, no aggregate request | |
-| W8 | A Status board (Lane column = Status) | A move to Inactive writes `statecode` 1 with its default reason | |
-| W9 | Drag an **Active** card | Inactive is drawn closed and takes no drop; In Progress and Cancelled stay open | |
-| W10 | The **Move to…** menu on an Active card, then on a Cancelled one | Active: In Progress, Cancelled — no Inactive. Cancelled: Active only | |
-| W11 | Transitions **disabled** (untick Enable, publish), reload | Every lane open again, every lane in the menu | |
+| W1 | The line above the lanes, and each lane's sum | *Totals: all 15 records in the view*; sums as the grid would add them; no `KanbanBoard:` warning in the console || **Passed** 2026-09-29 |
+| W2 | Move a card Active → In Progress → Inactive, then back to Active | Each lands and stays; the status changes with it (the pair) | **0.3.7:** Active → Inactive by drag landed and stayed, before enforcement was on; **passed** on 0.4.0, 2026-09-29 |
+| W3 | Move a card Active → In Progress | Lands; the update carried `statuscode` alone (network tab) || **Passed** 2026-09-29 |
+| W4 | The sums after W2 | Moved with the card, without a reload || **Passed** 2026-09-29 |
+| W5 | **Lane limits** `858010001=1`, two cards In Progress | Count reads *2 / 1* in the warning colour; the second card still landed || **Passed** 2026-09-29 |
+| W6 | **Page size** 4 | Lanes with unloaded cards read *1 of 5*-style; the caption still says all 15; **Load more** grows them || **Passed** 2026-09-29 |
+| W7 | Lane total unbound, Lane limits empty | No totals, no caption, no aggregate request || **Passed** 2026-09-29 |
+| W8 | A Status board (Lane column = Status) | A move to Inactive writes `statecode` 1 with its default reason || **Passed** 2026-09-29 |
+| W9 | Drag an **Active** card | Inactive is drawn closed and takes no drop; In Progress and Cancelled stay open || **Passed** 2026-09-29 |
+| W10 | The **Move to…** menu on an Active card, then on a Cancelled one | Active: In Progress, Cancelled — no Inactive. Cancelled: Active only || **Passed** 2026-09-29 |
+| W11 | Transitions **disabled** (untick Enable, publish), reload | Every lane open again, every lane in the menu || **Passed** 2026-09-29 |
 
 ## 0.3.0 — the second write route, search, and the +
 
