@@ -226,4 +226,37 @@
   <data name="KanbanBoard_ReadOnly" xml:space="preserve">
     <value>This host cannot write to the record.</value>
   </data>
+  <data name="ValueField_Name" xml:space="preserve">
+    <value>Lane total</value>
+  </data>
+  <data name="ValueField_Desc" xml:space="preserve">
+    <value>A numeric column added up for each lane and shown under its name: the whole view's total where the server can give it, the loaded cards' otherwise. Leave empty for no total.</value>
+  </data>
+  <data name="ParentLookup_Name" xml:space="preserve">
+    <value>Parent lookup</value>
+  </data>
+  <data name="ParentLookup_Desc" xml:space="preserve">
+    <value>On a subgrid: the lookup column on this table that relates its rows to the form's record, e.g. parentcustomerid. Leave empty to let the control find it; set it when the table has more than one lookup to the parent, or 'none' for a subgrid that is not related to the record.</value>
+  </data>
+  <data name="LaneLimits_Name" xml:space="preserve">
+    <value>Lane limits</value>
+  </data>
+  <data name="LaneLimits_Desc" xml:space="preserve">
+    <value>The most cards a lane should hold, as value=limit pairs, e.g. 858010001=5,2=3. A lane over its limit is marked; no move is refused.</value>
+  </data>
+  <data name="KanbanBoard_TotalsView" xml:space="preserve">
+    <value>Totals: all {0} records in the view</value>
+  </data>
+  <data name="KanbanBoard_TotalsLoaded" xml:space="preserve">
+    <value>Totals: the {0} cards loaded so far</value>
+  </data>
+  <data name="KanbanBoard_TotalsBoard" xml:space="preserve">
+    <value>Totals: the {0} cards on the board</value>
+  </data>
+  <data name="KanbanBoard_OverLimit" xml:space="preserve">
+    <value>{0}, over its limit of {1}</value>
+  </data>
+  <data name="KanbanBoard_LaneTotal" xml:space="preserve">
+    <value>Total {0}</value>
+  </data>
 </root>

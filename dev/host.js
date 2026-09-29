@@ -207,25 +207,30 @@
      * apart from one hardcoded in the source. This table is for the eye.
      */
     var STRINGS = {
-        KanbanBoard_Name: 'Kanban Board',
-        KanbanBoard_Loading: 'Loading cards…',
-        KanbanBoard_Empty: 'No records.',
-        KanbanBoard_Error: 'This view could not be loaded.',
-        KanbanBoard_NoStatus: 'Bind the Lane column to a choice column to group the cards.',
-        KanbanBoard_NoTitle: 'Bind the Card title to a column to label the cards.',
-        KanbanBoard_NoLanes: 'No lanes to show. Set the Lanes property to list them explicitly.',
-        KanbanBoard_Unassigned: 'Unassigned',
-        KanbanBoard_LoadMore: 'Load more',
-        KanbanBoard_CardCount: '{0} cards',
-        KanbanBoard_NoTargets: 'No other lanes to move to. Set the Lanes property to list every status, including ones no record is in yet.',
-        KanbanBoard_MoveTo: 'Move {0} to…',
-        KanbanBoard_Moving: 'Moving…',
-        KanbanBoard_MoveFailed: '{0} could not be moved, and was put back.',
-        KanbanBoard_OpenRecord: 'Open {0}',
-        KanbanBoard_Search: 'Search cards',
-        KanbanBoard_MatchCount: '{0} of {1}',
-        KanbanBoard_AddCard: 'Add a card to {0}',
-        KanbanBoard_ReadOnly: 'This host cannot write to the record.',
+        KanbanBoard_Name: "Kanban Board",
+        KanbanBoard_Loading: "Loading cards…",
+        KanbanBoard_Empty: "No records.",
+        KanbanBoard_Error: "This view could not be loaded.",
+        KanbanBoard_NoStatus: "Bind the Lane column to a choice column to group the cards.",
+        KanbanBoard_NoTitle: "Bind the Card title to a column to label the cards.",
+        KanbanBoard_NoLanes: "No lanes to show. Set the Lanes property to list them explicitly.",
+        KanbanBoard_Unassigned: "Unassigned",
+        KanbanBoard_LoadMore: "Load more",
+        KanbanBoard_CardCount: "{0} cards",
+        KanbanBoard_NoTargets: "No other lanes to move to. Set the Lanes property to list every status, including ones no record is in yet.",
+        KanbanBoard_MoveTo: "Move {0} to…",
+        KanbanBoard_Moving: "Moving…",
+        KanbanBoard_MoveFailed: "{0} could not be moved, and was put back.",
+        KanbanBoard_OpenRecord: "Open {0}",
+        KanbanBoard_Search: "Search cards",
+        KanbanBoard_MatchCount: "{0} of {1}",
+        KanbanBoard_AddCard: "Add a card to {0}",
+        KanbanBoard_ReadOnly: "This host cannot write to the record.",
+        KanbanBoard_TotalsView: "Totals: all {0} records in the view",
+        KanbanBoard_TotalsLoaded: "Totals: the {0} cards loaded so far",
+        KanbanBoard_TotalsBoard: "Totals: the {0} cards on the board",
+        KanbanBoard_OverLimit: "{0}, over its limit of {1}",
+        KanbanBoard_LaneTotal: "Total {0}",
     };
 
     var HOSTS = {
@@ -1392,6 +1397,23 @@
                     });
                 }
 
+                /*
+                 * The primary key an aggregate counts over — not always
+                 * `<table>id` (an activity's is `activityid`), which is why a
+                 * control reads it. `fixture.primaryIds` names the odd ones;
+                 * everything else answers `<table>id`. Before 2026-09-29 this
+                 * fell through to the relationships reply, and a control's
+                 * read quietly landed on its own guess.
+                 */
+                var primary = address.slice(prefix.length).match(/^([a-z0-9_]+)'\)\?\$select=PrimaryIdAttribute$/i);
+
+                if (primary) {
+                    return reply(200, {
+                        LogicalName: primary[1],
+                        PrimaryIdAttribute: (fixture.primaryIds || {})[primary[1]] || primary[1] + 'id',
+                    });
+                }
+
                 var definition = address.slice(prefix.length).match(/^([a-z0-9_]+)'\)(\?\$select=EntitySetName)?$/i);
 
                 if (definition) {
@@ -1820,7 +1842,30 @@
 
             if (entry.options && entry.shape === 'descriptor') {
                 node.attributeDescriptor.OptionSet = entry.options.map(function (option) {
-                    var described = { Label: option.label, Value: option.value, IsHidden: false };
+                    /*
+                     * The keys measured 2026-09-29 (`pcf-kanban-board` 0.3.6
+                     * probe, `cll_task`): **`TransitionData` on every
+                     * option** — `null` where no transitions are defined; a
+                     * Status Reason option carries its **`State`** (a number),
+                     * a Status option its **`DefaultStatus`** and
+                     * `InvariantName`. Neither of those two has a `Color` key.
+                     * `state` / `defaultStatus` in the fixture turn them on.
+                     */
+                    var described = {
+                        Label: option.label,
+                        Value: option.value,
+                        TransitionData: option.transitionData === undefined ? null : option.transitionData,
+                        IsHidden: false,
+                    };
+
+                    if (typeof option.state === 'number') {
+                        described.State = option.state;
+                    }
+
+                    if (typeof option.defaultStatus === 'number') {
+                        described.DefaultStatus = option.defaultStatus;
+                        described.InvariantName = option.invariantName || option.label;
+                    }
 
                     /*
                      * **`Color` is on the descriptor array only, never on the
@@ -1863,6 +1908,42 @@
             }
 
             return node;
+        }
+
+        /**
+         * Whether an update names a Status Reason outside the state the record
+         * will be in — which the server refuses rather than repairs.
+         *
+         * Measured 2026-09-29 (`pcf-kanban-board` 0.3.6 probe, T4/T5 on
+         * `cll_task`): `{ statuscode }` alone into a reason of the **other**
+         * state is refused with 2147779592 and a message naming neither — the
+         * server does **not** infer the state; `{ statecode, statuscode }`
+         * together is accepted; `{ statuscode }` within the record's own state
+         * is accepted. Decidable only where the fixture gives each reason its
+         * `state`, so a fixture without one accepts everything, as before.
+         */
+        function statusMismatch(row, data) {
+            var has = function (bag, key) {
+                return Boolean(bag) && Object.prototype.hasOwnProperty.call(bag, key);
+            };
+
+            if (!has(data, 'statuscode')) {
+                return false;
+            }
+
+            var reasons = ((fixture.metadata || {}).statuscode || {}).options || [];
+            var reason = reasons.filter(function (option) {
+                return String(option.value) === String(data.statuscode);
+            })[0];
+
+            if (!reason || typeof reason.state !== 'number') {
+                return false;
+            }
+
+            var current = has(row.committed, 'statecode') ? row.committed.statecode : row.values.statecode;
+            var state = has(data, 'statecode') ? data.statecode : current;
+
+            return state !== undefined && state !== null && Number(state) !== reason.state;
         }
 
         /** The label a Choice's integer renders as, from `fixture.metadata`. */
@@ -2453,9 +2534,19 @@
          * `fixture.tables` row wrapped to look like one.
          */
         function fetchRows(entityType) {
+            /*
+             * **The server answers from what it has**, which includes a write
+             * the dataset has not re-read yet: a query sent after
+             * `updateRecord` resolves counts the record where it now is. Rows
+             * are read through their committed values for that reason — until
+             * 2026-09-29 a total asked for right after a move counted the card
+             * in the lane it had left.
+             */
             if (entityType === fixture.targetEntityType) {
                 return allRecords.filter(function (row) {
                     return removed.indexOf(row.id) === -1;
+                }).map(function (row) {
+                    return row.committed ? { id: row.id, values: Object.assign({}, row.values, row.committed) } : row;
                 });
             }
 
@@ -2625,6 +2716,7 @@
                         }
 
                         out[a.alias] = key;
+                        out[a.alias + '@OData.Community.Display.V1.AttributeName'] = a.name;
 
                         var label = a.dategrouping ? undefined : groupLabel(a.name, group.rows[0].values[a.name]);
 
@@ -2665,8 +2757,23 @@
                                 result = undefined;
                         }
 
+                        /*
+                         * **Every alias names its column and carries a
+                         * formatted value** — measured 2026-09-29
+                         * (`pcf-kanban-board` 0.3.6, A2): a Money sum
+                         * `m0: 25` beside "$25.00", a count `n: 10` beside
+                         * "10", each with `AttributeName`. The rig left
+                         * them out until then, so `describesPlan` — the one
+                         * integrity check on this route — passed vacuously
+                         * in every suite. Money is formatted in dollars
+                         * here; the server uses the record's currency.
+                         */
                         if (result !== undefined) {
                             out[a.alias] = result;
+                            out[a.alias + '@OData.Community.Display.V1.AttributeName'] = a.name;
+                            out[a.alias + '@OData.Community.Display.V1.FormattedValue'] = typeOf(a.name) === 'Currency'
+                                ? '$' + Number(result).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+                                : String(result);
                         }
                     });
 
@@ -3338,6 +3445,14 @@
                                     2147746327,
                                     'Record Is Unavailable',
                                     'The requested record was not found.',
+                                ));
+                            }
+
+                            if (statusMismatch(row, data)) {
+                                return Promise.reject(webApiFault(
+                                    2147779592,
+                                    'State code or status code is invalid.',
+                                    'State code is invalid or state code is valid but status code is invalid for a specified state code.',
                                 ));
                             }
 

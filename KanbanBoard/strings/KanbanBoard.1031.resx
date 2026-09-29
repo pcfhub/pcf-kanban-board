@@ -226,4 +226,37 @@
   <data name="KanbanBoard_ReadOnly" xml:space="preserve">
     <value>Dieser Host kann den Datensatz nicht schreiben.</value>
   </data>
+  <data name="ValueField_Name" xml:space="preserve">
+    <value>Bahnsumme</value>
+  </data>
+  <data name="ValueField_Desc" xml:space="preserve">
+    <value>Eine numerische Spalte, die für jede Bahn summiert und unter ihrem Namen angezeigt wird: die Summe der ganzen Ansicht, wenn der Server sie liefern kann, sonst die der geladenen Karten. Leer lassen für keine Summe.</value>
+  </data>
+  <data name="ParentLookup_Name" xml:space="preserve">
+    <value>Übergeordnetes Nachschlagefeld</value>
+  </data>
+  <data name="ParentLookup_Desc" xml:space="preserve">
+    <value>In einem Unterraster: die Nachschlagespalte dieser Tabelle, die ihre Zeilen mit dem Datensatz des Formulars verknüpft, z. B. parentcustomerid. Leer lassen, damit das Steuerelement sie findet; setzen, wenn die Tabelle mehrere Nachschlagefelder zum übergeordneten Datensatz hat, oder „none“ für ein Unterraster ohne Bezug zum Datensatz.</value>
+  </data>
+  <data name="LaneLimits_Name" xml:space="preserve">
+    <value>Bahnlimits</value>
+  </data>
+  <data name="LaneLimits_Desc" xml:space="preserve">
+    <value>Die höchste Kartenzahl, die eine Bahn haben sollte, als Paare Wert=Limit, z. B. 858010001=5,2=3. Eine Bahn über ihrem Limit wird markiert; kein Verschieben wird abgelehnt.</value>
+  </data>
+  <data name="KanbanBoard_TotalsView" xml:space="preserve">
+    <value>Summen: alle {0} Datensätze der Ansicht</value>
+  </data>
+  <data name="KanbanBoard_TotalsLoaded" xml:space="preserve">
+    <value>Summen: die {0} bisher geladenen Karten</value>
+  </data>
+  <data name="KanbanBoard_TotalsBoard" xml:space="preserve">
+    <value>Summen: die {0} Karten auf der Tafel</value>
+  </data>
+  <data name="KanbanBoard_OverLimit" xml:space="preserve">
+    <value>{0}, über dem Limit von {1}</value>
+  </data>
+  <data name="KanbanBoard_LaneTotal" xml:space="preserve">
+    <value>Summe {0}</value>
+  </data>
 </root>

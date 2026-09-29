@@ -110,6 +110,9 @@ const INPUTS = {
     openOnCardClick: true,
     showSearch: true,
     allowCreate: true,
+    // 0.4.0, both empty — no limits, and the parent lookup found, not named.
+    laneLimits: '',
+    parentLookup: '',
 };
 
 const live = [];
@@ -655,6 +658,254 @@ check('passes the search switch down', bind({ inputs: { showSearch: false } }).p
         'opening a card asks the platform to navigate rather than routing itself',
         opened.calls().some((call) => call.startsWith('openDatasetItem')),
         opened.calls().join(' '),
+    );
+
+    /* ------------------------------------------------- 0.4.0: lane totals */
+
+    /*
+     * **The server route, on a subgrid.** The rows the board loads are
+     * narrowed by a relationship the control cannot see (`relationshipFilter`
+     * — measured invisible, P2 in pcf-chart-view, A3 here); the aggregate is
+     * the view's own FetchXML plus the parent condition the resolver found.
+     * w7 is another account's: the loaded rows never hold it and the total
+     * must not count it — the probe's 10-for-3.
+     */
+    const { contoso, elsewhere } = fixture.accounts;
+    const subgrid = {
+        contextInfo: { entityTypeName: 'account', entityId: contoso, entityRecordName: 'Contoso' },
+        relationshipFilter: { column: 'new_account', id: contoso },
+    };
+    const totalled = bind(subgrid);
+    const route = totalled.props().totals;
+
+    check('a bound Lane total asks for totals', totalled.props().totalsWanted === true && totalled.props().hasValue === true);
+    check('and a server route is built on a model-driven subgrid with a view', route !== null && typeof route.key === 'string', String(route && route.key));
+
+    const answer = route ? await route.load() : null;
+    const aggregateCall = totalled.calls().filter((call) => call.startsWith('webAPI.fetchXml')).pop();
+    const retrieveCall = totalled.calls().filter((call) => call.startsWith('webAPI.retrieveMultipleRecords')).pop() || '';
+
+    check(
+        'the server answers per lane: lane 1 counts two and sums 1500, the blank not a zero',
+        answer && answer.byLane['1'] && answer.byLane['1'].count === 2 && answer.byLane['1'].sum === 1500,
+        JSON.stringify(answer && answer.byLane['1']),
+    );
+    check(
+        'with the formatted sum the server sent',
+        answer && answer.byLane['1'].label === '$1,500.00',
+        JSON.stringify(answer && answer.byLane['1']),
+    );
+    check(
+        'and the parent condition, so another account\'s card is not counted',
+        answer && answer.records === 6 && answer.byLane['2'].count === 2 && answer.byLane['2'].sum === 3050,
+        `${answer && answer.records} records; lane 2 ${JSON.stringify(answer && answer.byLane['2'])}`,
+    );
+    check(
+        'the query is the view\'s, stripped, with the parent condition beside it',
+        /new_account/.test(retrieveCall) && /operator='eq'/.test(retrieveCall) && !/<order/.test(retrieveCall) && !/name="new_summary"/.test(retrieveCall),
+        (aggregateCall || '') + ' ' + retrieveCall.slice(0, 300),
+    );
+    check(
+        'the card with no lane is its own blank group',
+        answer && answer.byLane[''] && answer.byLane[''].count === 1 && answer.byLane[''].sum === 100,
+        JSON.stringify(answer && answer.byLane['']),
+    );
+
+    /*
+     * A main grid has no parent and no relationship: the view is the answer,
+     * and it holds every account's work.
+     */
+    const mainGrid = bind({});
+    const whole = await mainGrid.props().totals.load();
+
+    check('a main grid totals the whole view, every account', whole && whole.records === 7 && whole.byLane['2'].sum === 12050, JSON.stringify(whole && whole.byLane['2']));
+
+    /*
+     * **Withheld, not guessed.** Two lookups to account, and the one the
+     * subgrid really uses not in the view, so the rows cannot say which: the
+     * route declines and the board totals the cards it has.
+     */
+    const ambiguous = {
+        ...fixture,
+        relationships: [
+            ...fixture.relationships,
+            { column: 'new_billingaccount', target: 'account', navigationProperty: 'new_billingaccount' },
+        ],
+        columns: fixture.columns.filter((column) => column.name !== 'new_account'),
+    };
+    const warned = [];
+    const originalWarn = console.warn;
+
+    console.warn = (...args) => warned.push(args.join(' '));
+
+    const unsettledHandle = host.createHost(ambiguous, { getString: marked, pageSize: 50, ...subgrid, inputs: { ...INPUTS } });
+    const unsettledView = new registration.ctor();
+
+    unsettledView.init(unsettledHandle.context, () => undefined, {}, dom.createElement('div'));
+
+    const unsettledRoute = host.drive(unsettledView, unsettledHandle, 10).element.props.totals;
+    const unsettled = unsettledRoute ? await unsettledRoute.load() : 'no route';
+
+    console.warn = originalWarn;
+
+    check('an unsettled parent withholds the server route', unsettled === null, JSON.stringify(unsettled));
+    check('and says which lookups it could not choose between', warned.some((line) => /new_billingaccount/.test(line) && /Parent lookup/.test(line)), warned.join(' | '));
+
+    const named = await bind({ ...subgrid, inputs: { parentLookup: 'new_account' } }).props().totals.load();
+
+    check('a named Parent lookup settles it', named && named.records === 6, JSON.stringify(named && named.records));
+
+    check('canvas has no server route: the board totals its cards', bind({ host: 'canvas' }).props().totals === null);
+
+    const bareBoard = {
+        ...fixture,
+        columns: fixture.columns.filter((column) => column.alias !== 'valueField'),
+    };
+    const bareHandle = host.createHost(bareBoard, { getString: marked, pageSize: 50, inputs: { ...INPUTS } });
+    const bareInstance = new registration.ctor();
+
+    bareInstance.init(bareHandle.context, () => undefined, {}, dom.createElement('div'));
+
+    const bareProps = host.drive(bareInstance, bareHandle, 10).element.props;
+
+    check(
+        'no Lane total and no limits: no totals, and no query',
+        bareProps.totalsWanted === false && bareProps.totals === null && !bareHandle.state.calls.some((call) => call.startsWith('webAPI.fetchXml')),
+        bareHandle.state.calls.join(' '),
+    );
+
+    const limited = bind({ inputs: { laneLimits: '2=1, 1 = 3, x=4, 3=0' } }).props().limits;
+
+    check('lane limits are parsed, a bad entry and a zero dropped', JSON.stringify(limited) === JSON.stringify({ 2: 1, 1: 3 }), JSON.stringify(limited));
+
+    /*
+     * The key moves with the board's content, so a move that lands asks
+     * again — and the server, which holds a write the dataset has not
+     * re-read, counts the card in its new lane.
+     */
+    const moving = bind(subgrid);
+    const keyBefore = moving.props().totals.key;
+
+    moving.props().onMove('w1', 2);
+    await flush();
+    moving.handle.reread();
+    moving.settle();
+
+    const after = await moving.props().totals.load();
+
+    check('a landed move changes the totals key', moving.props().totals.key !== keyBefore);
+    check('and the next answer counts the card in its new lane', after && after.byLane['2'].count === 3 && after.byLane['1'].count === 1, JSON.stringify(after && after.byLane));
+
+    void elsewhere;
+
+    /* --------------------------------------- 0.4.0: a Status Reason board */
+
+    /*
+     * **A move across states sends the state.** Measured on cll_task
+     * (T4/T5): a bare statuscode from the other state is refused, the pair
+     * is accepted. The rig refuses the same way, so a control that forgets
+     * the pair fails here the way it would on a form.
+     */
+    const reasons = {
+        ...fixture,
+        metadata: {
+            ...fixture.metadata,
+            statuscode: {
+                shape: 'descriptor',
+                options: [
+                    { value: 1, label: 'Active', state: 0 },
+                    { value: 858010001, label: 'In Progress', state: 0 },
+                    { value: 2, label: 'Inactive', state: 1 },
+                ],
+            },
+            statecode: {
+                shape: 'descriptor',
+                options: [
+                    { value: 0, label: 'Active', defaultStatus: 1 },
+                    { value: 1, label: 'Inactive', defaultStatus: 2 },
+                ],
+            },
+        },
+        columns: fixture.columns.map((column) => (column.alias === 'statusField'
+            ? { ...column, name: 'statuscode', displayName: 'Status Reason' }
+            : column)),
+        records: fixture.records.map((row) => ({
+            ...row,
+            values: { ...row.values, statuscode: row.values.new_stage === 3 ? 2 : 1, statecode: row.values.new_stage === 3 ? 1 : 0 },
+        })),
+    };
+    const reasonBoard = (options) => {
+        const handle = host.createHost(reasons, { getString: marked, pageSize: 50, quirks: { readOnlyColumns: ['statuscode', 'statecode'] }, ...options, inputs: { ...INPUTS } });
+        const instance = new registration.ctor();
+
+        instance.init(handle.context, () => undefined, {}, dom.createElement('div'));
+        host.drive(instance, handle, 10);
+
+        return { handle, instance, props: () => host.drive(instance, handle, 10).element.props };
+    };
+    const written = (handle) => handle.state.calls
+        .filter((call) => call.startsWith('webAPI.updateRecord'))
+        .map((call) => JSON.parse(call.slice('webAPI.updateRecord('.length, -1)).data);
+
+    const across = reasonBoard({});
+
+    across.props().onMove('w1', 2);
+    await flush();
+    await flush();
+
+    check(
+        'a Status Reason move into the other state sends the state beside it',
+        JSON.stringify(written(across.handle)) === JSON.stringify([{ statecode: 1, statuscode: 2 }]),
+        JSON.stringify(written(across.handle)),
+    );
+    check('and it lands — no refusal', across.props().moveError === null, String(across.props().moveError));
+
+    const within = reasonBoard({});
+
+    within.props().onMove('w1', 858010001);
+    await flush();
+    await flush();
+
+    check(
+        'a move within one state sends the reason alone, as T4 measured accepted',
+        JSON.stringify(written(within.handle)) === JSON.stringify([{ statuscode: 858010001 }]),
+        JSON.stringify(written(within.handle)),
+    );
+
+    /*
+     * Without the metadata the states are unknown, the move goes bare as
+     * before 0.4.0 — and the server's refusal rolls the card back.
+     */
+    const blind = reasonBoard({ utils: false });
+
+    blind.props().onMove('w1', 2);
+    await flush();
+    await flush();
+    blind.handle.reread();
+
+    check(
+        'with no metadata the move goes bare, is refused, and says so',
+        JSON.stringify(written(blind.handle)) === JSON.stringify([{ statuscode: 2 }]) && typeof blind.props().moveError === 'string',
+        `${JSON.stringify(written(blind.handle))} ${blind.props().moveError}`,
+    );
+    check('putting the card back', blind.props().cards.find((c) => c.id === 'w1').lane === 1, String(blind.props().cards.find((c) => c.id === 'w1').lane));
+
+    const byState = {
+        ...reasons,
+        columns: reasons.columns.map((column) => (column.alias === 'statusField' ? { ...column, name: 'statecode', displayName: 'Status' } : column)),
+    };
+    const stateHandle = host.createHost(byState, { getString: marked, pageSize: 50, quirks: { readOnlyColumns: ['statuscode', 'statecode'] }, inputs: { ...INPUTS } });
+    const stateInstance = new registration.ctor();
+
+    stateInstance.init(stateHandle.context, () => undefined, {}, dom.createElement('div'));
+    host.drive(stateInstance, stateHandle, 10).element.props.onMove('w1', 1);
+    await flush();
+    await flush();
+
+    check(
+        'a Status board sends the lane\'s default reason beside it',
+        JSON.stringify(written(stateHandle)) === JSON.stringify([{ statecode: 1, statuscode: 2 }]),
+        JSON.stringify(written(stateHandle)),
     );
 
     /* --------------------------------------------------- what destroy owes */

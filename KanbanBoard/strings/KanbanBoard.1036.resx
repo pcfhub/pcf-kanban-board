@@ -226,4 +226,37 @@
   <data name="KanbanBoard_ReadOnly" xml:space="preserve">
     <value>Cet hôte ne peut pas écrire dans l’enregistrement.</value>
   </data>
+  <data name="ValueField_Name" xml:space="preserve">
+    <value>Total du couloir</value>
+  </data>
+  <data name="ValueField_Desc" xml:space="preserve">
+    <value>Une colonne numérique additionnée pour chaque couloir et affichée sous son nom : le total de toute la vue quand le serveur peut le donner, sinon celui des cartes chargées. Laisser vide pour aucun total.</value>
+  </data>
+  <data name="ParentLookup_Name" xml:space="preserve">
+    <value>Recherche parente</value>
+  </data>
+  <data name="ParentLookup_Desc" xml:space="preserve">
+    <value>Dans une sous-grille : la colonne de recherche de cette table qui relie ses lignes à l'enregistrement du formulaire, p. ex. parentcustomerid. Laisser vide pour que le contrôle la trouve ; la définir quand la table a plusieurs recherches vers le parent, ou « none » pour une sous-grille sans lien avec l'enregistrement.</value>
+  </data>
+  <data name="LaneLimits_Name" xml:space="preserve">
+    <value>Limites de couloir</value>
+  </data>
+  <data name="LaneLimits_Desc" xml:space="preserve">
+    <value>Le nombre maximal de cartes qu'un couloir devrait contenir, sous forme de paires valeur=limite, p. ex. 858010001=5,2=3. Un couloir au-delà de sa limite est signalé ; aucun déplacement n'est refusé.</value>
+  </data>
+  <data name="KanbanBoard_TotalsView" xml:space="preserve">
+    <value>Totaux : les {0} enregistrements de la vue</value>
+  </data>
+  <data name="KanbanBoard_TotalsLoaded" xml:space="preserve">
+    <value>Totaux : les {0} cartes chargées jusqu'ici</value>
+  </data>
+  <data name="KanbanBoard_TotalsBoard" xml:space="preserve">
+    <value>Totaux : les {0} cartes du tableau</value>
+  </data>
+  <data name="KanbanBoard_OverLimit" xml:space="preserve">
+    <value>{0}, au-delà de sa limite de {1}</value>
+  </data>
+  <data name="KanbanBoard_LaneTotal" xml:space="preserve">
+    <value>Total {0}</value>
+  </data>
 </root>

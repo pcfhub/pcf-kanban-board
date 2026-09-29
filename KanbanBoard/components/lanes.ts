@@ -18,6 +18,20 @@ export interface Lane {
      * interpret.
      */
     color: string | null;
+    /**
+     * The state a **Status Reason** lane belongs to — `State` on the option,
+     * measured 2026-09-29 — or `null` for any other column, and wherever the
+     * option set was not read. A move between two reasons of different states
+     * has to send the state beside the reason: the server refuses a bare
+     * `statuscode` from the other state rather than inferring it.
+     */
+    state: number | null;
+    /**
+     * A **Status** lane's default reason — `DefaultStatus` on the option,
+     * measured the same day — which a move into it sends beside it. `null`
+     * for any other column.
+     */
+    defaultStatus: number | null;
 }
 
 export interface Card {
@@ -28,7 +42,13 @@ export interface Card {
     lane: number | null;
     /** The lane label as the platform formatted it, kept for derived lanes. */
     laneLabel: string;
+    /** The Lane total column's value, or `null` — unbound, or blank on this record. */
+    value: number | null;
 }
+
+/** The two platform columns a board can be grouped by whose writes are special. */
+export const STATUS_REASON = 'statuscode';
+export const STATUS = 'statecode';
 
 /**
  * The manifest's `property-set` names.
@@ -42,6 +62,7 @@ export const ROLES = {
     title: 'titleField',
     assignee: 'assigneeField',
     badge: 'badgeField',
+    value: 'valueField',
 } as const;
 
 /**
@@ -104,7 +125,7 @@ export function parseLanes(spec: string): Lane[] {
         }
 
         seen.add(value);
-        lanes.push({ value, label, color });
+        lanes.push({ value, label, color, state: null, defaultStatus: null });
     }
 
     return lanes;
@@ -154,7 +175,7 @@ export function deriveLanes(cards: Card[]): Lane[] {
 
     return [...seen.entries()]
         .sort((a, b) => a[0] - b[0])
-        .map(([value, label]) => ({ value, label: label || String(value), color: null }));
+        .map(([value, label]) => ({ value, label: label || String(value), color: null, state: null, defaultStatus: null }));
 }
 
 /**
@@ -170,7 +191,7 @@ export function withUnassigned(lanes: Lane[], cards: Card[], label: string): Lan
         return lanes;
     }
 
-    return [{ value: null, label, color: null }, ...lanes];
+    return [{ value: null, label, color: null, state: null, defaultStatus: null }, ...lanes];
 }
 
 /** The cards in a lane, in the order the view supplied them. */
@@ -202,6 +223,127 @@ export function matchesQuery(card: Card, query: string): boolean {
     return [card.title, card.assignee, card.badge].some(
         (text) => typeof text === 'string' && text.toLowerCase().includes(needle),
     );
+}
+
+/**
+ * What a move writes: the lane column, and on the two status columns the
+ * other half of the pair.
+ *
+ * Measured 2026-09-29 on `cll_task` (SPEC.md, T4/T5): `{ statuscode }` alone
+ * into a reason of the **other** state is refused — the server does not infer
+ * the state, and its message names neither — while `{ statecode, statuscode }`
+ * together is accepted, and a reason within the record's own state alone is
+ * accepted. So a Status Reason move sends the state only when it changes,
+ * which keeps every payload one of the two that were watched.
+ *
+ * A **Status** board sends the lane's default reason beside it — the same
+ * accepted pair, from the other side; unmeasured as a board, which is W-listed.
+ *
+ * Where the option set was not read, a lane has no `state` and the move is
+ * sent bare, as before 0.4.0: a cross-state move then fails loudly and rolls
+ * back, which is what it did then.
+ */
+export function movePayload(column: string, from: Lane | undefined, to: Lane): Record<string, number> {
+    const value = to.value as number;
+
+    if (column === STATUS_REASON && to.state !== null && (from === undefined || from.state !== to.state)) {
+        return { [STATUS]: to.state, [STATUS_REASON]: value };
+    }
+
+    if (column === STATUS && to.defaultStatus !== null) {
+        return { [STATUS]: value, [STATUS_REASON]: to.defaultStatus };
+    }
+
+    return { [column]: value };
+}
+
+/**
+ * Parse the `laneLimits` input: `"858010001=5,2=3"` — a lane's value, then
+ * the most cards it should hold.
+ *
+ * Forgiving about whitespace, strict about numbers, as `parseLanes` is: an
+ * entry that is not two integers, or a limit below one, is dropped rather
+ * than read as zero — a lane "limited to 0" would be marked over its limit by
+ * its first card, which is a typo's worth of alarm.
+ */
+export function parseLimits(spec: string): Map<number, number> {
+    const limits = new Map<number, number>();
+
+    for (const entry of spec.split(',')) {
+        const at = entry.indexOf('=');
+
+        if (at < 0) {
+            continue;
+        }
+
+        const value = Number(entry.slice(0, at).trim());
+        const limit = Number(entry.slice(at + 1).trim());
+
+        if (Number.isInteger(value) && Number.isInteger(limit) && limit >= 1 && !limits.has(value)) {
+            limits.set(value, limit);
+        }
+    }
+
+    return limits;
+}
+
+/** A lane's key in a totals map: its value, or `''` for the unassigned lane. */
+export const laneKey = (value: number | null): string => (value === null ? '' : String(value));
+
+/** One lane's total: its record count, and the sum of the Lane total column when one is bound. */
+export interface LaneTotal {
+    count: number;
+    /** `null` when no column is bound, or every value in the lane is blank. */
+    sum: number | null;
+    /** The server's formatted sum, or `null` for the loaded route — the component formats that one. */
+    label: string | null;
+}
+
+/**
+ * Totals over the cards on the board — the browser route, and what a canvas
+ * app, the demo, and a view that cannot be aggregated get.
+ *
+ * A blank value is not a zero: a lane whose every card is blank has a `null`
+ * sum, the way the server omits the alias for one.
+ */
+export function totalsFromCards(cards: Card[]): Map<string, LaneTotal> {
+    const totals = new Map<string, LaneTotal>();
+
+    for (const card of cards) {
+        const key = laneKey(card.lane);
+        const total = totals.get(key) ?? { count: 0, sum: null, label: null };
+
+        total.count += 1;
+
+        if (card.value !== null) {
+            total.sum = (total.sum ?? 0) + card.value;
+        }
+
+        totals.set(key, total);
+    }
+
+    return totals;
+}
+
+/**
+ * A number off a record: a number, or a numeric string, or `null`.
+ *
+ * Read the way `laneValue` reads a choice, for the same reason — a record's
+ * `getValue` hands a Choice over as a string on a form, and nothing promises
+ * a Money column will not do the same somewhere.
+ */
+export function numberValue(raw: unknown): number | null {
+    if (typeof raw === 'number') {
+        return Number.isFinite(raw) ? raw : null;
+    }
+
+    if (typeof raw === 'string' && raw.trim() !== '') {
+        const parsed = Number(raw);
+
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    return null;
 }
 
 /**
@@ -278,10 +420,15 @@ export function optionLanes(metadata: unknown, columnName: string): Lane[] {
         const value = get(option, 'Value');
 
         if (typeof value === 'number' && Number.isInteger(value)) {
+            const state = get(option, 'State');
+            const defaultStatus = get(option, 'DefaultStatus');
+
             lanes.push({
                 value,
                 label: labelOf(option) || String(value),
                 color: hexColor(get(option, 'Color')),
+                state: typeof state === 'number' ? state : null,
+                defaultStatus: typeof defaultStatus === 'number' ? defaultStatus : null,
             });
         }
     }

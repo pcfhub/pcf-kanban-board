@@ -68,7 +68,34 @@
                     of-type="SingleLine.Text"
                     usage="bound"
                     required="false" />
+
+      <!--
+        0.4.0: the number each lane adds up — "pipeline value by stage".
+
+        A fifth role, which the note above allows: roles can be added, and
+        an optional one left unbound changes nothing on a board that was
+        configured before it existed. Whole, decimal, floating and currency,
+        the numbers a sum means something on — pcf-chart-view's group.
+
+        The sum comes from the server, over every record the view means,
+        through the template's view-aggregate library; where that route is
+        withheld it is the sum of the cards loaded, and the caption says
+        which. See SPEC.md 0.4.0.
+      -->
+      <property-set name="valueField"
+                    display-name-key="ValueField_Name"
+                    description-key="ValueField_Desc"
+                    of-type-group="numbers"
+                    usage="bound"
+                    required="false" />
     </data-set>
+
+    <type-group name="numbers">
+      <type>Whole.None</type>
+      <type>Decimal</type>
+      <type>FP</type>
+      <type>Currency</type>
+    </type-group>
 
     <!--
       No `cds-data-set-options`, following the template's own rule: a control
@@ -199,6 +226,40 @@
               display-name-key="PageSize_Name"
               description-key="PageSize_Desc"
               of-type="Whole.None"
+              usage="input"
+              required="false" />
+
+    <!--
+      0.4.0. On a subgrid: the lookup on this table that relates its rows to
+      the form's record — the one condition a lane total needs and cannot see.
+
+      Measured 2026-09-29 on the Accounts form's cll_task subgrid:
+      getFilter() is null, and an aggregate from the view alone counted 10
+      tasks — the whole table — under a subgrid of 3; with
+      cll_account = <the account> it counted 3. Empty, the control finds the
+      lookup itself (one candidate, or the one the loaded rows point at the
+      record through); set it when that is ambiguous, or "none" for a subgrid
+      that is not related to the record. pcf-chart-view's and
+      pcf-data-table's property, same name and meaning.
+    -->
+    <property name="parentLookup"
+              display-name-key="ParentLookup_Name"
+              description-key="ParentLookup_Desc"
+              of-type="SingleLine.Text"
+              usage="input"
+              required="false" />
+
+    <!--
+      0.4.0. The most cards a lane should hold: "858010001=5,2=3". A soft
+      limit, by the user's decision (2026-09-29): a lane over it is marked,
+      and nothing is refused — a drop the board rejected would be a rule the
+      server does not know, and other users, flows and imports would pass it
+      anyway. Empty, no lane has a limit.
+    -->
+    <property name="laneLimits"
+              display-name-key="LaneLimits_Name"
+              description-key="LaneLimits_Desc"
+              of-type="SingleLine.Text"
               usage="input"
               required="false" />
 

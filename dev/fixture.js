@@ -42,7 +42,11 @@
 })(typeof window !== 'undefined' ? window : null, function () {
     'use strict';
 
-    function card(id, title, status, assignee, badge) {
+    /** The account a subgrid of work items sits under, and one it does not. */
+    var CONTOSO = 'a0000000-0000-4000-8000-00000000c0de';
+    var ELSEWHERE = 'a0000000-0000-4000-8000-0000000e15e0';
+
+    function card(id, title, status, assignee, badge, estimate, account) {
         return {
             id: id,
             values: {
@@ -51,6 +55,8 @@
                 new_summary: title,
                 new_owner: assignee,
                 new_priority: badge,
+                new_estimate: estimate,
+                new_account: { id: { guid: account || CONTOSO }, etn: 'account', name: account === ELSEWHERE ? 'Fabrikam' : 'Contoso' },
                 name: title,
             },
         };
@@ -59,6 +65,34 @@
     return {
         targetEntityType: 'new_workitem',
         title: 'Active work items',
+
+        /*
+         * The view, as `getViewId()` names it and `savedquery` describes it
+         * (0.4.0's lane totals rewrite it). Attributes, an order and a
+         * link-entity with an attribute of its own, all of which an aggregate
+         * has to strip or the server refuses it; no filter, so the loaded rows
+         * and the view agree and a total can be asserted exactly.
+         */
+        viewId: '00000000-0000-0000-0000-0000000b0a4d',
+        views: {
+            '00000000-0000-0000-0000-0000000b0a4d': {
+                table: 'savedquery',
+                name: 'Active work items',
+                fetchxml: '<fetch version="1.0" mapping="logical"><entity name="new_workitem">'
+                    + '<attribute name="new_summary"/><order attribute="new_summary" descending="false"/>'
+                    + '<attribute name="new_stage"/><attribute name="new_estimate"/><attribute name="new_workitemid"/>'
+                    + '<link-entity name="account" from="accountid" to="new_account" link-type="outer" alias="a"><attribute name="name"/></link-entity>'
+                    + '</entity></fetch>',
+            },
+        },
+
+        /*
+         * The one lookup to account — what a subgrid under an account relates
+         * its rows by, and what the lane totals' parent resolver finds.
+         */
+        relationships: [
+            { column: 'new_account', target: 'account', navigationProperty: 'new_account' },
+        ],
 
         /*
          * What `utils.getEntityMetadata('new_workitem', ['new_stage'])` carries
@@ -117,17 +151,43 @@
                 order: 3,
                 visualSizeFactor: 80,
             },
+            {
+                // 0.4.0: the Lane total role. Money, as the probe's was.
+                name: 'new_estimate',
+                displayName: 'Estimate',
+                dataType: 'Currency',
+                alias: 'valueField',
+                order: 4,
+                visualSizeFactor: 90,
+            },
+            {
+                // In the view so the loaded rows can confirm the parent lookup.
+                name: 'new_account',
+                displayName: 'Account',
+                dataType: 'Lookup.Simple',
+                alias: 'new_account',
+                order: 5,
+                visualSizeFactor: 120,
+                isHidden: true,
+            },
         ],
 
         records: [
-            card('w1', 'Rewrite the import validator', 1, 'A. Okafor', 'High'),
-            card('w2', 'Chase the missing invoices', 1, 'B. Lindqvist', ''),
-            card('w3', 'Migrate the staging environment', 2, 'A. Okafor', 'Medium'),
-            card('w4', 'Draft the renewal terms', 2, null, null),
-            card('w5', 'Close out the Q3 audit findings and file the summary', 3, 'C. Moreau', 'Low'),
+            // w2's estimate is blank: a blank is not a zero, so lane 1 sums to 1500 over two cards.
+            card('w1', 'Rewrite the import validator', 1, 'A. Okafor', 'High', 1500),
+            card('w2', 'Chase the missing invoices', 1, 'B. Lindqvist', '', null),
+            card('w3', 'Migrate the staging environment', 2, 'A. Okafor', 'Medium', 2250),
+            card('w4', 'Draft the renewal terms', 2, null, null, 800),
+            card('w5', 'Close out the Q3 audit findings and file the summary', 3, 'C. Moreau', 'Low', 400),
             // No status at all: a choice column is nullable, and the card still
             // has to land somewhere rather than disappear off the board.
-            card('w6', 'Triage inbound support mail', null, 'B. Lindqvist', 'High'),
+            card('w6', 'Triage inbound support mail', null, 'B. Lindqvist', 'High', 100),
+            // Another account's. A subgrid under Contoso never loads it; the
+            // view alone would count it — the 10-for-3 the probe measured.
+            card('w7', 'Renew the Fabrikam support contract', 2, 'C. Moreau', 'High', 9000, ELSEWHERE),
         ],
+
+        /** The two accounts, for a suite that sets `contextInfo` and `relationshipFilter`. */
+        accounts: { contoso: CONTOSO, elsewhere: ELSEWHERE },
     };
 });

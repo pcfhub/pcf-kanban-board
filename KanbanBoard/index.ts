@@ -5,13 +5,23 @@ import {
     Card,
     Lane,
     ROLES,
+    STATUS,
+    STATUS_REASON,
+    boardKey,
     deriveLanes,
     describeShape,
     laneValue,
+    movePayload,
+    numberValue,
     optionLanes,
     parseLanes,
+    parseLimits,
     withUnassigned,
 } from './components/lanes';
+import { TotalsAnswer, loadTotals } from './data/totals';
+import { Filter, filterToFetchXml } from './lib/view-aggregate/fetchXml';
+import { ParentReading, rowsConfirm } from './lib/view-aggregate/parent';
+import { WebApiReader } from './lib/view-aggregate/aggregate';
 // 0.3.6 probe only — delete with probe.ts before 0.4.0.
 import { Probe } from './probe';
 
@@ -73,6 +83,11 @@ type FormOpener = (options: Record<string, unknown>, parameters?: Record<string,
  * it.
  */
 function modelDrivenHost(context: ComponentFramework.Context<IInputs>): boolean {
+    return clientUrlOf(context) !== null;
+}
+
+/** The organisation URL, or `null` on a host that will not say. See `modelDrivenHost`. */
+function clientUrlOf(context: ComponentFramework.Context<IInputs>): string | null {
     const ask = <T>(call: () => T): T | undefined => {
         try {
             return call();
@@ -89,7 +104,17 @@ function modelDrivenHost(context: ComponentFramework.Context<IInputs>): boolean 
         Xrm?: { Utility?: { getGlobalContext?: () => { getClientUrl?: () => unknown } } };
     }).Xrm?.Utility?.getGlobalContext?.()?.getClientUrl?.());
 
-    return [fromPage, fromGlobal].some((url) => typeof url === 'string' && url !== '');
+    const found = [fromPage, fromGlobal].find((url) => typeof url === 'string' && url !== '');
+
+    return typeof found === 'string' ? found.replace(/\/+$/, '') : null;
+}
+
+/** A same-origin metadata read: `context.webAPI` cannot address `EntityDefinitions`. */
+function readMetadata<T>(clientUrl: string, path: string): Promise<T> {
+    return fetch(`${clientUrl}/api/data/v9.2/${path}`, {
+        headers: { Accept: 'application/json', 'OData-MaxVersion': '4.0', 'OData-Version': '4.0' },
+        credentials: 'same-origin',
+    }).then((response) => (response.ok ? (response.json() as Promise<T>) : Promise.reject(response.status)));
 }
 
 /**
@@ -223,6 +248,19 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
     /** 0.3.6 probe only. See probe.ts. */
     private readonly probe = new Probe();
 
+    /**
+     * The lane column's options, read for their **state** — what a move
+     * between Status Reasons has to send beside the reason. Keyed by
+     * `table:column`, and read even when the maker set **Lanes**: those carry
+     * labels and colours, never states. One `getEntityMetadata` call per key
+     * for the life of the control.
+     */
+    private readonly states = new Map<string, Promise<Lane[]>>();
+
+    /** Same-origin metadata reads, cached for the life of the control. */
+    private primaryId: Promise<string> | null = null;
+    private parentCandidates: Promise<{ column: string; target: string }[]> | null = null;
+
     public init(
         context: ComponentFramework.Context<IInputs>,
         notifyOutputChanged: () => void,
@@ -265,9 +303,20 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
 
         const cards = this.cards(dataset, status, title);
         const getString = (id: string): string => context.resources.getString(id);
+        const value = this.roleColumn(dataset, ROLES.value);
+        const limitsSpec = (context.parameters.laneLimits?.raw ?? '').trim();
+        const limits = Object.fromEntries(parseLimits(limitsSpec));
+        // Totals are asked for when there is something to total or a limit to
+        // count against — neither, and the board sends no query at all.
+        const totalsWanted = status !== undefined && (value !== undefined || limitsSpec !== '');
 
         const props: IProps = {
             cards,
+            hasValue: value !== undefined,
+            limits,
+            totalsWanted,
+            totals: totalsWanted && status ? this.totalsRoute(context, dataset, status, value ?? null, cards) : null,
+            formatValue: (amount: number): string => this.formatValue(context, value, amount),
             lanes: this.lanes(context, cards, getString),
             hasStatus: status !== undefined,
             hasTitle: title !== undefined,
@@ -488,6 +537,7 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
 
         const assignee = this.roleColumn(dataset, ROLES.assignee);
         const badge = this.roleColumn(dataset, ROLES.badge);
+        const value = this.roleColumn(dataset, ROLES.value);
         const built: Card[] = [];
 
         for (const id of dataset.sortedRecordIds ?? []) {
@@ -511,6 +561,7 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
                 badge: badge ? record.getFormattedValue(badge.name) : null,
                 lane: override ?? actual,
                 laneLabel: record.getFormattedValue(status.name),
+                value: value ? numberValue(record.getValue(value.name)) : null,
             });
         }
 
@@ -702,7 +753,23 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
         this.movedRecordId = recordId;
         this.notifyOutputChanged();
 
-        void this.write(context, dataset, record, status.name, recordId, toValue)
+        /*
+         * **What is sent depends on the lane column.** On a Status Reason
+         * board a move across states sends the state beside the reason — the
+         * server refuses a bare reason from the other state (measured, T4) —
+         * so the states are read first. On any other column this resolves to
+         * `[]` at once and the payload is the one column, as before.
+         */
+        const from = current;
+
+        void this.statesFor(context, dataset.getTargetEntityType(), status.name)
+            .then((options) => {
+                const to = options.find((lane) => lane.value === toValue)
+                    ?? { value: toValue, label: '', color: null, state: null, defaultStatus: null };
+                const source = options.find((lane) => lane.value === from);
+
+                return this.write(context, dataset, record, status.name, recordId, movePayload(status.name, source, to));
+            })
             .catch((error: unknown) => {
                 this.pending.delete(recordId);
                 this.failedMoves += 1;
@@ -744,16 +811,20 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
         record: unknown,
         column: string,
         recordId: string,
-        value: number,
+        payload: Record<string, number>,
     ): Promise<unknown> {
         const editable = editableRecord(record);
         const api = context.webAPI;
+        const value = payload[column];
         const viaApi = (): Promise<unknown> =>
             typeof api?.updateRecord === 'function'
-                ? api.updateRecord(dataset.getTargetEntityType(), recordId, { [column]: value })
+                ? api.updateRecord(dataset.getTargetEntityType(), recordId, payload)
                 : Promise.reject(new Error(context.resources.getString('KanbanBoard_ReadOnly')));
 
-        if (!editable) {
+        // A pair — a state beside its reason — is one Web API update. The
+        // record route stages one column, and both status columns answer
+        // `isEditable` false on a form anyway (T7).
+        if (!editable || Object.keys(payload).length !== 1) {
             return viaApi();
         }
 
@@ -770,6 +841,193 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
 
                 return editable.save();
             });
+    }
+
+    /**
+     * The lane column's options with their states — for writes, not for
+     * drawing. `[]` for any column but the two status ones, where no pair is
+     * ever sent, and `[]` wherever the metadata cannot be read: the move then
+     * goes bare, as it did before 0.4.0.
+     *
+     * The executor form for the same reason as `laneLoader`: canvas publishes
+     * `getEntityMetadata` and throws from the call.
+     */
+    private statesFor(
+        context: ComponentFramework.Context<IInputs>,
+        entity: string,
+        column: string,
+    ): Promise<Lane[]> {
+        if (column !== STATUS_REASON && column !== STATUS) {
+            return Promise.resolve([]);
+        }
+
+        const key = `${entity}:${column}`;
+        const cached = this.states.get(key);
+
+        if (cached) {
+            return cached;
+        }
+
+        const read = new Promise<unknown>((resolve) => resolve(context.utils.getEntityMetadata(entity, [column])))
+            .then((metadata) => optionLanes(metadata, column))
+            .catch(() => [] as Lane[]);
+
+        this.states.set(key, read);
+
+        return read;
+    }
+
+    /**
+     * The server route for lane totals, as a key and a loader — or `null`
+     * where it is withheld and the board totals the cards it has.
+     *
+     * Handed to the component rather than resolved here, the rule this board
+     * learned first: an answer stored on the instance cannot repaint a virtual
+     * control. `key` holds everything the answer depends on, **the board's
+     * content included**, so a move that lands, a refresh or a Load more asks
+     * again and a stale answer for an old key is dropped.
+     *
+     * Withheld — the number would be wrong rather than missing — on a host
+     * that is not model-driven (canvas publishes `webAPI` and refuses it),
+     * with no view to read (`getViewId()` is `undefined` on canvas), or with a
+     * runtime filter FetchXML cannot spell.
+     */
+    private totalsRoute(
+        context: ComponentFramework.Context<IInputs>,
+        dataset: DataSet,
+        status: Column,
+        value: Column | null,
+        cards: Card[],
+    ): { key: string; load: () => Promise<TotalsAnswer | null> } | null {
+        const api = (context as { webAPI?: WebApiReader }).webAPI;
+        const clientUrl = clientUrlOf(context);
+        const viewId = (dataset as { getViewId?: () => unknown }).getViewId?.();
+
+        if (!api || clientUrl === null || typeof viewId !== 'string' || viewId === '') {
+            return null;
+        }
+
+        const filter = filterToFetchXml(dataset.filtering?.getFilter?.() as Filter | null | undefined);
+
+        if (!filter.translatable) {
+            return null;
+        }
+
+        const entity = dataset.getTargetEntityType();
+        const parent = this.parentReading(context, dataset, entity, clientUrl);
+
+        return {
+            key: [
+                entity,
+                status.name,
+                value ? value.name : '',
+                viewId,
+                filter.xml,
+                parent ? `${parent.record.id}/${parent.explicit ?? ''}` : '',
+                boardKey(cards),
+            ].join('~'),
+            load: () => loadTotals({
+                api,
+                entity,
+                lane: status.name,
+                value: value ? value.name : null,
+                viewId,
+                filterXml: filter.xml,
+                parent,
+                primaryId: () => this.primaryIdFor(clientUrl, entity),
+            }),
+        };
+    }
+
+    /**
+     * The subgrid's parent, for the resolver — `null` on a main grid, which
+     * has no `contextInfo.entityId`. The candidates are this table's lookups
+     * to the form's table, from `ManyToOneRelationships`; the rows confirm or
+     * deny each one they carry.
+     */
+    private parentReading(
+        context: ComponentFramework.Context<IInputs>,
+        dataset: DataSet,
+        entity: string,
+        clientUrl: string,
+    ): ParentReading | null {
+        const parent = parentReference(context);
+
+        if (!parent) {
+            return null;
+        }
+
+        const typed = (context.parameters.parentLookup?.raw ?? '').trim().toLowerCase();
+        const records = (dataset.sortedRecordIds ?? [])
+            .map((id) => dataset.records[id])
+            .filter((record) => Boolean(record));
+        const fetched = (dataset.columns ?? []).map((column) => column.name);
+
+        return {
+            record: { entityType: parent.entityType, id: parent.id },
+            explicit: typed === '' ? null : typed,
+            candidates: () => this.candidatesFor(clientUrl, entity)
+                .then((all) => all.filter((each) => each.target === parent.entityType).map((each) => each.column)),
+            confirmed: (column) => rowsConfirm(records, column, parent.id, fetched),
+        };
+    }
+
+    private candidatesFor(clientUrl: string, entity: string): Promise<{ column: string; target: string }[]> {
+        if (!this.parentCandidates) {
+            this.parentCandidates = readMetadata<{ value?: { ReferencingAttribute?: string; ReferencedEntity?: string }[] }>(
+                clientUrl,
+                `EntityDefinitions(LogicalName='${encodeURIComponent(entity)}')/ManyToOneRelationships`
+                    + '?$select=ReferencingAttribute,ReferencedEntity',
+            )
+                .then((body) => (body.value ?? [])
+                    .filter((each) => typeof each.ReferencingAttribute === 'string' && typeof each.ReferencedEntity === 'string')
+                    .map((each) => ({ column: each.ReferencingAttribute as string, target: each.ReferencedEntity as string })))
+                .catch(() => []);
+        }
+
+        return this.parentCandidates;
+    }
+
+    /**
+     * The table's real primary key, which `count` is taken over — not always
+     * `<table>id` (an activity table's is `activityid`). The guess is the
+     * fallback when the read is refused.
+     */
+    private primaryIdFor(clientUrl: string, entity: string): Promise<string> {
+        if (!this.primaryId) {
+            this.primaryId = readMetadata<{ PrimaryIdAttribute?: unknown }>(
+                clientUrl,
+                `EntityDefinitions(LogicalName='${encodeURIComponent(entity)}')?$select=PrimaryIdAttribute`,
+            )
+                .then((body) => (typeof body.PrimaryIdAttribute === 'string' && body.PrimaryIdAttribute !== ''
+                    ? body.PrimaryIdAttribute
+                    : `${entity}id`))
+                .catch(() => `${entity}id`);
+        }
+
+        return this.primaryId;
+    }
+
+    /**
+     * A total as the user reads money and numbers — the platform's own
+     * formatting, by the column's type. The server's formatted sum is used
+     * where there is one; this is for the loaded-cards route. A host that
+     * refuses the formatter gets the browser's.
+     */
+    private formatValue(context: ComponentFramework.Context<IInputs>, column: Column | undefined, amount: number): string {
+        try {
+            if (column?.dataType === 'Currency') {
+                return context.formatting.formatCurrency(amount);
+            }
+
+            if (column?.dataType === 'Whole.None') {
+                return context.formatting.formatInteger(amount);
+            }
+
+            return context.formatting.formatDecimal(amount);
+        } catch {
+            return amount.toLocaleString();
+        }
     }
 
     /**

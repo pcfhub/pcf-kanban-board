@@ -226,4 +226,37 @@
   <data name="KanbanBoard_ReadOnly" xml:space="preserve">
     <value>Este host no puede escribir en el registro.</value>
   </data>
+  <data name="ValueField_Name" xml:space="preserve">
+    <value>Total del carril</value>
+  </data>
+  <data name="ValueField_Desc" xml:space="preserve">
+    <value>Una columna numérica que se suma en cada carril y se muestra bajo su nombre: el total de toda la vista cuando el servidor puede darlo y, si no, el de las tarjetas cargadas. Déjela vacía para no mostrar totales.</value>
+  </data>
+  <data name="ParentLookup_Name" xml:space="preserve">
+    <value>Búsqueda principal</value>
+  </data>
+  <data name="ParentLookup_Desc" xml:space="preserve">
+    <value>En una subcuadrícula: la columna de búsqueda de esta tabla que relaciona sus filas con el registro del formulario, p. ej. parentcustomerid. Déjela vacía para que el control la encuentre; establézcala cuando la tabla tenga más de una búsqueda al registro principal, o «none» para una subcuadrícula no relacionada con el registro.</value>
+  </data>
+  <data name="LaneLimits_Name" xml:space="preserve">
+    <value>Límites de carril</value>
+  </data>
+  <data name="LaneLimits_Desc" xml:space="preserve">
+    <value>El número máximo de tarjetas que debería tener un carril, como pares valor=límite, p. ej. 858010001=5,2=3. Un carril por encima de su límite se marca; no se rechaza ningún movimiento.</value>
+  </data>
+  <data name="KanbanBoard_TotalsView" xml:space="preserve">
+    <value>Totales: los {0} registros de la vista</value>
+  </data>
+  <data name="KanbanBoard_TotalsLoaded" xml:space="preserve">
+    <value>Totales: las {0} tarjetas cargadas hasta ahora</value>
+  </data>
+  <data name="KanbanBoard_TotalsBoard" xml:space="preserve">
+    <value>Totales: las {0} tarjetas del tablero</value>
+  </data>
+  <data name="KanbanBoard_OverLimit" xml:space="preserve">
+    <value>{0}, por encima de su límite de {1}</value>
+  </data>
+  <data name="KanbanBoard_LaneTotal" xml:space="preserve">
+    <value>Total {0}</value>
+  </data>
 </root>

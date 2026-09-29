@@ -226,4 +226,37 @@
   <data name="KanbanBoard_ReadOnly" xml:space="preserve">
     <value>このホストではレコードに書き込めません。</value>
   </data>
+  <data name="ValueField_Name" xml:space="preserve">
+    <value>レーンの合計</value>
+  </data>
+  <data name="ValueField_Desc" xml:space="preserve">
+    <value>レーンごとに合計され、レーン名の下に表示される数値列。サーバーが計算できる場合はビュー全体の合計、それ以外は読み込み済みカードの合計です。合計を表示しない場合は空にします。</value>
+  </data>
+  <data name="ParentLookup_Name" xml:space="preserve">
+    <value>親レコードの参照列</value>
+  </data>
+  <data name="ParentLookup_Desc" xml:space="preserve">
+    <value>サブグリッドの場合: このテーブルの行をフォームのレコードに関連付ける参照列 (例: parentcustomerid)。空にするとコントロールが探します。親への参照列が複数ある場合に設定します。レコードと関連しないサブグリッドでは「none」を指定します。</value>
+  </data>
+  <data name="LaneLimits_Name" xml:space="preserve">
+    <value>レーンの上限</value>
+  </data>
+  <data name="LaneLimits_Desc" xml:space="preserve">
+    <value>レーンに入れるカードの上限を 値=上限 の組で指定します (例: 858010001=5,2=3)。上限を超えたレーンは強調表示されますが、移動は拒否されません。</value>
+  </data>
+  <data name="KanbanBoard_TotalsView" xml:space="preserve">
+    <value>合計: ビューの全 {0} 件</value>
+  </data>
+  <data name="KanbanBoard_TotalsLoaded" xml:space="preserve">
+    <value>合計: これまでに読み込んだ {0} 件のカード</value>
+  </data>
+  <data name="KanbanBoard_TotalsBoard" xml:space="preserve">
+    <value>合計: ボード上の {0} 件のカード</value>
+  </data>
+  <data name="KanbanBoard_OverLimit" xml:space="preserve">
+    <value>{0} (上限 {1} を超過)</value>
+  </data>
+  <data name="KanbanBoard_LaneTotal" xml:space="preserve">
+    <value>合計 {0}</value>
+  </data>
 </root>

@@ -195,6 +195,38 @@
 }
 
 /*
+  0.4.0: a lane over its soft limit. The warning colour and weight on the
+  count alone — the lane stays a drop target, because nothing is refused.
+  The token is Fluent's warning foreground, which reads on both themes.
+*/
+.KanbanBoard .KanbanBoard-laneCount.is-over {
+    color: var(--colorPaletteDarkOrangeForeground1, #bc4b09);
+    font-weight: var(--fontWeightSemibold, 600);
+}
+
+/* 0.4.0: the lane's total, under its name — the number a pipeline is read by. */
+.KanbanBoard-laneTotal {
+    padding: 0 var(--spacingHorizontalM, 12px) var(--spacingVerticalXS, 4px);
+    font-size: var(--fontSizeBase300, 14px);
+    font-weight: var(--fontWeightSemibold, 600);
+    color: var(--colorNeutralForeground1, #242424);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/*
+  0.4.0: which records the totals are over — the whole view, or the cards
+  loaded. The only thing that keeps a partial sum from reading as the view's.
+*/
+.KanbanBoard-caption {
+    margin: 0 0 var(--spacingVerticalXS, 4px);
+    color: var(--colorNeutralForeground3, #616161);
+    font-size: var(--fontSizeBase200, 12px);
+}
+
+/*
   The "+" that adds a card to the lane. A Fluent subtle button, so it takes
   its hover and focus from the host; this only stops it stretching the header
   and keeps the glyph optically centred.

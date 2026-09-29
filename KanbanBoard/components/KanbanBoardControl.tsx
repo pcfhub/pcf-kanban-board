@@ -9,10 +9,34 @@ import {
     MenuTrigger,
     webLightTheme,
 } from '@fluentui/react-components';
-import { Card, Lane, boardKey, cardsInLane, matchesQuery, withUnassigned } from './lanes';
+import {
+    Card,
+    Lane,
+    LaneTotal,
+    boardKey,
+    cardsInLane,
+    laneKey,
+    matchesQuery,
+    totalsFromCards,
+    withUnassigned,
+} from './lanes';
+import { TotalsAnswer } from '../data/totals';
 
 export interface IProps {
     cards: Card[];
+    /** Whether a Lane total column is bound, so each lane shows a sum and the board a caption. */
+    hasValue: boolean;
+    /** The soft limits, lane value → most cards. A lane over its limit is marked; nothing is refused. */
+    limits: Record<string, number>;
+    /** Whether totals are wanted at all — a Lane total column, or a limit to count against. */
+    totalsWanted: boolean;
+    /**
+     * The server route for lane totals, or `null` where it is withheld and the
+     * board totals the cards it has. See `totalsRoute` in index.ts.
+     */
+    totals: { key: string; load: () => Promise<TotalsAnswer | null> } | null;
+    /** A loaded-cards sum, formatted as the platform formats the column's type. */
+    formatValue: (amount: number) => string;
     lanes: Lane[];
     hasStatus: boolean;
     hasTitle: boolean;
@@ -148,10 +172,55 @@ function useOptionLanes(
     return fetched;
 }
 
+/**
+ * The server's lane totals, held in React for the reason the option lanes
+ * are: the query is asynchronous and `updateView` is not.
+ *
+ * `settled` is false until the first answer for the route arrives, so the
+ * board does not caption loaded-card totals as final for the moment before
+ * the server's replace them. A later key — a move landed, a refresh — keeps
+ * the previous answer on screen until the new one comes, rather than
+ * flickering to the loaded cards and back. An answer of `null` is the route
+ * declining, and the loaded cards are then the totals, captioned so.
+ */
+function useServerTotals(
+    route: { key: string; load: () => Promise<TotalsAnswer | null> } | null,
+): { answer: TotalsAnswer | null; settled: boolean } {
+    const [state, setState] = React.useState<{ answer: TotalsAnswer | null; settled: boolean }>({
+        answer: null,
+        settled: false,
+    });
+    const key = route ? route.key : '';
+
+    React.useEffect(() => {
+        if (!route) {
+            setState({ answer: null, settled: true });
+
+            return undefined;
+        }
+
+        let alive = true;
+
+        void route.load().then((answer) => {
+            if (alive) {
+                setState({ answer, settled: true });
+            }
+        });
+
+        return () => {
+            alive = false;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [key]);
+
+    return state;
+}
+
 export function KanbanBoardControl(props: IProps): React.ReactElement | null {
     const { cards, getString, laneWidth } = props;
     const [overlay, place] = useOptimisticLanes(cards, props.failedMoves);
     const fromOptions = useOptionLanes(props.lanesKey, props.loadLanes);
+    const server = useServerTotals(props.totalsWanted ? props.totals : null);
 
     /*
      * The search text lives here and nowhere else. A virtual control cannot
@@ -179,6 +248,34 @@ export function KanbanBoardControl(props: IProps): React.ReactElement | null {
     const lanes = fromOptions
         ? withUnassigned(fromOptions, placed, props.unassignedLabel)
         : props.lanes;
+
+    /*
+     * Lane totals: the server's where it answered, the placed cards'
+     * otherwise — placed, so a card dropped a moment ago counts in its new
+     * lane on the loaded route. The server's catch up on the next key.
+     */
+    const fromCards = React.useMemo(() => totalsFromCards(placed), [placed]);
+    const totalOf = (lane: Lane): LaneTotal => {
+        const key = laneKey(lane.value);
+
+        if (server.answer) {
+            return server.answer.byLane[key] ?? { count: 0, sum: null, label: null };
+        }
+
+        return fromCards.get(key) ?? { count: 0, sum: null, label: null };
+    };
+
+    /*
+     * The caption is not decoration: it is the only thing that keeps a sum
+     * over the loaded cards from reading as the view's. Nothing is claimed
+     * until the server route has answered or declined.
+     */
+    const caption = !props.hasValue || !server.settled
+        ? null
+        : server.answer
+            ? getString('KanbanBoard_TotalsView').replace('{0}', String(server.answer.records))
+            : getString(props.hasNextPage ? 'KanbanBoard_TotalsLoaded' : 'KanbanBoard_TotalsBoard')
+                .replace('{0}', String(placed.length));
 
     const move = (recordId: string, toValue: number): void => {
         place(recordId, toValue);
@@ -260,6 +357,8 @@ export function KanbanBoardControl(props: IProps): React.ReactElement | null {
 
             {empty && <p className="KanbanBoard-message">{emptyMessage}</p>}
 
+            {caption !== null && !empty && <p className="KanbanBoard-caption">{caption}</p>}
+
             {props.showSearch && !empty && (
                 <div className="KanbanBoard-toolbar">
                     {/*
@@ -323,6 +422,8 @@ export function KanbanBoardControl(props: IProps): React.ReactElement | null {
                         lane={lane}
                         cards={cardsInLane(shown, lane)}
                         total={cardsInLane(placed, lane).length}
+                        laneTotal={props.totalsWanted ? totalOf(lane) : null}
+                        limit={lane.value === null ? null : props.limits[String(lane.value)] ?? null}
                         searching={searching}
                         width={laneWidth}
                         onDrop={move}
@@ -351,6 +452,10 @@ interface ILaneProps extends IProps {
     cards: Card[];
     /** Every card in the lane, whatever the search says. */
     total: number;
+    /** The lane's count and sum — the server's, or the loaded cards' — or `null` when no totals are wanted. */
+    laneTotal: LaneTotal | null;
+    /** The lane's soft limit, or `null`. */
+    limit: number | null;
     searching: boolean;
     width: number;
     onDrop: (recordId: string, toValue: number) => void;
@@ -374,16 +479,33 @@ function LaneColumn(props: ILaneProps): React.ReactElement {
      * of the time. The unassigned lane takes no new card, for the reason it
      * takes no drop: a card with no lane is not something to create on purpose.
      */
+    /*
+     * A limit is counted against the lane's total — the server's count of
+     * the whole view where it answered, not the cards loaded so far — and a
+     * lane over it is marked, never closed: a soft limit, by decision.
+     */
+    const limitCount = props.laneTotal ? props.laneTotal.count : props.total;
+    const overLimit = props.limit !== null && limitCount > props.limit;
     const count = props.searching
         ? getString('KanbanBoard_MatchCount').replace('{0}', String(cards.length)).replace('{1}', String(props.total))
-        : String(props.total);
+        : props.limit !== null
+            ? `${limitCount} / ${props.limit}`
+            : String(props.total);
+    const spoken = overLimit
+        ? getString('KanbanBoard_OverLimit').replace('{0}', String(limitCount)).replace('{1}', String(props.limit))
+        : count;
+    const sum = props.hasValue && props.laneTotal
+        ? props.laneTotal.label ?? (props.laneTotal.sum !== null ? props.formatValue(props.laneTotal.sum) : '—')
+        : null;
     const creatable = lane.value !== null && !props.disabled && props.canCreate;
 
     return (
         <section
             className={over ? 'KanbanBoard-lane is-over' : 'KanbanBoard-lane'}
             style={{ width: `${props.width}px` }}
-            aria-label={`${lane.label}, ${getString('KanbanBoard_CardCount').replace('{0}', count)}`}
+            aria-label={`${lane.label}, ${getString('KanbanBoard_CardCount').replace('{0}', spoken)}${
+                sum !== null ? `, ${getString('KanbanBoard_LaneTotal').replace('{0}', sum)}` : ''
+            }`}
             onDragOver={(event): void => {
                 if (!droppable) {
                     return;
@@ -430,7 +552,12 @@ function LaneColumn(props: ILaneProps): React.ReactElement {
 
             <header className="KanbanBoard-laneHeader">
                 <span className="KanbanBoard-laneLabel">{lane.label}</span>
-                <span className="KanbanBoard-laneCount">{count}</span>
+                <span
+                    className={overLimit ? 'KanbanBoard-laneCount is-over' : 'KanbanBoard-laneCount'}
+                    title={overLimit ? spoken : undefined}
+                >
+                    {count}
+                </span>
                 {/*
                     Hidden rather than disabled where nothing can create — the
                     same reasoning as the move menu: a permanently greyed
@@ -450,6 +577,17 @@ function LaneColumn(props: ILaneProps): React.ReactElement {
                     </Button>
                 )}
             </header>
+
+            {/*
+                The lane's total, under its name. aria-hidden: the section's
+                own label already says it, and a screen reader hearing it
+                twice per lane hears noise.
+            */}
+            {sum !== null && (
+                <div className="KanbanBoard-laneTotal" aria-hidden="true">
+                    {sum}
+                </div>
+            )}
 
             <ul className="KanbanBoard-cards">
                 {cards.map((card) => (
