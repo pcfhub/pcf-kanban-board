@@ -140,6 +140,7 @@
                 "entitySet": "cr123_workitems",
                 "primaryId": "cr123_workitemid",
                 "primaryName": "cr123_subject",
+                "displayName": "Work item",
                 "columns": {
                     "cr123_status": {
                         "options": [
