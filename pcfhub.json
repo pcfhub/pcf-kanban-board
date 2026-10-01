@@ -4,6 +4,7 @@
   "slug": "pcf-kanban-board",
   "name": "Kanban Board",
   "tagline": "A Dataverse view as a drag-and-drop board, grouped by a choice column.",
+  "summary": "Bind it to a view, name the choice column that holds the status and the column for the card title, and every record becomes a card in its lane.\n\n- Dragging a card to another lane writes the new value to Dataverse\n- The **+** in a lane header opens the quick create form with that lane already chosen\n- A search box narrows the board to the matching cards\n- Lane totals from a number or currency column, over the whole view",
   "category": "data",
   "hosts": ["canvas", "model-driven"],
   "tags": ["react", "kanban", "board", "drag-and-drop", "write-back", "search", "quick-create", "accessible"],
