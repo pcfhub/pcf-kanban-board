@@ -8,6 +8,10 @@ order: 1
 
 A Dataverse view as a drag-and-drop board, grouped by a choice column.
 
+:::callout{type=warning}
+**Reference example · built with AI.** This control was written with AI (Claude) and tested on a live Dataverse form; its code has not been reviewed line by line. It is published as a worked example and is not maintained — read the source and [SPEC.md](https://github.com/pcfhub/pcf-kanban-board/blob/main/SPEC.md) (what was measured on the form) before you use it. Fixes are not guaranteed.
+:::
+
 ::image{src=media/screenshot-board.png alt="A sprint board: the line Totals: all 9 records in the view and a search box above four lanes — Unassigned, New, Active and Resolved, each in its option's colour — each headed by its name, a count and a + button with the lane's total under it, and cards showing a title, an assignee and a priority badge" zoom}
 
 Bind it to a view, tell it which column holds the status and which holds the

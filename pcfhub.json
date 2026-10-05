@@ -8,6 +8,8 @@
   "category": "data",
   "hosts": ["canvas", "model-driven"],
   "tags": ["react", "kanban", "board", "drag-and-drop", "write-back", "search", "quick-create", "accessible"],
+  "supportLevel": "reference",
+  "builtWith": "ai",
 
   "control": {
     "namespace": "PCFHub",
