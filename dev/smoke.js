@@ -508,6 +508,32 @@ check('passes the search switch down', bind({ inputs: { showSearch: false } }).p
         `count ${refusedSave.props().failedMoves}, lane ${laneOf(refusedSave, 'w1')}`,
     );
 
+    /*
+     * **A refused card stops being "moving" with no render from the host.** A
+     * refusal changes no output, so a model-driven form calls `updateView` for
+     * the move's start and not again. Through 0.4.1 the props carried a copy
+     * of the list made at that render: the card was put back, and stayed
+     * greyed out as "Moving…" with its Move button disabled (measured on a
+     * sub-grid, 2026-10-07, a business rule refusing the save). So these read
+     * the props of the render the move's start brought, and never settle.
+     */
+    const stuck = bind({ quirks: { saveRejects: true }, rejection: { message: 'Resolution is required' } });
+
+    stuck.props().onMove('w1', 3);
+    stuck.settle();
+
+    const drawn = stuck.props();
+
+    check('a card is moving while its write is in flight', drawn.isMoving('w1') === true, String(drawn.isMoving('w1')));
+
+    await flush();
+
+    check(
+        'and has stopped once the write is refused, in the props the form last drew with',
+        drawn.isMoving('w1') === false,
+        String(drawn.isMoving('w1')),
+    );
+
     /* ----------------------------------------------------------- the create */
 
     /*

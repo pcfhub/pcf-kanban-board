@@ -58,7 +58,8 @@ export interface IProps {
     canCreate: boolean;
     /** Whether the search box is rendered at all. */
     showSearch: boolean;
-    moving: string[];
+    /** Whether the control has a write in flight for this card. Asked at render time: see `index.ts`. */
+    isMoving: (recordId: string) => boolean;
     moveError: string | null;
     /** How many moves have been refused, so the board drops a refused card's placement. */
     failedMoves: number;
@@ -523,7 +524,7 @@ export function KanbanBoardControl(props: IProps): React.ReactElement | null {
                          * Found by the hub's demo, 2026-09-28.
                          */
                         lanes={lanes}
-                        moving={[...props.moving, ...busy]}
+                        moving={[...placed.filter((card) => props.isMoving(card.id)).map((card) => card.id), ...busy]}
                         lane={lane}
                         cards={cardsInLane(shown, lane)}
                         total={cardsInLane(placed, lane).length}
@@ -556,6 +557,8 @@ export function KanbanBoardControl(props: IProps): React.ReactElement | null {
 
 interface ILaneProps extends IProps {
     lane: Lane;
+    /** The cards with a move in flight: the control's and the ones this board started. */
+    moving: string[];
     /** The cards to draw — every card in the lane, or the ones matching the search. */
     cards: Card[];
     /** Every card in the lane, whatever the search says. */

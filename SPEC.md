@@ -2,6 +2,41 @@
 
 A Dataverse view as a drag-and-drop board, grouped by a choice column.
 
+## 0.4.3 — a refused card is usable again
+
+Found on a model-driven sub-grid on 2026-10-07 (Service Desk, tickets by
+status), where a business rule refuses a ticket set to Resolved with no
+resolution. The move was refused and the card put back, as designed — and
+the card stayed greyed out as "Moving…" with its Move button disabled, until
+the form was reloaded. Measured on 0.4.1.
+
+The control kept the cards with a write in flight in a set and **copied** it
+into the props at each render. A refusal changes no output, so a form calls
+`updateView` for the move's start and never again: the copy made at that
+render still held the card. Through 0.4.0 a `refresh()` followed every move,
+which should have brought the render that cleared it; that reading comes from
+the code, and 0.4.0 was not run again.
+
+The props now carry a function that reads the live set, and the component
+re-renders itself when the move settles, so nothing waits on the host. Two
+smoke checks hold it: the card is moving while the write is in flight, and
+has stopped once the write is refused, **in the props of the render the
+move's start brought**, with no settle in between. On the same form after
+the fix: the refusal's text shows, the card is back in its lane, not greyed,
+and its Move button works.
+
+Not measured: the drag itself (the browser automation used here could not
+start an HTML5 drag; every move went through the card's Move menu), and a
+refusal in a canvas app. 0.4.2 was a first attempt that cleared the set
+before the announcement; it changed nothing on the form and was never
+released.
+
+**Seeing a new build on a form.** The app serves the control's bundle from a
+service-worker cache named `WebResources`. After an import, a reload and
+even a `fetch` with `cache: 'reload'` returned the previous bundle while
+Dataverse already held the new one. Deleting the control's entries from
+`caches` (or a new private window) brought it.
+
 ## 0.4.1 — a move keeps what Load more brought in
 
 Found on the form right after the 0.4.0 walkthrough (2026-09-29): Load more

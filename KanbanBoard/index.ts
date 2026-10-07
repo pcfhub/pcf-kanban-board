@@ -236,6 +236,16 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
     /** Cards with a write in flight, so the component can show them as busy. */
     private readonly moving = new Set<string>();
 
+    /**
+     * Asked at render time, not copied into the props. A refused move changes
+     * no output, so a form calls `updateView` for the move's start and never
+     * again: a copied list kept the card in it for good, and the card stayed
+     * "Moving…" with its Move button disabled (0.4.1, measured on a sub-grid
+     * with a business rule refusing the save). The component re-renders itself
+     * when the move settles, and then this answers from the live set.
+     */
+    private readonly isMoving = (recordId: string): boolean => this.moving.has(recordId);
+
     private moveError: string | null = null;
 
     /**
@@ -321,7 +331,7 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
             canMove: this.canWrite(context, dataset),
             canCreate: (context.parameters.allowCreate.raw ?? true) && formOpener(context) !== null,
             showSearch: context.parameters.showSearch.raw ?? true,
-            moving: [...this.moving],
+            isMoving: this.isMoving,
             moveError: this.moveError,
             failedMoves: this.failedMoves,
             loading: dataset.loading,
@@ -797,6 +807,10 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
                 (): MoveOutcome => ({ ok: true, message: null }),
                 (error: unknown): MoveOutcome => {
                     this.pending.delete(recordId);
+                    // Before the announcement, not only in the `finally`: a
+                    // host that does render on it must not draw the card as
+                    // still moving.
+                    this.moving.delete(recordId);
                     this.failedMoves += 1;
                     this.moveError = `${context.resources
                         .getString('KanbanBoard_MoveFailed')
