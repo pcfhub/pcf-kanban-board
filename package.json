@@ -19,7 +19,8 @@
     "bump": "node scripts/version.mjs",
     "release": "node scripts/release.mjs",
     "harness": "node dev/serve.js",
-    "shots": "node dev/shots.js"
+    "shots": "node dev/shots.js",
+    "demo-check": "node dev/demo-check.js"
   },
   "devDependencies": {
     "@fluentui/react-components": "9.46.2",
