@@ -232,6 +232,12 @@
   <data name="ValueField_Desc" xml:space="preserve">
     <value>Eine numerische Spalte, die für jede Bahn summiert und unter ihrem Namen angezeigt wird: die Summe der ganzen Ansicht, wenn der Server sie liefern kann, sonst die der geladenen Karten. Leer lassen für keine Summe.</value>
   </data>
+  <data name="SwimlaneField_Name" xml:space="preserve">
+    <value>Swimlane-Spalte</value>
+  </data>
+  <data name="SwimlaneField_Desc" xml:space="preserve">
+    <value>Optional. Eine Auswahl-, Ja/Nein-, Besitzer- oder Suchspalte, die das Board in Zeilen teilt, eine pro Wert. Wird eine Karte in eine andere Zeile gezogen, ändert sich diese Spalte. Leer lassen für ein Board ohne Zeilen.</value>
+  </data>
   <data name="ParentLookup_Name" xml:space="preserve">
     <value>Übergeordnetes Nachschlagefeld</value>
   </data>

@@ -7,7 +7,7 @@
   -->
   <control namespace="PCFHub"
            constructor="KanbanBoard"
-           version="0.4.3"
+           version="0.4.8"
            display-name-key="KanbanBoard_Name"
            description-key="KanbanBoard_Desc"
            control-type="virtual">
@@ -88,7 +88,29 @@
                     of-type-group="numbers"
                     usage="bound"
                     required="false" />
+
+      <!--
+        0.5.0: the rows. A sixth role, optional like the fifth — unbound, the
+        board is exactly 0.4.x. A Choice, a Yes/No, Owner or a lookup: the
+        columns a team splits a board by (priority, owner, customer), and the
+        four a drop can write back — a Choice and a Yes/No through the record
+        or the Web API like the lane, Owner and a lookup through the Web API's
+        @odata.bind (pcf-data-table 0.5.0's measured route). See SPEC.md 0.5.0.
+      -->
+      <property-set name="swimlaneField"
+                    display-name-key="SwimlaneField_Name"
+                    description-key="SwimlaneField_Desc"
+                    of-type-group="swimlanes"
+                    usage="bound"
+                    required="false" />
     </data-set>
+
+    <type-group name="swimlanes">
+      <type>OptionSet</type>
+      <type>TwoOptions</type>
+      <type>Lookup.Owner</type>
+      <type>Lookup.Simple</type>
+    </type-group>
 
     <type-group name="numbers">
       <type>Whole.None</type>

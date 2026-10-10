@@ -232,6 +232,12 @@
   <data name="ValueField_Desc" xml:space="preserve">
     <value>レーンごとに合計され、レーン名の下に表示される数値列。サーバーが計算できる場合はビュー全体の合計、それ以外は読み込み済みカードの合計です。合計を表示しない場合は空にします。</value>
   </data>
+  <data name="SwimlaneField_Name" xml:space="preserve">
+    <value>スイムレーン列</value>
+  </data>
+  <data name="SwimlaneField_Desc" xml:space="preserve">
+    <value>省略可能。ボードを値ごとの行に分ける選択肢、はい/いいえ、所有者、または検索列です。カードを別の行にドラッグすると、この列が変更されます。行のないボードにするには空のままにします。</value>
+  </data>
   <data name="ParentLookup_Name" xml:space="preserve">
     <value>親レコードの参照列</value>
   </data>

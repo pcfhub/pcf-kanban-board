@@ -24,6 +24,10 @@ import { TotalsAnswer, loadTotals } from './data/totals';
 import { Filter, filterToFetchXml } from './lib/view-aggregate/fetchXml';
 import { ParentReading, rowsConfirm } from './lib/view-aggregate/parent';
 import { WebApiReader } from './lib/view-aggregate/aggregate';
+import { Probe } from './probe';
+
+/** THE 0.4.8 PROBE — see probe.ts. Delete with it before 0.5.0. */
+const PROBE = new Probe();
 
 type DataSet = ComponentFramework.PropertyTypes.DataSet;
 type Column = ComponentFramework.PropertyHelper.DataSetApi.Column;
@@ -300,6 +304,7 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
     public updateView(context: ComponentFramework.Context<IInputs>): React.ReactElement {
         const dataset = context.parameters.records;
 
+        PROBE.observe(context);
         this.applyPageSize(context, dataset);
 
         const status = this.roleColumn(dataset, ROLES.status);

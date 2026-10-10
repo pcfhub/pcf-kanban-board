@@ -232,6 +232,12 @@
   <data name="ValueField_Desc" xml:space="preserve">
     <value>Una columna numérica que se suma en cada carril y se muestra bajo su nombre: el total de toda la vista cuando el servidor puede darlo y, si no, el de las tarjetas cargadas. Déjela vacía para no mostrar totales.</value>
   </data>
+  <data name="SwimlaneField_Name" xml:space="preserve">
+    <value>Columna de calle</value>
+  </data>
+  <data name="SwimlaneField_Desc" xml:space="preserve">
+    <value>Opcional. Una columna de opción, Sí/No, Propietario o búsqueda que divide el tablero en filas, una por valor. Arrastrar una tarjeta a otra fila cambia esta columna. Déjela vacía para un tablero sin filas.</value>
+  </data>
   <data name="ParentLookup_Name" xml:space="preserve">
     <value>Búsqueda principal</value>
   </data>

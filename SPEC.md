@@ -2,6 +2,50 @@
 
 A Dataverse view as a drag-and-drop board, grouped by a choice column.
 
+## 0.5.0 — swimlanes and a sort menu
+
+Picked by the 10 Oct 2026 demand survey (the twenty-first run): Kanban was #3
+by hub downloads (23), its own limitations page said *"No swimlanes, no
+sorting, no selection"*, PowerKanban has swimlanes, and the hub had no hit for
+"swimlane". Decided with the user the same day:
+
+- **Swimlanes: Choice + Owner, writable.** A sixth role, `swimlaneField`
+  (Choice, Yes/No, Owner, lookup), draws one row per value; dropping a card
+  into another row writes that column — a Choice or Yes/No by the lane's two
+  routes, Owner and a lookup by the Web API's `@odata.bind`.
+- **Sort: a user sort menu**, applied through the view's own server sort
+  (`dataset.sorting`) so *Load more* stays in order, remembered per browser
+  per view, with a maker property for the default. Off by default: a new
+  feature arrives switched off.
+
+Selection stays out of scope.
+
+### The 0.4.8 probe
+
+A throwaway build: 0.4.3 plus `probe.ts` and the `swimlaneField` role (which
+0.5.0 keeps), no feature code. `window.__pcfKanbanProbe.help()` lists the
+calls; the bundle carries `kanban-probe-0.4.8`. Numbered below 0.5.0 because
+Dataverse ignores a re-import at the same number.
+
+**Needs on the environment first:** on the Accounts form's `cll_task`
+subgrid, bind **Swimlane column** to a Choice (add one, e.g. *Priority*, if
+`cll_task` has none) for P2 and P5; a second board — or a rebind — on
+**Owner** for P1; at least one task owned by a **team** (P1, P3); a user
+without Assign on `cll_task` for the refusal half of P6, if one is to hand;
+a canvas app with the board for P9. The lane stays on Status Reason.
+
+| | Question | Decides | Measured |
+| --- | --- | --- | --- |
+| P1 | `getValue`/`getFormattedValue` of an **Owner** column on a dataset record — a user row and a team row: shape, `etn`, braces and case of the id | the Owner row key | |
+| P2 | The raw value of a **Choice** and of a **Yes/No** column on a record (chart-view measured a Choice as the string `"1"`) | the row key for Choice and Yes/No | |
+| P3 | `write(id, { "ownerid@odata.bind": "/systemusers(<id>)" })`, then `/teams(<id>)`: accepted? What reads back? | Owner rows writable at all | |
+| P4 | One payload: `statecode` + `statuscode` + `ownerid@odata.bind` (a drop into another lane *and* another row) | one write or two | |
+| P5 | `stage(id, { <lane>: n, <choice>: m })`: `setValue` on both, one `save()` | a Choice row move with no Web API | |
+| P6 | `hasEntityPrivilege(table, 5, depth)` beside Write (3), from `dump()`; a user without Assign through `write()` — the refusal | whether Owner rows are drop targets | |
+| P7 | `sort(column, dir)` (in place + `refresh()`) and `sortAssign` (assignment) on a subgrid and a main grid: is the order applied; does `more()` continue in it; does a main grid's own sort change for the user? | the sort route | |
+| P8 | `sort("createdon", 1)` and a role column with `order: -1`: applied, ignored or thrown? `disableSorting` per column, from `dump()` | what the menu may list | |
+| P9 | `dump()` and `sort()` in a **canvas** app | whether canvas gets the menu | |
+
 ## 0.4.3 — a refused card is usable again
 
 Found on a model-driven sub-grid on 2026-10-07 (Service Desk, tickets by
