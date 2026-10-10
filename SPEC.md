@@ -153,6 +153,20 @@ true), browser caches cleared after the rebind.
 | W4 | Title descending from the menu, then Load more | **Passed** — Deploy, Create ×3 on page one, then 12, 11, 10, 09: the server's order (`[` before letters), kept across the page; stored as `pcfhub-kanban-sort:cll_task:<view id>` |
 | W5 | A reload | **Passed** — the board came back sorted by Title descending, from the stored choice |
 | W6 | An assignment the server refuses (the assignee cannot read the table) | **Not reachable on a board** — a row exists only for an owner of a loaded card, who can read the table. Covered by P3 (the message) and the suite (the title shown) |
+| W7 | The canvas test app, updated to 0.5.0 in Studio, *Show sort menu* on, *Sort cards by* `cll_title desc`, published; read with Playwright inside the player's frame | **Passed** — the player served 0.5.0 (50,229 bytes, the sort's storage key in it); **no totals caption** (0.4.x printed one over the nameless `valueField`); the `cll_status` rows draw; `cll_title desc` applied on load; the direction button flipped it to ascending and Load more continued in it; no Move menu and nothing draggable; the menu lists no column twice though canvas hands each role over twice |
+
+Two things the canvas walkthrough cost, both about the tools, not the
+control: **Studio reopened the app read-only** for about twenty minutes —
+each reopen started a session while the last one still held the edit lock —
+and **the player kept serving the first published build** after the new one
+was published, because the saved Playwright session carried the player's
+`localStorage`, which pins the app version (the bundle URL said
+`20261010T202615Z`, the first publish). With the session's cookies only, the
+new build came at once.
+
+The React warning on the canvas mount (*"type is invalid … got: undefined"*)
+is still there on 0.5.0; it was there on 0.4.8, and the board draws. Still
+under *Not verified*.
 
 ## 0.4.3 — a refused card is usable again
 
