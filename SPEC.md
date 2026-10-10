@@ -117,6 +117,43 @@ What it decides for 0.5.0:
   `webAPI` exists in canvas and throws at the call — the rule the control
   already applies to `openForm`.
 
+### What was built
+
+The probe's answers, written in: a Swimlane column role (Choice, Yes/No,
+Owner, lookup); rows from the cards, and a Choice's from its option set; a
+row move written beside the lane in one write — the record route when every
+column is a dataset column that answers `isEditable` true, the Web API
+otherwise, and always for a bind; Owner rows gated on Assign (5) at any
+depth, offered where the question cannot be asked; a refusal's `title` where
+its `message` is a `{n}` template; **Sort cards by** applied once per table
+and view from `updateView`, a sort menu (off by default) kept per table and
+view in `localStorage`, both mutating `dataset.sorting` in place and
+refreshing, offering only the dataset's named, sortable, visible columns,
+with the column named beside two labels that read the same; `roleColumn`
+reading a nameless column as unset. 126 assertions; the Owner bind and the
+nameless role mutation-checked.
+
+Found while building, not by the probe: the preview's first look at the demo
+board had no lane colours, caption or currency sums. The rig was not at
+fault — the screenshot was taken before the board's metadata and aggregate
+answered; with time to load, both were right. A screenshot of an
+asynchronous control is a claim about a moment.
+
+### The walkthrough, on 0.5.0 (2026-10-10)
+
+On the test environment's account form, the `cll_task` subgrid, lane Status
+Reason, page size 4, bound with `ppdev` (swimlane `ownerid`, `showSort`
+true), browser caches cleared after the rebind.
+
+| | What | Result |
+| --- | --- | --- |
+| W1 | 0.5.0 runs, Owner rows draw, the sort menu shows the view's own sort | **Passed** — no probe in the bundle; rows *Charles Llamas 3* and *Owner Users 1* from the four loaded cards; lanes and colours from the option set; the menu on *Title* (the view's `cll_title` ascending), "Status (cll_status)" and "Status (statecode)" told apart |
+| W2 | A card moved to a team's row from its Move menu | **Passed** — read back owned by *Owner Users*, its reason unchanged, no error; the board placed it in the team's row |
+| W3 | A drop into another lane **and** another row (a drag, dispatched as DOM drag events with a real `DataTransfer` — the pane cannot start an HTML5 drag) | **Passed** — Cancelled → Active (state 0, reason 1) and reassigned to the team, at one `modifiedon` |
+| W4 | Title descending from the menu, then Load more | **Passed** — Deploy, Create ×3 on page one, then 12, 11, 10, 09: the server's order (`[` before letters), kept across the page; stored as `pcfhub-kanban-sort:cll_task:<view id>` |
+| W5 | A reload | **Passed** — the board came back sorted by Title descending, from the stored choice |
+| W6 | An assignment the server refuses (the assignee cannot read the table) | **Not reachable on a board** — a row exists only for an owner of a loaded card, who can read the table. Covered by P3 (the message) and the suite (the title shown) |
+
 ## 0.4.3 — a refused card is usable again
 
 Found on a model-driven sub-grid on 2026-10-07 (Service Desk, tickets by
