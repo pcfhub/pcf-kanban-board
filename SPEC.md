@@ -36,15 +36,37 @@ a canvas app with the board for P9. The lane stays on Status Reason.
 
 | | Question | Decides | Measured |
 | --- | --- | --- | --- |
-| P1 | `getValue`/`getFormattedValue` of an **Owner** column on a dataset record — a user row and a team row: shape, `etn`, braces and case of the id | the Owner row key | |
-| P2 | The raw value of a **Choice** and of a **Yes/No** column on a record (chart-view measured a Choice as the string `"1"`) | the row key for Choice and Yes/No | |
-| P3 | `write(id, { "ownerid@odata.bind": "/systemusers(<id>)" })`, then `/teams(<id>)`: accepted? What reads back? | Owner rows writable at all | |
-| P4 | One payload: `statecode` + `statuscode` + `ownerid@odata.bind` (a drop into another lane *and* another row) | one write or two | |
-| P5 | `stage(id, { <lane>: n, <choice>: m })`: `setValue` on both, one `save()` | a Choice row move with no Web API | |
-| P6 | `hasEntityPrivilege(table, 5, depth)` beside Write (3), from `dump()`; a user without Assign through `write()` — the refusal | whether Owner rows are drop targets | |
-| P7 | `sort(column, dir)` (in place + `refresh()`) and `sortAssign` (assignment) on a subgrid and a main grid: is the order applied; does `more()` continue in it; does a main grid's own sort change for the user? | the sort route | |
-| P8 | `sort("createdon", 1)` and a role column with `order: -1`: applied, ignored or thrown? `disableSorting` per column, from `dump()` | what the menu may list | |
-| P9 | `dump()` and `sort()` in a **canvas** app | whether canvas gets the menu | |
+| P1 | `getValue`/`getFormattedValue` of an **Owner** column on a dataset record — a user row and a team row: shape, `etn`, braces and case of the id | the Owner row key | **An object, both kinds**: `{ etn: "systemuser", id: { guid: "eea5fa1a-…" }, name: "Charles Llamas" }` and `{ etn: "team", id: { guid: "e8d840ff-…" }, name: "Owner Users" }` — the GUID bare and lower-case under `id.guid`; `getFormattedValue` is the name |
+| P2 | The raw value of a **Choice** and of a **Yes/No** column on a record (chart-view measured a Choice as the string `"1"`) | the row key for Choice and Yes/No | **Strings, both.** A Choice is `"858010000"` with its label formatted ("Todo"); a Yes/No is `"1"` / `"0"` with its labels ("Urgent" / "Normal"); a Yes/No never set is `null` with a `null` formatted value — a third row, not *No* |
+| P3 | `write(id, { "ownerid@odata.bind": "/systemusers(<id>)" })`, then `/teams(<id>)`: accepted? What reads back? | Owner rows writable at all | **A team: accepted** (386 ms), read back `_ownerid_value` = the team with `lookuplogicalname: "team"`. **A user without read on the table: refused** — `errorCode 2147746457`, `title` "Assignee does not hold the required read privilege or access.", while `message` is the **unfilled template** "Assignee {2}(Id = {3}) is missing {0} privilege on {1} entity(OTC={4})…" — show the title. The user-to-user success case was not asked (the only other user lacks read) |
+| P4 | One payload: `statecode` + `statuscode` + `ownerid@odata.bind` (a drop into another lane *and* another row) | one write or two | **One write, accepted** (1,081 ms): `{ statecode: 0, statuscode: 1, "ownerid@odata.bind": "/teams(…)" }` from Inactive/Charles read back Active/Owner Users |
+| P5 | `stage(id, { <lane>: n, <choice>: m })`: `setValue` on both, one `save()` | a Choice row move with no Web API | **Works for columns in the dataset.** `cll_status` (Choice, `isEditable` true) alone: saved in 597 ms. `cll_urgent: true` (a boolean) + `cll_status` together, both in the dataset: one `save()`, 584 ms, both persisted. `getValue` keeps the old value until the refresh. **Two traps:** a column **not** in the dataset answers `isEditable` false and its `setValue` is **dropped silently** — the save resolves and writes the rest; and **`ownerid` answers `isEditable` true, yet `setValue` with the record's own `{ etn, id: { guid }, name }` shape stages null and the save is refused** — `2147746307` "Attribute: ownerid cannot be set to NULL". Owner (and lookup) rows go through the Web API only |
+| P6 | `hasEntityPrivilege(table, 5, depth)` beside Write (3), from `dump()`; a user without Assign through `write()` — the refusal | whether Owner rows are drop targets | **Callable, with `Utility` declared**; Assign (5), Write (3), Share (6), AppendTo (8) all `true` at depths 0–3 for a System Administrator. A caller *without* Assign not measured (no such user to hand); the refusal measured is the assignee's (P3) |
+| P7 | `sort(column, dir)` (in place + `refresh()`) and `sortAssign` (assignment) on a subgrid and a main grid: is the order applied; does `more()` continue in it; does a main grid's own sort change for the user? | the sort route | **Subgrid: in place + `refresh()` is applied by the server**, the page resets to the first 4, and `loadNextPage()` continues in the new order. **Assignment (`dataset.sorting = [...]`) does not take** — the next pass still holds the previous array, order unchanged. **A Choice sorts by its label**, not its value: descending put Todo, then On Hold. The view's own sort arrives as `[{ name: "cll_title", sortDirection: 0 }]`. Main grid not asked |
+| P8 | `sort("createdon", 1)` and a role column with `order: -1`: applied, ignored or thrown? `disableSorting` per column, from `dump()` | what the menu may list | **A column outside the dataset is ignored silently**: `createdon` ascending and descending both returned the view's own order (title ascending) with no error, while `dataset.sorting` went on reporting `createdon`. **A role column outside the view is sortable**: `cll_urgent` (`order: -1`) descending put the Urgent cards first. View columns carry `isHidden: false, disableSorting: false`; the off-view role column carries **neither key**. `getFormattedValue` of a column outside the dataset is `null` |
+| P9 | `dump()` and `sort()` in a **canvas** app | whether canvas gets the menu | **Not asked**: no canvas app carries the board (see *Not verified*) |
+
+**Answered 2026-10-10** on the test environment's account form, Adventure
+Works (sample), the `cll_task` subgrid: lane Status Reason, the swimlane bound
+in turn to `cll_status` (Choice), a new `cll_urgent` (Yes/No, 4 Yes, 4 No, 8
+never set) and `ownerid`; page size 4, 16 tasks. Bound with `ppdev form control
+bind`; **each rebind needed the browser's caches cleared** (`caches.keys()` →
+delete all) before the form showed it — a reload alone served the old
+binding. What it decides:
+
+- **Row keys:** a Choice or Yes/No row is the raw string (`"858010000"`,
+  `"1"`), labelled by the formatted value; `null` is its own *(empty)* row. An
+  Owner/lookup row is `id.guid` with `etn` beside it, labelled by `name`.
+- **Writes:** a Choice/Yes-No row change rides the lane's record route when the
+  record allows it (both columns staged, one save); the swimlane column is a
+  role, so it is always in the dataset. **An Owner/lookup row change is always
+  Web API** — the record route stages null — and a diagonal drop is one
+  `updateRecord` carrying the state pair and the bind.
+- **Refusals:** read `title` when `message` holds `{0}`-style placeholders.
+- **Sort menu:** list only `dataset.columns` (view columns and role columns),
+  never an arbitrary column; mutate `dataset.sorting` in place, then
+  `refresh()`. A Choice sorts by label, which the menu should say nothing
+  about — it is what the grid does too.
 
 ## 0.4.3 — a refused card is usable again
 
@@ -590,6 +612,12 @@ this repository, and the first one is load-bearing.
   route needs no feature, and the template's rig hands canvas the same records
   as model-driven — but nobody has bound this board in a canvas app and looked.
   The docs say "read-only, in practice" for that reason.
+- **0.5.0, from the 0.4.8 probe (2026-10-10):** `dataset.sorting` in a canvas
+  app (P9 — no canvas app carries the board); the sort on a **main grid**, and
+  whether it changes the grid's own sort for the user (P7); a caller **without**
+  Assign — what `hasEntityPrivilege(…, 5, …)` answers and what the server
+  refuses (P6); a user-to-user reassignment that succeeds (P3 had only a user
+  without read on the table).
 - ~~That a form parameter preselects a choice column on a quick create, and
   that it wants a string.~~ Measured: a string works, and so does a number.
   The control keeps the string, which is what the typings declare.
