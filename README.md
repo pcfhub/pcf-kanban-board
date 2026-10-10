@@ -56,6 +56,18 @@ library, related to the form's record on a subgrid the way the subgrid is.
 Where that cannot be done honestly, the board adds up its cards and a line
 above the lanes says so.
 
+**Swimlanes write too (0.5.0).** A **Swimlane column** splits the board into a
+row per value, and a card dropped into another row writes that column — a
+choice or Yes/No the way the lane is written, Owner and a lookup through the
+Web API as an `@odata.bind`, because a dataset record stages a lookup as empty
+and the save is refused (measured). Lane and row change in one write. Owner
+rows are offered only to a user whose roles allow Assign.
+
+**The sort is the view's own (0.5.0).** **Sort cards by** and the optional sort
+menu mutate `dataset.sorting` and refresh, so **Load more** keeps the order;
+only a column the board loads is offered, because a form ignores a sort on any
+other without a word.
+
 Every card also carries a **Move to…** menu. HTML5 drag-and-drop has no keyboard
 equivalent, so a board that only supported dragging could not be operated
 without a mouse at all.
@@ -63,7 +75,8 @@ without a mouse at all.
 ## Properties
 
 Bind the dataset to a view, then bind the column roles. **Lane column** and
-**Card title** are required; every column bound to a role must be in the view.
+**Card title** are required; a column bound to a role is fetched whether or not
+the view selects it.
 
 | Role | `property-set` | Type | Required | What it is |
 | --- | --- | --- | --- | --- |
@@ -72,6 +85,7 @@ Bind the dataset to a view, then bind the column roles. **Lane column** and
 | Assignee | `assigneeField` | SingleLine.Text | no | A second line under the title. Text, not a lookup — see below. |
 | Badge | `badgeField` | SingleLine.Text | no | A short value shown as a chip. |
 | Lane total | `valueField` | Whole, Decimal, FP or Currency | no | Added up per lane and shown under its name, over the whole view where Dataverse can answer. |
+| Swimlane column | `swimlaneField` | OptionSet, TwoOptions, Owner or Lookup | no | 0.5.0. A row per value; a card dropped into another row writes it. |
 
 The first column is what a maker sees in the property pane; the second is the
 name in the manifest, which is what a column carries in `alias` and what the
@@ -86,10 +100,12 @@ code looks it up by.
 | `pageSize` | Whole.None | — | Records per fetch; unset, the host's own. The board loads more rather than paging; the platform clamps large values. |
 | `parentLookup` | SingleLine.Text | — | On a subgrid, the lookup relating its rows to the form's record, for lane totals. Unset, found; `none` for an unrelated subgrid. |
 | `laneLimits` | SingleLine.Text | — | `858010001=5,2=3` — a soft limit per lane. Over it, the count is marked; nothing is refused. |
+| `sortBy` | SingleLine.Text | — | 0.5.0. `createdon desc` — the order inside every lane, by a column the board loads. Unset, the view's. |
+| `showSort` | TwoOptions | `false` | 0.5.0. A sort menu for the user, kept per table and view in their browser. |
 
 | Output | Type | Set when |
 | --- | --- | --- |
-| `movedRecordId` | SingleLine.Text | A card is dropped into another lane |
+| `movedRecordId` | SingleLine.Text | A card is dropped into another lane or row |
 | `openedRecordId` | SingleLine.Text | A card title is clicked |
 | `createdRecordId` | SingleLine.Text | The quick create opened from a lane's **+** saves |
 

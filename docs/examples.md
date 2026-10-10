@@ -46,6 +46,22 @@ the board relates them through the one lookup to account it finds, or the one
 **Parent lookup** names. Leave **Lane total** unbound and set only **Lane
 limits** for a board that counts without adding up.
 
+## A team board, one row per owner
+
+The sprint board above, split by who owns each item — reassigning is a drag
+into another row.
+
+| Property | Value |
+| --- | --- |
+| Lane column | `statuscode` |
+| Card title | `subject` |
+| Swimlane column | `ownerid` |
+| Sort cards by | `modifiedon desc` |
+| Show sort menu | On |
+
+The rows are the users and teams that own a card on the board. A user without
+the Assign privilege on the table sees the rows and cannot drop into another.
+
 ## A board over Status Reason
 
 Group by the built-in **Status Reason** and a card moved from *In Progress*

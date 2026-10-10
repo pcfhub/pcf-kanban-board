@@ -4,7 +4,7 @@
   "slug": "pcf-kanban-board",
   "name": "Kanban Board",
   "tagline": "A Dataverse view as a drag-and-drop board, grouped by a choice column.",
-  "summary": "Bind it to a view, name the choice column that holds the status and the column for the card title, and every record becomes a card in its lane.\n\n- Dragging a card to another lane writes the new value to Dataverse\n- The **+** in a lane header opens the quick create form with that lane already chosen\n- A search box narrows the board to the matching cards\n- Lane totals from a number or currency column, over the whole view",
+  "summary": "Bind it to a view, name the choice column that holds the status and the column for the card title, and every record becomes a card in its lane.\n\n- Dragging a card to another lane writes the new value to Dataverse\n- The **+** in a lane header opens the quick create form with that lane already chosen\n- A search box narrows the board to the matching cards\n- Lane totals from a number or currency column, over the whole view\n- Swimlanes by a choice, Yes/No, Owner or lookup column — drag a card into another row to reassign it\n- Sort the cards by a column, as the maker sets or the user chooses",
   "category": "data",
   "hosts": ["canvas", "model-driven"],
   "tags": ["react", "kanban", "board", "drag-and-drop", "write-back", "search", "quick-create", "accessible"],
@@ -31,7 +31,7 @@
 
   "media": {
     "logo": "media/logo.png",
-    "screenshots": ["media/screenshot-board.png", "media/screenshot-totals.png", "media/screenshot-limits.png", "media/screenshot-search.png"]
+    "screenshots": ["media/screenshot-board.png", "media/screenshot-swimlanes.png", "media/screenshot-sort.png", "media/screenshot-totals.png", "media/screenshot-limits.png", "media/screenshot-search.png"]
   },
 
   "demo": {
@@ -46,7 +46,8 @@
       "Sprint board and Narrow lanes read their lanes from the Status column’s option set, as a real view does with Lanes left empty: the labels, their order and each lane’s colour come from the options the stand-in Dataverse describes, through utils.getEntityMetadata. Lanes set by hand fills the Lanes property in instead and opens as a canvas app — the route a canvas app has to take, where the option set cannot be read — and there the declared labels and colours win.",
       "Load more works against the fixture. The board asks for its page size, and loadNextPage() adds the next page to the lanes, as on a real view, until the button goes away with every card shown. The Narrow lanes preset asks for six, so three of the nine cards wait behind Load more and the lane counts grow as they arrive — and because its lanes come from the option set, Resolved is on the board, empty, before any of its cards have loaded. The other presets ask for 50, which is all of them.",
       "Clicking a card calls dataset.openDatasetItem(). There is no form behind the demo, so the event log names the record that would have opened. The openedRecordId output still updates.",
-      "Lane totals here are the cards on the board, and the line above the lanes says so. On a form the board asks Dataverse for one total per lane over the whole view — the view’s own FetchXML as an aggregate, related to the form’s record on a subgrid — and the demo’s stand-in Dataverse answers no FetchXML, so the event log shows that query refused and the board adds up its cards, exactly as on any host that cannot aggregate. The limit on Active in Pipeline totals is a warning, never a refusal: a fourth card still lands."
+      "Lane totals here are the cards on the board, and the line above the lanes says so. On a form the board asks Dataverse for one total per lane over the whole view — the view’s own FetchXML as an aggregate, related to the form’s record on a subgrid — and the demo’s stand-in Dataverse answers no FetchXML, so the event log shows that query refused and the board adds up its cards, exactly as on any host that cannot aggregate. The limit on Active in Pipeline totals is a warning, never a refusal: a fourth card still lands.",
+      "Swimlanes and the sort menu (0.5.0) are not in a preset. A preset can change the board’s properties but not which column a role is bound to, and the Swimlane column is a role, so a swimlane preset would need a fixture of its own; the demo’s Area column is there for the screenshots. The sort applies through the view’s own sorting, which the demo harness does not keep between renders. Both are shown in the screenshots instead, and both work on a model-driven form."
     ],
     "presets": [
       {

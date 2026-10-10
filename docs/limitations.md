@@ -10,11 +10,14 @@ order: 7
 
 A move is written one of two ways: through the record — `setValue` and
 `save`, which needs no declared feature — where the platform reports the lane
-column as editable for that record, and through the Web API otherwise. Canvas
-apps offer code components neither the Web API
-([not available there][limits]) nor, as far as this control has seen, a record
-it can save, so the board renders and groups normally there and the drag
-handles and the *Move to…* menu are simply not shown.
+column as editable for that record, and through the Web API otherwise. A canvas
+app offers neither for a choice: the Web API is [not available there][limits]
+(the methods exist and refuse every call), and a canvas record, which can save
+a text column, takes a choice as empty in every form it was given — measured
+in a canvas app in October 2026. So the board renders, groups, searches and
+sorts normally there, and the drag handles and the *Move to…* menu are simply
+not shown. The same holds for swimlanes: a canvas board draws its rows and
+moves nothing between them.
 
 The control declares `WebAPI` as `required="false"` on purpose. Declared
 `required="true"`, the documented behaviour on a host that lacks the feature is
@@ -93,11 +96,47 @@ one per lane instead:
 What the control cannot do is choose colours for you. There is no palette and no
 default assignment: a lane is either given a colour or shows no bar.
 
-## No swimlanes, no sorting, no selection
+## Swimlanes are one column, and Owner rows come from the cards
 
-Cards sit in one dimension of grouping, in whatever order the view returns them.
-There is no second axis, no in-lane reordering, and no way to reorder cards by
-dragging within a lane — a drop only ever changes which lane a card is in.
+**Swimlane column** splits the board into rows by one column: a choice, a
+Yes/No, Owner, or a lookup. A choice's rows come from its options, so a row no
+card is in still appears on a model-driven board. **Owner and lookup rows come
+from the cards loaded** — the users and teams the board has seen — so moving a
+card to someone who owns nothing on the board yet is a change for the form,
+not the board. A card whose column is blank sits in an *(empty)* row, which
+takes no card: emptying a column is not a move.
+
+Moving a card into another row writes that column, in the same write as the
+lane when both change. **Owner rows need the Assign privilege**: the board asks
+whether the user's security roles allow Assign on the table, at any depth, and
+offers no Owner row as a target when they allow none. Like Delete in a grid, the
+question is per table, not per record — a user who may assign only their own
+records still sees the rows on everyone's cards, and gets Dataverse's refusal
+there. **Dataverse also refuses an assignment to a user who cannot read the
+table**, and the card goes back with its reason.
+
+Lane totals and limits stay per lane, over every row; each row shows only how
+many cards it holds.
+
+## Sorting is by one column the view carries
+
+**Sort cards by** and the sort menu order the cards inside every lane by one
+column, either way — not by two, and only by a column the board loads: one in
+the view, or one bound to a role. A model-driven form ignores a sort on any
+other column without a word, so the menu does not offer one and **Sort cards
+by** naming one is not applied. A column the view hides is not offered either.
+
+The sort is the view's own, applied the way its column headers apply one, so
+the board starts again at its first page — cards **Load more** had brought in
+go. A user's choice is kept **in that browser**, per table and view; another
+browser or a cleared cache starts from **Sort cards by**. A choice column sorts
+by its label on a model-driven form and by its value in a canvas app — the
+hosts' order, not the control's.
+
+## No dragging to reorder, no selection
+
+A drop changes a card's lane, its row, or both — never its place in the lane.
+Order comes from the sort; there is no rank column to drag against.
 
 The control also reports no selection, which is why the subgrid's command bar is
 off: there would be nothing for its buttons to act on.

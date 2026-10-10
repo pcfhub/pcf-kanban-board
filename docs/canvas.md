@@ -62,6 +62,8 @@ published custom page, and the board behaves correctly there.
 | Cards can be moved | Not in practice — see above | Yes |
 | Cards can be added with **+** | No — no form to open | Yes |
 | Search | Yes | Yes |
+| Swimlanes | Rows drawn; no card moves between them | Rows drawn, and moves write the column |
+| Sort and sort menu | Yes | Yes |
 | `movedRecordId` output | Set only if a move is offered | Set on each move |
 | `createdRecordId` output | Never set | Set when the quick create saves |
 | Opening a card | No form to open; `openedRecordId` still updates | Opens the record |

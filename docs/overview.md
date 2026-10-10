@@ -37,6 +37,15 @@ chosen; the search box narrows the board to the cards that match.
   total — the pipeline's value by stage — over every record in the view, not
   only the cards loaded so far, with a line saying which. A lane can carry a
   soft card limit that marks it when it is over.
+- **It splits into rows.** Bind a **Swimlane column** — a choice, a Yes/No,
+  Owner or a lookup — and the board becomes a grid: the lanes across the top,
+  a row per value down the side, each row folding shut. Drag a card into
+  another row and that column is written too, in the same write as the lane —
+  reassigning a card is a drag. Owner rows are offered only to a user who may
+  assign.
+- **It sorts.** **Sort cards by** sets the order inside every lane, and the
+  optional sort menu lets each user choose — remembered for that view in their
+  browser — while **Load more** keeps to the order.
 - **It knows Status Reason.** Group by Status Reason and a move to a reason of
   the other status writes the status too, the way the form's own *Deactivate*
   does, instead of being refused.
@@ -48,18 +57,20 @@ chosen; the search box narrows the board to the cards that match.
   HTML5 drag-and-drop has no keyboard equivalent and a board that only supports
   dragging cannot be operated from the keyboard at all.
 
+::image{src=media/screenshot-swimlanes.png alt="The same board split into rows by an Area choice column — Marketing, Engineering, Support and an empty Finance row read from the option set — with the lane headers, their colours and totals once across the top, each row's name and card count on its left, and every card in the cell for its lane and row" zoom}
+
 ## What it works with
 
 :::callout{type=info}
 **Model-driven apps: fully supported.** The board renders and cards can be
 moved.
 
-**Canvas apps: read-only, in practice.** The board renders, groups and
-searches. A move needs either the Web API — which
+**Canvas apps: read-only.** The board renders, groups, splits into rows,
+searches and sorts. A move needs either the Web API — which
 [canvas apps do not offer code components][limits] — or a record the host lets
-the control save; whether a canvas dataset hands over the second is not
-something this control has seen, so expect no drag handles and no *Move to…*
-menu there. The **+** is never shown in canvas: there is no quick create form
+the control save, and a canvas record takes a choice as empty in every form it
+was given (measured, October 2026), so there are no drag handles and no
+*Move to…* menu there. The **+** is never shown in canvas: there is no quick create form
 to open.
 
 **Custom pages: moves work in the published app.** Custom pages have runtime

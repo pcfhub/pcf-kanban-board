@@ -33,6 +33,7 @@ bound to a column in *your* table — the control never assumes a schema name.
 | Assignee | A **text** column shown under the title, such as a contact or an owner name | No |
 | Badge | A short **text** value shown as a chip, such as a priority or category | No |
 | Lane total | A **number or currency** column added up for each lane, such as an estimated value | No |
+| Swimlane column | A **choice, Yes/No, Owner or lookup** column that splits the board into rows, such as a priority or the owner | No |
 
 :::callout{type=warning}
 **Lane column must be a choice column.** The lanes are that column's options,
@@ -56,13 +57,52 @@ lets the read-only canvas board stay readable.
 
 ## Which columns the view needs
 
-The roles are read through the view, so **every column you bind must be in
-the view**. A role bound to a column the view does not select arrives empty, and
-the board treats a missing Lane column the same as an unbound one.
+A column bound to a role is fetched whether or not the view selects it — the
+platform adds it to the query — so a role does not have to be one of the
+view's columns. It is still worth putting the Lane column in the view, so the
+grid the board replaces shows it too.
 
 The view's own column order, widths and hidden flags are ignored — a board has
 no columns to lay out. What the view *does* control is which records appear and
 what order the cards sit in within each lane.
+
+## Swimlanes
+
+Bind **Swimlane column** and the board becomes a grid: the lanes stay across
+the top, with their counts, totals and limits, and each value of the column
+gets a row underneath, with a cell per lane. A row's header folds it shut and
+says how many cards it holds.
+
+| Bound to | The rows | A card dropped into another row |
+| --- | --- | --- |
+| A choice | Every option, from the option set — including ones no card is in | Writes the option, through the record or the Web API like the lane |
+| A Yes/No | Its two labels | Writes Yes or No |
+| Owner | Each user and team that owns a card on the board | Assigns the record to that user or team, through the Web API |
+| A lookup | Each record the cards point at | Points the card at that record, through the Web API |
+
+A card whose column is blank sits in an *(empty)* row first, which takes no
+card. When a card changes lane and row in one drop, both are written in one
+update. The Move menu lists the rows after the lanes, for the keyboard.
+
+**Owner rows need Assign.** Before offering them, the board asks whether the
+user's security roles allow Assign on the table at any depth; a user whose
+roles allow none sees the rows but cannot drop into another. Dataverse still
+decides each assignment — it refuses one to a user who cannot read the table,
+and the card goes back with the reason.
+
+## Sorting the cards
+
+**Sort cards by** orders the cards inside every lane and row by one column:
+`createdon desc`, `cr123_estimate desc`, `cr123_title`. The column has to be
+one the board loads — in the view, or bound to a role — because a model-driven
+form ignores a sort on any other column without saying so. Empty keeps the
+view's own order.
+
+**Show sort menu** adds a column picker and a direction button above the
+lanes, so each user can choose. Their choice is kept in their browser for that
+table and view, and outranks **Sort cards by** there. It is off by default, so
+a board that upgrades looks as it did. Sorting reloads the view from its first
+page, as the grid's own column headers do.
 
 ## Where the lanes come from
 

@@ -74,14 +74,16 @@ bind a view that filters them in.
 
 ## Can I reorder cards inside a lane?
 
-No. A drop changes which lane a card is in and nothing else. Card order within a
-lane is the view's order, so sort the view to control it.
+Not by dragging: a drop changes a card's lane, its row, or both, never its
+place in the lane. Set **Sort cards by** to order every lane by a column, or
+turn on **Show sort menu** to let each user choose.
 
 ## Can I group by something other than a choice column?
 
-No. Grouping and writing are the same operation here, and an option value is
-what the control knows how to write. Grouping by an owner or a date would mean
-writing a lookup or a date from a drag, which is a different control.
+The lanes, no: they are a choice column's options, and a move writes one. The
+**rows**, yes: bind **Swimlane column** to a Yes/No, Owner or a lookup, and the
+board splits into a row per value — dragging a card into another row assigns
+it, or points it at another record. A date is neither, so it can be neither.
 
 ## Does it work on a phone?
 
