@@ -44,7 +44,7 @@ a canvas app with the board for P9. The lane stays on Status Reason.
 | P6 | `hasEntityPrivilege(table, 5, depth)` beside Write (3), from `dump()`; a user without Assign through `write()` — the refusal | whether Owner rows are drop targets | **Callable, with `Utility` declared**; Assign (5), Write (3), Share (6), AppendTo (8) all `true` at depths 0–3 for a System Administrator. A caller *without* Assign not measured (no such user to hand); the refusal measured is the assignee's (P3) |
 | P7 | `sort(column, dir)` (in place + `refresh()`) and `sortAssign` (assignment) on a subgrid and a main grid: is the order applied; does `more()` continue in it; does a main grid's own sort change for the user? | the sort route | **Subgrid: in place + `refresh()` is applied by the server**, the page resets to the first 4, and `loadNextPage()` continues in the new order. **Assignment (`dataset.sorting = [...]`) does not take** — the next pass still holds the previous array, order unchanged. **A Choice sorts by its label**, not its value: descending put Todo, then On Hold. The view's own sort arrives as `[{ name: "cll_title", sortDirection: 0 }]`. Main grid not asked |
 | P8 | `sort("createdon", 1)` and a role column with `order: -1`: applied, ignored or thrown? `disableSorting` per column, from `dump()` | what the menu may list | **A column outside the dataset is ignored silently**: `createdon` ascending and descending both returned the view's own order (title ascending) with no error, while `dataset.sorting` went on reporting `createdon`. **A role column outside the view is sortable**: `cll_urgent` (`order: -1`) descending put the Urgent cards first. View columns carry `isHidden: false, disableSorting: false`; the off-view role column carries **neither key**. `getFormattedValue` of a column outside the dataset is `null` |
-| P9 | `dump()` and `sort()` in a **canvas** app | whether canvas gets the menu | **Not asked**: no canvas app carries the board (see *Not verified*) |
+| P9 | `dump()` and `sort()` in a **canvas** app | whether canvas gets the menu | **The sort works in canvas, and differs from a form in four ways** — see *The canvas run* below |
 
 **Answered 2026-10-10** on the test environment's account form, Adventure
 Works (sample), the `cll_task` subgrid: lane Status Reason, the swimlane bound
@@ -67,6 +67,55 @@ binding. What it decides:
   never an arbitrary column; mutate `dataset.sorting` in place, then
   `refresh()`. A Choice sorts by label, which the menu should say nothing
   about — it is what the grid does too.
+
+#### The canvas run, 2026-10-10
+
+A test canvas app, *Kanban Probe*, in the test environment's dev solution:
+one tablet screen, the board at 1366×768 over `cll_task` (Studio offers two
+tables named *Tasks*; the custom one arrived as `Tasks_1`), roles set as
+text properties (`statusField = "statuscode"`, `swimlaneField =
+"cll_status"`, …), published. The app runs in a cross-origin frame, so the
+probe was driven with Playwright (`frame.evaluate`) on the published player,
+not from the browser pane. What canvas hands over, against the form:
+
+| | Form (subgrid) | Canvas |
+| --- | --- | --- |
+| A Choice's `getValue` | the string `"858010003"` | **the number** `858010003` |
+| First page | the subgrid's size (4) | **1 card** — `pageSize: 1`, the host's default; `totalResultCount` 23, the whole table |
+| `getViewId()` | the view's id | `undefined` |
+| Columns | the view's, roles among them | each role **twice** — once by alias with `order: -1`, once as an Items column — and an **unbound optional role arrives as a column** `{ name: null, alias: "valueField", dataType: "SingleLine.Text" }`. Found by alias, the 0.4.x board reads it as bound: the published board printed *"Totals: the 1 cards loaded so far"* with no Lane total column set |
+| Sort in place + `refresh()` | applied | applied; Load more follows it |
+| Sort by assignment (`dataset.sorting = [...]`) | **ignored** | **applied** (title descending took) |
+| A Choice sorted descending | by **label** (Todo, On Hold…) | by **value** (Cancelled 858010005, Done 858010004, In Review…) |
+| Sort by a column outside the dataset (`createdon`) | ignored silently | **applied**, and `getFormattedValue("createdon")` answers — with epoch milliseconds (`"1790708505000"`), not a date |
+| `context.webAPI` | works | **present, every method throws** `PCFNonImplementedError: updateRecord: Method not implemented.` |
+| `page.getClientUrl()` | the org URL | throws *Method not implemented.* |
+| `utils.hasEntityPrivilege` | answers | throws *Method not implemented.* |
+| `utils.getEntityMetadata` | answers | throws — and Studio shows it to the maker as a red banner, *"getEntityMetadata: Method not implemented."*, even though the control catches it |
+| Record write half | `isEditable` + `setValue` (returns `undefined`) + `save()` | **no `isEditable`**; `setValue` returns a WinJS promise-like and `getValue` shows the staged value at once; `save()` resolves with a circular host object |
+| A text column through the record | writes | **writes** — `cll_title` changed on the server, and was put back the same way |
+| A Choice through the record | writes | **never**: a number, the string, `{ Value }` and the label each stage `null` (`getValue` answers `null` after `setValue`), and the save bumps `modifiedon` without changing the value |
+
+Also on the canvas mount: one React warning, *"React.createElement: type is
+invalid … got: undefined"* — some component the board renders does not exist
+in the canvas host's platform library. The board drew; which component is
+not yet known.
+
+What it decides for 0.5.0:
+
+- **Canvas stays read-only for moves** — a lane and a swimlane are both
+  Choice/Owner columns, and canvas can write neither (no Web API, Choice
+  through the record stages null). The docs' "read-only, in practice" is now
+  measured, not assumed.
+- **The sort menu works in canvas**, and there it can list any column of the
+  table; the in-place route works on both hosts, so the control uses that one.
+- **Row keys normalise a Choice from a number or a string.**
+- **An unbound role is a column with `name: null` in canvas** — `roleColumn`
+  must treat that as unbound (a 0.4.x defect: the totals caption shows on
+  every canvas board).
+- **Model-driven-only APIs are detected by calling them**, not by `typeof`:
+  `webAPI` exists in canvas and throws at the call — the rule the control
+  already applies to `openForm`.
 
 ## 0.4.3 — a refused card is usable again
 
@@ -608,12 +657,13 @@ this repository, and the first one is load-bearing.
   `record.setValue` wants.~~ Measured, Q2: `cll_status` staged and saved,
   read back from the Web API. The Web API route on the same column is what
   0.2.x relied on; the same read-back covers it.
-- **That a canvas app's dataset records carry the write half at all.** The
-  route needs no feature, and the template's rig hands canvas the same records
-  as model-driven — but nobody has bound this board in a canvas app and looked.
-  The docs say "read-only, in practice" for that reason.
-- **0.5.0, from the 0.4.8 probe (2026-10-10):** `dataset.sorting` in a canvas
-  app (P9 — no canvas app carries the board); the sort on a **main grid**, and
+- ~~That a canvas app's dataset records carry the write half at all.~~
+  Measured 2026-10-10 (*The canvas run*): they do — `setValue` + `save()`
+  write a text column — but a Choice stages `null` in every shape tried, so
+  a move still cannot be made in canvas.
+- **The React warning on the canvas mount** — which component the board
+  renders that the canvas host's platform library lacks.
+- **0.5.0, from the 0.4.8 probe (2026-10-10):** the sort on a **main grid**, and
   whether it changes the grid's own sort for the user (P7); a caller **without**
   Assign — what `hasEntityPrivilege(…, 5, …)` answers and what the server
   refuses (P6); a user-to-user reassignment that succeeds (P3 had only a user
