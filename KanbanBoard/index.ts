@@ -409,7 +409,7 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
             loadRows: swimlane && kind === 'choice' ? this.rowLoader(context, dataset, swimlane.name, rows ?? []) : null,
             rowsWritable: swimlane && kind ? this.rowsWritable(context, dataset, swimlane.name, kind) : false,
             showSort: context.parameters.showSort?.raw === true,
-            sortOptions: sortOptions((dataset.columns ?? []) as { name: string | null; displayName?: string; disableSorting?: boolean }[]),
+            sortOptions: sortOptions((dataset.columns ?? []) as { name: string | null; displayName?: string; disableSorting?: boolean; isHidden?: boolean }[]),
             sort: this.currentSort(dataset),
             onSort: (choice: SortChoice | null): void => this.sortBy(dataset, choice),
             onMove: (recordId: string, toValue: number | null, toRow?: Row): Promise<MoveOutcome> =>
@@ -1374,10 +1374,10 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
 
         const menu = context.parameters.showSort?.raw === true;
         const wanted = (menu ? this.storedSort(dataset) : null) ?? parseSort(context.parameters.sortBy?.raw ?? '');
-        const loaded = sortOptions((dataset.columns ?? []) as { name: string | null; disableSorting?: boolean }[]);
         const current = this.currentSort(dataset);
 
-        if (!wanted || !loaded.some((option) => option.name === wanted.name)) {
+        // Any column the board loads, a hidden one included — the maker chose it.
+        if (!wanted || !(dataset.columns ?? []).some((column) => column.name === wanted.name)) {
             return;
         }
 

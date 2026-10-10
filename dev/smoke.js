@@ -1378,6 +1378,15 @@ check('passes the search switch down', bind({ inputs: { showSearch: false } }).p
         offered.join(', '),
     );
 
+    const twoOwners = withSwimlane('ownerid', { inputs: { showSort: true } }).props().sortOptions;
+
+    check(
+        'two columns that read the same are told apart, and a column the view hides is not offered',
+        twoOwners.some((option) => option.label === 'Owner (ownerid)') && twoOwners.some((option) => option.label === 'Owner (new_owner)')
+            && !twoOwners.some((option) => option.name === 'new_account'),
+        twoOwners.map((option) => option.label).join(', '),
+    );
+
     const canvasSort = bind({ host: 'canvas', unboundRoles: ['valueField'], inputs: { showSort: true } }).props().sortOptions.map((option) => option.name);
 
     check('in canvas too — no column twice and none without a name', new Set(canvasSort).size === canvasSort.length && !canvasSort.includes(null), canvasSort.join(', '));

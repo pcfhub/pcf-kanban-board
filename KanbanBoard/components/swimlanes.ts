@@ -242,15 +242,23 @@ export interface SortOption {
  * same on both.
  *
  * Dropped: a column with no name (canvas's unset role), one the view marks
- * `disableSorting`, and a second entry for the same column (canvas hands each
- * role over twice). The label is the column's display name.
+ * `disableSorting` or hides — a user cannot see what it sorts by — and a
+ * second entry for the same column (canvas hands each role over twice).
+ *
+ * The label is the column's display name, **with the column's name beside it
+ * where two would read the same**: a text column called "Owner" next to the
+ * real Owner is an ordinary view, and two identical entries in a menu are a
+ * coin toss.
  */
-export function sortOptions(columns: { name: string | null; displayName?: string; disableSorting?: boolean }[]): SortOption[] {
+export function sortOptions(
+    columns: { name: string | null; displayName?: string; disableSorting?: boolean; isHidden?: boolean }[],
+): SortOption[] {
     const options: SortOption[] = [];
     const seen = new Set<string>();
 
     for (const column of columns) {
-        if (typeof column.name !== 'string' || column.name === '' || column.disableSorting === true || seen.has(column.name)) {
+        if (typeof column.name !== 'string' || column.name === '' || column.disableSorting === true
+            || column.isHidden === true || seen.has(column.name)) {
             continue;
         }
 
@@ -258,7 +266,13 @@ export function sortOptions(columns: { name: string | null; displayName?: string
         options.push({ name: column.name, label: column.displayName || column.name });
     }
 
-    return options.sort((a, b) => a.label.localeCompare(b.label));
+    const counts = new Map<string, number>();
+
+    options.forEach((option) => counts.set(option.label, (counts.get(option.label) ?? 0) + 1));
+
+    return options
+        .map((option) => ((counts.get(option.label) ?? 0) > 1 ? { ...option, label: `${option.label} (${option.name})` } : option))
+        .sort((a, b) => a.label.localeCompare(b.label));
 }
 
 /**

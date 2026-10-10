@@ -48,6 +48,10 @@ const SHOTS = [
         'fixture=demo&view=1&lane=212&page=5', ''],
     ['screenshot-limits.png', 'Lane limits: Active over its limit of two, New at its limit of three',
         'fixture=demo&view=1&lane=212&limits=2%3D2,1%3D3', ''],
+    ['screenshot-swimlanes.png', '0.5.0 swimlanes: a row per Area under the lane headers, Finance read from the option set with no card yet',
+        'fixture=demo&view=1&lane=212&swim=cr123_area', ''],
+    ['screenshot-sort.png', '0.5.0 the sort menu: Estimate, largest first, inside every lane and row',
+        'fixture=demo&view=1&lane=212&swim=cr123_area&sort=1&sortby=cr123_estimate%20desc', ''],
 ];
 
 if (!CHROME) {

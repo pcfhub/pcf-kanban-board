@@ -1,177 +1,214 @@
 {
-    "targetEntityType": "cr123_workitem",
-    "title": "Sprint board",
-    "columns": [
-        {
-            "name": "cr123_subject",
-            "displayName": "Subject",
-            "dataType": "SingleLine.Text",
-            "alias": "titleField",
-            "order": 0,
-            "visualSizeFactor": 220,
-            "isPrimary": true
-        },
-        {
-            "name": "cr123_status",
-            "displayName": "Status",
-            "dataType": "OptionSet",
-            "alias": "statusField",
-            "order": 1,
-            "visualSizeFactor": 110
-        },
-        {
-            "name": "cr123_assignedto",
-            "displayName": "Assigned to",
-            "dataType": "SingleLine.Text",
-            "alias": "assigneeField",
-            "order": 2,
-            "visualSizeFactor": 150
-        },
-        {
-            "name": "cr123_priority",
-            "displayName": "Priority",
-            "dataType": "SingleLine.Text",
-            "alias": "badgeField",
-            "order": 3,
-            "visualSizeFactor": 90
-        },
-        {
-            "name": "cr123_estimate",
-            "displayName": "Estimate",
-            "dataType": "Currency",
-            "alias": "valueField",
-            "order": 4,
-            "visualSizeFactor": 90
-        }
-    ],
-    "records": [
-        {
-            "id": "w0001",
-            "values": {
-                "cr123_subject": "Rework the onboarding email sequence",
-                "cr123_status": 1,
-                "cr123_assignedto": "Dana Whitfield",
-                "cr123_priority": "High",
-                "cr123_estimate": 4200
-            }
-        },
-        {
-            "id": "w0002",
-            "values": {
-                "cr123_subject": "Audit the supplier contact list",
-                "cr123_status": 1,
-                "cr123_assignedto": "Marcus Reyes",
-                "cr123_priority": "Normal",
-                "cr123_estimate": 1800
-            }
-        },
-        {
-            "id": "w0003",
-            "values": {
-                "cr123_subject": "Draft the Q3 renewal terms",
-                "cr123_status": 1,
-                "cr123_assignedto": "Priya Anand",
-                "cr123_priority": "Low"
-            }
-        },
-        {
-            "id": "w0004",
-            "values": {
-                "cr123_subject": "Migrate the reporting dashboard",
-                "cr123_status": 2,
-                "cr123_assignedto": "Dana Whitfield",
-                "cr123_priority": "High",
-                "cr123_estimate": 6500
-            }
-        },
-        {
-            "id": "w0005",
-            "values": {
-                "cr123_subject": "Consolidate duplicate account records",
-                "cr123_status": 2,
-                "cr123_assignedto": "Tomas Lindqvist",
-                "cr123_priority": "Normal",
-                "cr123_estimate": 2750
-            }
-        },
-        {
-            "id": "w0006",
-            "values": {
-                "cr123_subject": "Rewrite the escalation runbook",
-                "cr123_status": 2,
-                "cr123_assignedto": "Priya Anand",
-                "cr123_priority": "Normal",
-                "cr123_estimate": 900
-            }
-        },
-        {
-            "id": "w0007",
-            "values": {
-                "cr123_subject": "Retire the legacy import job",
-                "cr123_status": 3,
-                "cr123_assignedto": "Marcus Reyes",
-                "cr123_priority": "Low",
-                "cr123_estimate": 12000
-            }
-        },
-        {
-            "id": "w0008",
-            "values": {
-                "cr123_subject": "Publish the partner integration guide",
-                "cr123_status": 3,
-                "cr123_assignedto": "Aiko Tanaka",
-                "cr123_priority": "Normal",
-                "cr123_estimate": 3300
-            }
-        },
-        {
-            "id": "w0009",
-            "values": {
-                "cr123_subject": "Triage the inbound feature requests",
-                "cr123_assignedto": "Aiko Tanaka",
-                "cr123_priority": "High",
-                "cr123_estimate": 1500
-            }
-        }
-    ],
-    "dataverse": {
-        "tables": {
-            "cr123_workitem": {
-                "entitySet": "cr123_workitems",
-                "primaryId": "cr123_workitemid",
-                "primaryName": "cr123_subject",
-                "displayName": "Work item",
-                "columns": {
-                    "cr123_status": {
-                        "options": [
-                            {
-                                "value": 1,
-                                "label": "New",
-                                "color": "#6b7280"
-                            },
-                            {
-                                "value": 2,
-                                "label": "Active",
-                                "color": "#e8d33a"
-                            },
-                            {
-                                "value": 3,
-                                "label": "Resolved",
-                                "color": "#22a14a"
-                            }
-                        ]
-                    }
-                }
-            }
-        },
-        "faults": [
-            {
-                "operation": "update",
-                "table": "cr123_workitem",
-                "column": "cr123_status",
-                "value": 3,
-                "message": "Only a team lead can resolve a work item."
-            }
-        ]
+  "targetEntityType": "cr123_workitem",
+  "title": "Sprint board",
+  "columns": [
+    {
+      "name": "cr123_subject",
+      "displayName": "Subject",
+      "dataType": "SingleLine.Text",
+      "alias": "titleField",
+      "order": 0,
+      "visualSizeFactor": 220,
+      "isPrimary": true
+    },
+    {
+      "name": "cr123_status",
+      "displayName": "Status",
+      "dataType": "OptionSet",
+      "alias": "statusField",
+      "order": 1,
+      "visualSizeFactor": 110
+    },
+    {
+      "name": "cr123_assignedto",
+      "displayName": "Assigned to",
+      "dataType": "SingleLine.Text",
+      "alias": "assigneeField",
+      "order": 2,
+      "visualSizeFactor": 150
+    },
+    {
+      "name": "cr123_priority",
+      "displayName": "Priority",
+      "dataType": "SingleLine.Text",
+      "alias": "badgeField",
+      "order": 3,
+      "visualSizeFactor": 90
+    },
+    {
+      "name": "cr123_estimate",
+      "displayName": "Estimate",
+      "dataType": "Currency",
+      "alias": "valueField",
+      "order": 4,
+      "visualSizeFactor": 90
+    },
+    {
+      "name": "cr123_area",
+      "displayName": "Area",
+      "dataType": "OptionSet",
+      "alias": "cr123_area",
+      "order": 5,
+      "visualSizeFactor": 120
     }
+  ],
+  "records": [
+    {
+      "id": "w0001",
+      "values": {
+        "cr123_subject": "Rework the onboarding email sequence",
+        "cr123_status": 1,
+        "cr123_assignedto": "Dana Whitfield",
+        "cr123_priority": "High",
+        "cr123_estimate": 4200,
+        "cr123_area": 1
+      }
+    },
+    {
+      "id": "w0002",
+      "values": {
+        "cr123_subject": "Audit the supplier contact list",
+        "cr123_status": 1,
+        "cr123_assignedto": "Marcus Reyes",
+        "cr123_priority": "Normal",
+        "cr123_estimate": 1800,
+        "cr123_area": 3
+      }
+    },
+    {
+      "id": "w0003",
+      "values": {
+        "cr123_subject": "Draft the Q3 renewal terms",
+        "cr123_status": 1,
+        "cr123_assignedto": "Priya Anand",
+        "cr123_priority": "Low",
+        "cr123_area": 1
+      }
+    },
+    {
+      "id": "w0004",
+      "values": {
+        "cr123_subject": "Migrate the reporting dashboard",
+        "cr123_status": 2,
+        "cr123_assignedto": "Dana Whitfield",
+        "cr123_priority": "High",
+        "cr123_estimate": 6500,
+        "cr123_area": 2
+      }
+    },
+    {
+      "id": "w0005",
+      "values": {
+        "cr123_subject": "Consolidate duplicate account records",
+        "cr123_status": 2,
+        "cr123_assignedto": "Tomas Lindqvist",
+        "cr123_priority": "Normal",
+        "cr123_estimate": 2750,
+        "cr123_area": 3
+      }
+    },
+    {
+      "id": "w0006",
+      "values": {
+        "cr123_subject": "Rewrite the escalation runbook",
+        "cr123_status": 2,
+        "cr123_assignedto": "Priya Anand",
+        "cr123_priority": "Normal",
+        "cr123_estimate": 900,
+        "cr123_area": 2
+      }
+    },
+    {
+      "id": "w0007",
+      "values": {
+        "cr123_subject": "Retire the legacy import job",
+        "cr123_status": 3,
+        "cr123_assignedto": "Marcus Reyes",
+        "cr123_priority": "Low",
+        "cr123_estimate": 12000,
+        "cr123_area": 2
+      }
+    },
+    {
+      "id": "w0008",
+      "values": {
+        "cr123_subject": "Publish the partner integration guide",
+        "cr123_status": 3,
+        "cr123_assignedto": "Aiko Tanaka",
+        "cr123_priority": "Normal",
+        "cr123_estimate": 3300,
+        "cr123_area": 1
+      }
+    },
+    {
+      "id": "w0009",
+      "values": {
+        "cr123_subject": "Triage the inbound feature requests",
+        "cr123_assignedto": "Aiko Tanaka",
+        "cr123_priority": "High",
+        "cr123_estimate": 1500,
+        "cr123_area": 3
+      }
+    }
+  ],
+  "dataverse": {
+    "tables": {
+      "cr123_workitem": {
+        "entitySet": "cr123_workitems",
+        "primaryId": "cr123_workitemid",
+        "primaryName": "cr123_subject",
+        "displayName": "Work item",
+        "columns": {
+          "cr123_status": {
+            "options": [
+              {
+                "value": 1,
+                "label": "New",
+                "color": "#6b7280"
+              },
+              {
+                "value": 2,
+                "label": "Active",
+                "color": "#e8d33a"
+              },
+              {
+                "value": 3,
+                "label": "Resolved",
+                "color": "#22a14a"
+              }
+            ]
+          },
+          "cr123_area": {
+            "options": [
+              {
+                "value": 1,
+                "label": "Marketing"
+              },
+              {
+                "value": 2,
+                "label": "Engineering"
+              },
+              {
+                "value": 3,
+                "label": "Support"
+              },
+              {
+                "value": 4,
+                "label": "Finance"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "faults": [
+      {
+        "operation": "update",
+        "table": "cr123_workitem",
+        "column": "cr123_status",
+        "value": 3,
+        "message": "Only a team lead can resolve a work item."
+      }
+    ]
+  }
 }
