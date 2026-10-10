@@ -319,8 +319,12 @@ check(
  * not what canvas is. On canvas the Web API fallback answered `true`, so a
  * board whose records were not editable offered a drag that could only fail.
  *
- * The record route is untouched and still works there, which is why only the
- * fallback is gated.
+ * **Nor does the record route move a card there.** This said the record route
+ * "still works" on canvas until the 0.4.8 probe looked, 2026-10-10: a canvas
+ * record has no `isEditable`, and `setValue` on a Choice stages `null` in every
+ * shape tried (number, string, `{ Value }`, label) — the save then writes
+ * nothing for it. A text column does write. So a canvas board offers no move
+ * at all, and the docs' "read-only, in practice" is measured now.
  */
 check(
     'nor on canvas, where updateRecord exists and refuses',
@@ -329,8 +333,8 @@ check(
 );
 
 check(
-    'while a canvas host with writable records still moves, through the record',
-    bind({ host: 'canvas' }).props().canMove === true,
+    'nor on canvas with the record\'s write half, which cannot stage a choice there',
+    bind({ host: 'canvas' }).props().canMove === false,
     String(bind({ host: 'canvas' }).props().canMove),
 );
 
