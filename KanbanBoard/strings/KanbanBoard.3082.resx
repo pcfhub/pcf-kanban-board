@@ -268,4 +268,40 @@
   <data name="KanbanBoard_NotAllowed" xml:space="preserve">
     <value>Las transiciones de razón para el estado no permiten pasar de {0} a {1}.</value>
   </data>
+  <data name="SortBy_Name" xml:space="preserve">
+    <value>Ordenar tarjetas por</value>
+  </data>
+  <data name="SortBy_Desc" xml:space="preserve">
+    <value>Opcional. Una columna que carga el tablero y una dirección, p. ej. "createdon desc" o "cll_title". Fija el orden de las tarjetas en cada carril. Vacío mantiene el orden de la vista.</value>
+  </data>
+  <data name="ShowSort_Name" xml:space="preserve">
+    <value>Mostrar menú de ordenación</value>
+  </data>
+  <data name="ShowSort_Desc" xml:space="preserve">
+    <value>Permite a los usuarios elegir la columna por la que se ordenan las tarjetas. Su elección se recuerda en su explorador para esta vista.</value>
+  </data>
+  <data name="KanbanBoard_Sort" xml:space="preserve">
+    <value>Ordenar tarjetas</value>
+  </data>
+  <data name="KanbanBoard_SortViewOrder" xml:space="preserve">
+    <value>Orden de la vista</value>
+  </data>
+  <data name="KanbanBoard_SortAscending" xml:space="preserve">
+    <value>Ascendente: seleccione para ordenar de forma descendente</value>
+  </data>
+  <data name="KanbanBoard_SortDescending" xml:space="preserve">
+    <value>Descendente: seleccione para ordenar de forma ascendente</value>
+  </data>
+  <data name="KanbanBoard_NoValue" xml:space="preserve">
+    <value>(vacío)</value>
+  </data>
+  <data name="KanbanBoard_MoveToRow" xml:space="preserve">
+    <value>Fila: {0}</value>
+  </data>
+  <data name="KanbanBoard_RowCount" xml:space="preserve">
+    <value>{0} tarjetas en {1}</value>
+  </data>
+  <data name="KanbanBoard_RowUnwritable" xml:space="preserve">
+    <value>No se pudo escribir su fila: no se pudo leer la tabla de la columna.</value>
+  </data>
 </root>

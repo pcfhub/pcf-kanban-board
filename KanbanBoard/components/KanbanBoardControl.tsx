@@ -22,6 +22,7 @@ import {
     withUnassigned,
 } from './lanes';
 import { TotalsAnswer } from '../data/totals';
+import { Row, SortChoice, SortOption, cardsInCell } from './swimlanes';
 
 /**
  * How a move ended, as the entry point reports it — so the board can put a
@@ -100,8 +101,33 @@ export interface IProps {
      * that card's Move menu, as the form's own dropdown would be.
      */
     loadRules: (() => Promise<Record<string, number[]>>) | null;
-    /** Write a move; resolves with how it ended, never rejects. */
-    onMove: (recordId: string, toValue: number) => Promise<MoveOutcome>;
+    /**
+     * 0.5.0: the rows, or `null` with no Swimlane column — the board is then
+     * exactly 0.4.x. The synchronous set, from the loaded cards; a Choice's
+     * option set replaces it once `loadRows` answers.
+     */
+    rows: Row[] | null;
+    /** Identifies the swimlane column being read, so its options re-read only when it changes. */
+    rowsKey: string;
+    /** A Choice swimlane's rows from its option set, or `null` where there is nothing to read. */
+    loadRows: (() => Promise<Row[]>) | null;
+    /**
+     * Whether a card may change rows: a writable host and, for Owner, the
+     * Assign privilege. False keeps every card in its row; lanes still move.
+     */
+    rowsWritable: boolean;
+    /** Whether the sort menu is drawn. */
+    showSort: boolean;
+    /** The columns the sort menu offers — the dataset's own. */
+    sortOptions: SortOption[];
+    /** The sort in force, or `null` for the view's own order. */
+    sort: SortChoice | null;
+    onSort: (choice: SortChoice | null) => void;
+    /**
+     * Write a move; resolves with how it ended, never rejects. `toValue`
+     * `null` keeps the lane; `toRow` absent keeps the row.
+     */
+    onMove: (recordId: string, toValue: number | null, toRow?: Row) => Promise<MoveOutcome>;
     /** Open the quick create form with the lane's option preselected. */
     onCreate: (laneValue: number) => void;
     onOpenRecord: (id: string) => void;
@@ -127,11 +153,13 @@ export interface IProps {
  * refused. `failedMoves` is the signal that survives both; the refresh after a
  * refusal always renders.
  */
+type Placement = { lane: number | null; row?: Card['row'] };
+
 function useOptimisticLanes(
     cards: Card[],
     failedMoves: number,
-): [Record<string, number | null>, (id: string, lane: number | null) => void] {
-    const [overlay, setOverlay] = React.useState<Record<string, number | null>>({});
+): [Record<string, Placement>, (id: string, placement: Placement) => void] {
+    const [overlay, setOverlay] = React.useState<Record<string, Placement>>({});
     const key = boardKey(cards);
 
     React.useEffect(() => {
@@ -139,8 +167,8 @@ function useOptimisticLanes(
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [key, failedMoves]);
 
-    const place = React.useCallback((id: string, lane: number | null): void => {
-        setOverlay((current) => ({ ...current, [id]: lane }));
+    const place = React.useCallback((id: string, placement: Placement): void => {
+        setOverlay((current) => ({ ...current, [id]: placement }));
     }, []);
 
     return [overlay, place];
@@ -189,6 +217,34 @@ function useOptionLanes(
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [lanesKey]);
+
+    return fetched;
+}
+
+/** A Choice swimlane's rows from its option set, held in React for the reason the option lanes are. */
+function useOptionRows(rowsKey: string, loadRows: (() => Promise<Row[]>) | null): Row[] | null {
+    const [fetched, setFetched] = React.useState<Row[] | null>(null);
+
+    React.useEffect(() => {
+        setFetched(null);
+
+        if (!loadRows) {
+            return undefined;
+        }
+
+        let alive = true;
+
+        void loadRows().then((rows) => {
+            if (alive && rows.length > 0) {
+                setFetched(rows);
+            }
+        });
+
+        return () => {
+            alive = false;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [rowsKey]);
 
     return fetched;
 }
@@ -273,10 +329,19 @@ function useTransitionRules(
     return rules;
 }
 
+/** The card being dragged: its lane and its row's key — what each drop target judges itself against. */
+type Dragging = { lane: number | null; row: string | null };
+
+/** A row's key as React and the fold state hold it: `''` for the empty row. */
+const rowId = (key: string | null): string => key ?? '';
+
 export function KanbanBoardControl(props: IProps): React.ReactElement | null {
     const { cards, getString, laneWidth } = props;
     const [overlay, place] = useOptimisticLanes(cards, props.failedMoves);
     const fromOptions = useOptionLanes(props.lanesKey, props.loadLanes);
+    const rowOptions = useOptionRows(props.rowsKey, props.loadRows);
+    /* The rows folded shut, by key (`''` for the empty row). React state: folding changes no output. */
+    const [collapsed, setCollapsed] = React.useState<string[]>([]);
     /*
      * Moves this board has seen land. The totals' route key carries the
      * board's content, which a landed move changes through the platform's
@@ -299,7 +364,7 @@ export function KanbanBoardControl(props: IProps): React.ReactElement | null {
      * The card being dragged, so a lane can say whether it would take it —
      * `dataTransfer` cannot be read during `dragover`, only on the drop.
      */
-    const [dragging, setDragging] = React.useState<number | null | undefined>(undefined);
+    const [dragging, setDragging] = React.useState<Dragging | undefined>(undefined);
 
     /*
      * The search text lives here and nowhere else. A virtual control cannot
@@ -311,7 +376,9 @@ export function KanbanBoardControl(props: IProps): React.ReactElement | null {
     const searching = query.trim() !== '';
 
     const placed = React.useMemo(
-        () => cards.map((card) => (card.id in overlay ? { ...card, lane: overlay[card.id] } : card)),
+        () => cards.map((card) => (card.id in overlay
+            ? { ...card, lane: overlay[card.id].lane, ...(overlay[card.id].row ? { row: overlay[card.id].row } : {}) }
+            : card)),
         [cards, overlay],
     );
 
@@ -336,6 +403,14 @@ export function KanbanBoardControl(props: IProps): React.ReactElement | null {
     const lanes = server.answer && server.answer.byLane[''] && !drawn.some((lane) => lane.value === null)
         ? [{ value: null, label: props.unassignedLabel, color: null, state: null, defaultStatus: null, next: null }, ...drawn]
         : drawn;
+
+    // The option set's rows where it answered, otherwise the cards'.
+    const rows = props.rows === null ? null : rowOptions ?? props.rows;
+
+    // The sort in force stays selectable even when the view sorts by a column the menu does not list.
+    const sortChoices = props.sort && !props.sortOptions.some((option) => option.name === props.sort?.name)
+        ? [...props.sortOptions, { name: props.sort.name, label: props.sort.name }]
+        : props.sortOptions;
 
     /*
      * Lane totals: the server's where it answered, the placed cards'
@@ -365,15 +440,40 @@ export function KanbanBoardControl(props: IProps): React.ReactElement | null {
             : getString(props.hasNextPage ? 'KanbanBoard_TotalsLoaded' : 'KanbanBoard_TotalsBoard')
                 .replace('{0}', String(placed.length));
 
-    const move = (recordId: string, toValue: number): void => {
-        // Where the card is on screen now — what a refusal puts it back to.
-        const from = placed.find((card) => card.id === recordId)?.lane ?? null;
+    /*
+     * What every LaneColumn is handed, whatever its mode. **The lanes on
+     * screen, not `props.lanes`**: the spread hands down the synchronous set
+     * index.ts derives from the cards, which holds only lanes some card is in,
+     * and each card's Move menu filters this. Until 0.3.4 it filtered that
+     * one, so once the option set landed an empty lane was a drop target and
+     * never a menu entry (found by the hub's demo, 2026-09-28).
+     */
+    const laneProps = (lane: Lane): Omit<ILaneProps, 'cards' | 'total'> => ({
+        ...props,
+        lanes,
+        rows,
+        moving: [...placed.filter((card) => props.isMoving(card.id)).map((card) => card.id), ...busy],
+        lane,
+        laneTotal: props.totalsWanted ? totalOf(lane) : null,
+        limit: lane.value === null ? null : props.limits[String(lane.value)] ?? null,
+        rules,
+        dragging,
+        onDragCard: setDragging,
+        searching,
+        width: laneWidth,
+        onDrop: move,
+    });
 
-        place(recordId, toValue);
+    const move = (recordId: string, toValue: number | null, toRow?: Row): void => {
+        // Where the card is on screen now — what a refusal puts it back to.
+        const card = placed.find((each) => each.id === recordId);
+        const from: Placement = { lane: card?.lane ?? null, ...(card?.row ? { row: card.row } : {}) };
+
+        place(recordId, { lane: toValue ?? from.lane, ...(toRow ? { row: toRow } : from.row ? { row: from.row } : {}) });
         setRefusal(null);
         setBusy((current) => [...current, recordId]);
 
-        void props.onMove(recordId, toValue).then((outcome) => {
+        void props.onMove(recordId, toValue, toRow).then((outcome) => {
             setBusy((current) => current.filter((id) => id !== recordId));
 
             if (outcome.ok) {
@@ -464,36 +564,81 @@ export function KanbanBoardControl(props: IProps): React.ReactElement | null {
 
             {caption !== null && !empty && <p className="KanbanBoard-caption">{caption}</p>}
 
-            {props.showSearch && !empty && (
+            {(props.showSearch || props.showSort) && !empty && (
                 <div className="KanbanBoard-toolbar">
+                    {props.showSearch && (
+                        <>
+                            {/*
+                                A native search input rather than Fluent's: the
+                                platform's Fluent build carries no icon set, and a
+                                search box's affordances — the type, the clear
+                                button — are the browser's own. Styled from the same
+                                tokens as the rest, so it sits on a form like a field.
+                            */}
+                            <input
+                                type="search"
+                                className="KanbanBoard-search"
+                                value={query}
+                                placeholder={getString('KanbanBoard_Search')}
+                                aria-label={getString('KanbanBoard_Search')}
+                                disabled={props.disabled}
+                                onChange={(event): void => setQuery(event.target.value)}
+                            />
+                            {/*
+                                aria-live so a screen reader hears the count change as
+                                the query narrows; polite, because it changes on every
+                                keystroke.
+                            */}
+                            <span className="KanbanBoard-searchCount" aria-live="polite">
+                                {searching
+                                    ? getString('KanbanBoard_MatchCount')
+                                        .replace('{0}', String(shown.length))
+                                        .replace('{1}', String(placed.length))
+                                    : ''}
+                            </span>
+                        </>
+                    )}
+
                     {/*
-                        A native search input rather than Fluent's: the
-                        platform's Fluent build carries no icon set, and a
-                        search box's affordances — the type, the clear
-                        button — are the browser's own. Styled from the same
-                        tokens as the rest, so it sits on a form like a field.
+                        0.5.0: the sort, as a native select and a direction
+                        button — the search box's reasoning: a field's own
+                        affordances, no Fluent component the canvas host might
+                        lack. The first entry is the view's own order.
                     */}
-                    <input
-                        type="search"
-                        className="KanbanBoard-search"
-                        value={query}
-                        placeholder={getString('KanbanBoard_Search')}
-                        aria-label={getString('KanbanBoard_Search')}
-                        disabled={props.disabled}
-                        onChange={(event): void => setQuery(event.target.value)}
-                    />
-                    {/*
-                        aria-live so a screen reader hears the count change as
-                        the query narrows; polite, because it changes on every
-                        keystroke.
-                    */}
-                    <span className="KanbanBoard-searchCount" aria-live="polite">
-                        {searching
-                            ? getString('KanbanBoard_MatchCount')
-                                .replace('{0}', String(shown.length))
-                                .replace('{1}', String(placed.length))
-                            : ''}
-                    </span>
+                    {props.showSort && (
+                        <span className="KanbanBoard-sort">
+                            <select
+                                className="KanbanBoard-sortSelect"
+                                aria-label={getString('KanbanBoard_Sort')}
+                                value={props.sort?.name ?? ''}
+                                disabled={props.disabled || props.loading}
+                                onChange={(event): void => props.onSort(event.target.value === ''
+                                    ? null
+                                    : { name: event.target.value, direction: props.sort?.direction ?? 0 })}
+                            >
+                                <option value="">{getString('KanbanBoard_SortViewOrder')}</option>
+                                {sortChoices.map((option) => (
+                                    <option key={option.name} value={option.name}>{option.label}</option>
+                                ))}
+                            </select>
+                            {props.sort && (
+                                <button
+                                    type="button"
+                                    className="KanbanBoard-sortDirection"
+                                    disabled={props.disabled || props.loading}
+                                    aria-label={getString(props.sort.direction === 1 ? 'KanbanBoard_SortDescending' : 'KanbanBoard_SortAscending')}
+                                    title={getString(props.sort.direction === 1 ? 'KanbanBoard_SortDescending' : 'KanbanBoard_SortAscending')}
+                                    onClick={(): void => {
+                                        if (props.sort) {
+                                            props.onSort({ name: props.sort.name, direction: props.sort.direction === 1 ? 0 : 1 });
+                                        }
+                                    }}
+                                >
+                                    <span aria-hidden="true">{props.sort.direction === 1 ? '↓' : '↑'}</span>
+                                </button>
+                            )}
+                        </span>
+                    )}
                 </div>
             )}
 
@@ -504,40 +649,89 @@ export function KanbanBoardControl(props: IProps): React.ReactElement | null {
                 aria-label exposes no name at all without a role to hang it on.
             */}
             <div
-                className="KanbanBoard-lanes"
+                className={rows ? 'KanbanBoard-lanes is-grid' : 'KanbanBoard-lanes'}
                 role="group"
                 aria-label={props.title}
                 tabIndex={0}
             >
-                {lanes.map((lane) => (
+                {!rows && lanes.map((lane) => (
                     <LaneColumn
                         key={String(lane.value)}
-                        {...props}
-                        /*
-                         * **The lanes on screen, not `props.lanes`.** The
-                         * spread above hands down the synchronous set index.ts
-                         * derives from the cards, which holds only lanes some
-                         * card is in; each card's Move menu filters this. Until
-                         * 0.3.4 it filtered that one, so once the option set
-                         * landed, an empty lane was a drop target and never a
-                         * menu entry — the keyboard route could not reach it.
-                         * Found by the hub's demo, 2026-09-28.
-                         */
-                        lanes={lanes}
-                        moving={[...placed.filter((card) => props.isMoving(card.id)).map((card) => card.id), ...busy]}
-                        lane={lane}
+                        {...laneProps(lane)}
                         cards={cardsInLane(shown, lane)}
                         total={cardsInLane(placed, lane).length}
-                        laneTotal={props.totalsWanted ? totalOf(lane) : null}
-                        limit={lane.value === null ? null : props.limits[String(lane.value)] ?? null}
-                        rules={rules}
-                        dragging={dragging}
-                        onDragCard={setDragging}
-                        searching={searching}
-                        width={laneWidth}
-                        onDrop={move}
                     />
                 ))}
+
+                {/*
+                    0.5.0: with a Swimlane column, the lane headers once, then
+                    one row per value with a cell per lane. Totals and limits
+                    stay on the lane headers — they are the lane's, over every
+                    row — and each row says how many cards it holds.
+                */}
+                {rows && (
+                    <div className="KanbanBoard-gridHead">
+                        {lanes.map((lane) => (
+                            <LaneColumn
+                                key={String(lane.value)}
+                                {...laneProps(lane)}
+                                mode="head"
+                                cards={[]}
+                                total={cardsInLane(placed, lane).length}
+                            />
+                        ))}
+                    </div>
+                )}
+
+                {rows && rows.map((row) => {
+                    const open = collapsed.indexOf(rowId(row.key)) === -1;
+                    const inRow = placed.filter((card) => (card.row ? card.row.key : null) === row.key).length;
+                    const shownInRow = shown.filter((card) => (card.row ? card.row.key : null) === row.key).length;
+                    const count = searching
+                        ? getString('KanbanBoard_MatchCount').replace('{0}', String(shownInRow)).replace('{1}', String(inRow))
+                        : String(inRow);
+
+                    return (
+                        <section
+                            key={rowId(row.key)}
+                            className="KanbanBoard-row"
+                            aria-label={getString('KanbanBoard_RowCount').replace('{0}', count).replace('{1}', row.label)}
+                        >
+                            {/*
+                                A real button that folds the row: aria-expanded
+                                says which way it is, and a folded row keeps its
+                                count so nothing it holds goes unmentioned.
+                            */}
+                            <button
+                                type="button"
+                                className="KanbanBoard-rowHeader"
+                                aria-expanded={open}
+                                onClick={(): void => setCollapsed((current) => (open
+                                    ? [...current, rowId(row.key)]
+                                    : current.filter((key) => key !== rowId(row.key))))}
+                            >
+                                <span className="KanbanBoard-rowChevron" aria-hidden="true">{open ? '▾' : '▸'}</span>
+                                <span className="KanbanBoard-rowLabel">{row.label}</span>
+                                <span className="KanbanBoard-rowCount">{count}</span>
+                            </button>
+
+                            {open && (
+                                <div className="KanbanBoard-rowCells">
+                                    {lanes.map((lane) => (
+                                        <LaneColumn
+                                            key={String(lane.value)}
+                                            {...laneProps(lane)}
+                                            mode="cell"
+                                            row={row}
+                                            cards={cardsInCell(shown, lane, row)}
+                                            total={cardsInCell(placed, lane, row).length}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </section>
+                    );
+                })}
             </div>
 
             {props.hasNextPage && (
@@ -569,12 +763,21 @@ interface ILaneProps extends IProps {
     limit: number | null;
     /** The transitions in force, or `null` — see `loadRules`. */
     rules: Record<string, number[]> | null;
-    /** The lane of the card being dragged; `undefined` when nothing is. */
-    dragging: number | null | undefined;
-    onDragCard: (lane: number | null | undefined) => void;
+    /** The lane and row of the card being dragged; `undefined` when nothing is. */
+    dragging: Dragging | undefined;
+    onDragCard: (dragging: Dragging | undefined) => void;
     searching: boolean;
     width: number;
-    onDrop: (recordId: string, toValue: number) => void;
+    onDrop: (recordId: string, toValue: number | null, toRow?: Row) => void;
+    /**
+     * 0.5.0. `full` (the default) is a 0.4.x lane. With swimlanes a lane is
+     * drawn twice over: `head` — its header and totals, once, above the
+     * rows, taking no drop — and `cell` — one row's cards in it, the drop
+     * target, with no header of its own.
+     */
+    mode?: 'full' | 'head' | 'cell';
+    /** The row a `cell` belongs to. */
+    row?: Row;
 }
 
 function LaneColumn(props: ILaneProps): React.ReactElement {
@@ -594,8 +797,17 @@ function LaneColumn(props: ILaneProps): React.ReactElement {
      * would not offer it, and the server catches only the ones that change
      * the state (measured) — so the board is the guard for the rest.
      */
-    const closed = props.dragging !== undefined && !allowsMove(props.rules, props.dragging, lane.value);
-    const droppable = lane.value !== null && !props.disabled && props.canMove && !closed;
+    const mode = props.mode ?? 'full';
+    const dragging = props.dragging;
+    /*
+     * A cell in another row is closed too when the card cannot change rows —
+     * Owner without Assign — and the empty row never takes a card from
+     * another: writing nothing into a column is not a move.
+     */
+    const rowClosed = mode === 'cell' && dragging !== undefined && props.row !== undefined
+        && props.row.key !== dragging.row && (!props.rowsWritable || props.row.key === null);
+    const closed = dragging !== undefined && (!allowsMove(props.rules, dragging.lane, lane.value) || rowClosed);
+    const droppable = mode !== 'head' && lane.value !== null && !props.disabled && props.canMove && !closed;
 
     /*
      * The count reads "2 of 5" while a search narrows the lane and "5" the rest
@@ -632,13 +844,16 @@ function LaneColumn(props: ILaneProps): React.ReactElement {
 
     return (
         <section
-            className={['KanbanBoard-lane', over ? 'is-over' : '', closed ? 'is-closed' : ''].filter(Boolean).join(' ')}
+            className={['KanbanBoard-lane', mode === 'full' ? '' : `is-${mode}`, over ? 'is-over' : '', closed ? 'is-closed' : '']
+                .filter(Boolean).join(' ')}
             aria-disabled={closed || undefined}
             style={{ width: `${props.width}px` }}
-            aria-label={`${lane.label}, ${getString('KanbanBoard_CardCount').replace('{0}', spoken)}${
-                // A lane with nothing to add up draws "—"; spoken, it would be "Total dash".
-                sum !== null && sum !== '—' ? `, ${getString('KanbanBoard_LaneTotal').replace('{0}', sum)}` : ''
-            }`}
+            aria-label={mode === 'cell' && props.row
+                ? `${lane.label}, ${props.row.label}, ${getString('KanbanBoard_CardCount').replace('{0}', String(cards.length))}`
+                : `${lane.label}, ${getString('KanbanBoard_CardCount').replace('{0}', spoken)}${
+                    // A lane with nothing to add up draws "—"; spoken, it would be "Total dash".
+                    sum !== null && sum !== '—' ? `, ${getString('KanbanBoard_LaneTotal').replace('{0}', sum)}` : ''
+                }`}
             onDragOver={(event): void => {
                 if (!droppable) {
                     return;
@@ -660,7 +875,7 @@ function LaneColumn(props: ILaneProps): React.ReactElement {
                 const id = event.dataTransfer.getData('text/plain');
 
                 if (droppable && id !== '' && lane.value !== null) {
-                    props.onDrop(id, lane.value);
+                    props.onDrop(id, lane.value, mode === 'cell' ? props.row : undefined);
                 }
             }}
         >
@@ -678,7 +893,7 @@ function LaneColumn(props: ILaneProps): React.ReactElement {
                 the colour repeats what the label says, and announcing it again
                 is noise.
             */}
-            {props.laneColors && lane.color && (
+            {mode !== 'cell' && props.laneColors && lane.color && (
                 <div
                     className="KanbanBoard-laneAccent"
                     style={{ backgroundColor: lane.color }}
@@ -686,6 +901,7 @@ function LaneColumn(props: ILaneProps): React.ReactElement {
                 />
             )}
 
+            {mode !== 'cell' && (
             <header className="KanbanBoard-laneHeader">
                 <span className="KanbanBoard-laneLabel">{lane.label}</span>
                 <span
@@ -713,23 +929,26 @@ function LaneColumn(props: ILaneProps): React.ReactElement {
                     </Button>
                 )}
             </header>
+            )}
 
             {/*
                 The lane's total, under its name. aria-hidden: the section's
                 own label already says it, and a screen reader hearing it
                 twice per lane hears noise.
             */}
-            {sum !== null && (
+            {mode !== 'cell' && sum !== null && (
                 <div className="KanbanBoard-laneTotal" aria-hidden="true">
                     {sum}
                 </div>
             )}
 
-            <ul className="KanbanBoard-cards">
-                {cards.map((card) => (
-                    <CardItem key={card.id} card={card} {...props} />
-                ))}
-            </ul>
+            {mode !== 'head' && (
+                <ul className="KanbanBoard-cards">
+                    {cards.map((card) => (
+                        <CardItem key={card.id} card={card} {...props} />
+                    ))}
+                </ul>
+            )}
         </section>
     );
 }
@@ -751,6 +970,15 @@ function CardItem(props: ILaneProps & { card: Card }): React.ReactElement {
         // …and one the table's transitions allow, as the form's dropdown would.
         && allowsMove(props.rules, card.lane, lane.value));
 
+    /*
+     * 0.5.0: the rows this card could go to, the keyboard route to what a
+     * drag between rows does — every row but its own and the empty one, and
+     * none where the card cannot change rows (Owner without Assign).
+     */
+    const rowTargets = props.rows && props.rowsWritable
+        ? props.rows.filter((row) => row.key !== null && row.key !== (card.row ? card.row.key : null))
+        : [];
+
     return (
         <li
             className={busy ? 'KanbanBoard-card is-moving' : 'KanbanBoard-card'}
@@ -758,7 +986,7 @@ function CardItem(props: ILaneProps & { card: Card }): React.ReactElement {
             onDragStart={(event): void => {
                 event.dataTransfer.setData('text/plain', card.id);
                 event.dataTransfer.effectAllowed = 'move';
-                props.onDragCard(card.lane);
+                props.onDragCard({ lane: card.lane, row: card.row ? card.row.key : null });
             }}
             onDragEnd={(): void => props.onDragCard(undefined)}
         >
@@ -806,7 +1034,7 @@ function CardItem(props: ILaneProps & { card: Card }): React.ReactElement {
                     </MenuTrigger>
                     <MenuPopover>
                         <MenuList>
-                            {targets.length === 0 ? (
+                            {targets.length === 0 && rowTargets.length === 0 ? (
                                 /*
                                     An empty popover is a dead end: the button
                                     responds, nothing is listed, and nothing
@@ -816,14 +1044,24 @@ function CardItem(props: ILaneProps & { card: Card }): React.ReactElement {
                                 */
                                 <MenuItem disabled>{getString("KanbanBoard_NoTargets")}</MenuItem>
                             ) : (
-                                targets.map((lane) => (
-                                    <MenuItem
-                                        key={String(lane.value)}
-                                        onClick={(): void => props.onDrop(card.id, lane.value as number)}
-                                    >
-                                        {lane.label}
-                                    </MenuItem>
-                                ))
+                                [
+                                    ...targets.map((lane) => (
+                                        <MenuItem
+                                            key={`lane-${String(lane.value)}`}
+                                            onClick={(): void => props.onDrop(card.id, lane.value as number)}
+                                        >
+                                            {lane.label}
+                                        </MenuItem>
+                                    )),
+                                    ...rowTargets.map((row) => (
+                                        <MenuItem
+                                            key={`row-${row.key ?? ''}`}
+                                            onClick={(): void => props.onDrop(card.id, null, row)}
+                                        >
+                                            {getString('KanbanBoard_MoveToRow').replace('{0}', row.label)}
+                                        </MenuItem>
+                                    )),
+                                ]
                             )}
                         </MenuList>
                     </MenuPopover>

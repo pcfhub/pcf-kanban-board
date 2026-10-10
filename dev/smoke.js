@@ -113,6 +113,9 @@ const INPUTS = {
     // 0.4.0, both empty — no limits, and the parent lookup found, not named.
     laneLimits: '',
     parentLookup: '',
+    // 0.5.0, the manifest's own defaults: no maker sort, and the menu off.
+    sortBy: '',
+    showSort: false,
 };
 
 const live = [];
@@ -1168,6 +1171,269 @@ check('passes the search switch down', bind({ inputs: { showSearch: false } }).p
                 ? 'threw out of the call — this kills the control'
                 : 'resolved to ' + lanesResolved.length + ' lane(s)',
     );
+
+    /* ------------------------------------------------ 0.5.0: swimlanes and the sort */
+
+    /*
+     * Every shape here was measured first — SPEC.md, *The 0.4.8 probe*,
+     * 2026-10-10, on a form and in a canvas app. The rig answers the way
+     * those hosts did, and these assert what the board does with it.
+     */
+    const withSwimlane = (name, options) => bind({
+        ...options,
+        columns: [...fixture.columns, fixture.swimlaneColumn(name)],
+    });
+    const rowKeys = (view) => (view.props().rows || []).map((row) => row.key);
+    const rowOfCard = (view, id) => {
+        const found = (view.props().cards || []).find((card) => card.id === id);
+
+        return found && found.row ? found.row.key : undefined;
+    };
+    const updates = (view) => view.calls()
+        .filter((call) => call.startsWith('webAPI.updateRecord'))
+        .map((call) => JSON.parse(call.slice('webAPI.updateRecord('.length, -1)).data);
+
+    check('with no Swimlane column the board has no rows — exactly 0.4.x', plain.props().rows === null && plain.props().cards.every((card) => card.row === undefined));
+
+    // A Choice: rows by option value, the empty row first (w4 has no risk), labelled from the option.
+    const byRisk = withSwimlane('new_risk');
+
+    check(
+        'a Choice swimlane draws a row per value, the empty one first, in option order',
+        JSON.stringify(rowKeys(byRisk)) === JSON.stringify([null, '1', '2', '3'])
+            && byRisk.props().rows.map((row) => row.label).join('|') === 'resx:KanbanBoard_NoValue|Low|Medium|High',
+        JSON.stringify(byRisk.props().rows),
+    );
+    check('and each card sits in its row', rowOfCard(byRisk, 'w1') === '3' && rowOfCard(byRisk, 'w4') === null, `w1 ${rowOfCard(byRisk, 'w1')}, w4 ${rowOfCard(byRisk, 'w4')}`);
+
+    const riskOptions = await byRisk.props().loadRows();
+
+    check(
+        'and the option set adds the rows no card is in yet',
+        Array.isArray(riskOptions) && riskOptions.some((row) => row.key === '4' && row.label === 'Critical') && riskOptions[0].key === null,
+        JSON.stringify(riskOptions),
+    );
+
+    // In canvas a Choice arrives as a number — the same rows.
+    const riskCanvas = bind({ host: 'canvas', columns: [...fixture.columns, fixture.swimlaneColumn('new_risk')] });
+
+    check('a Choice that arrives as a number (canvas) makes the same rows', JSON.stringify(rowKeys(riskCanvas)) === JSON.stringify([null, '1', '2', '3']), JSON.stringify(rowKeys(riskCanvas)));
+    check('but canvas moves nothing — no row and no lane', riskCanvas.props().canMove === false && riskCanvas.props().rowsWritable === false);
+
+    // A Yes/No: "1"/"0" on a form, Yes first; never set is its own row, not No.
+    const byUrgent = withSwimlane('new_urgent');
+
+    check(
+        'a Yes/No swimlane: a never-set row, then Urgent, then Normal',
+        JSON.stringify(rowKeys(byUrgent)) === JSON.stringify([null, '1', '0'])
+            && byUrgent.props().rows.slice(1).map((row) => row.label).join('|') === 'Urgent|Normal',
+        JSON.stringify(byUrgent.props().rows),
+    );
+
+    // Owner: users and a team, keyed by table and id, sorted by name.
+    const byOwner = withSwimlane('ownerid');
+    const ops = byOwner.props().rows.find((row) => row.label === 'Ops Team');
+
+    check(
+        'an Owner swimlane: a row per user or team, by name, keyed by table and id',
+        byOwner.props().rows.map((row) => row.label).join('|') === 'Jo Park|Ops Team|Sam Vaziri'
+            && ops && ops.key === `team:${fixture.owners.ops.id.guid}`,
+        JSON.stringify(byOwner.props().rows),
+    );
+
+    // A row move by the record: a Choice, staged and saved; no Web API.
+    const riskMove = withSwimlane('new_risk');
+    const high = riskMove.props().rows.find((row) => row.key === '3');
+
+    await riskMove.props().onMove('w2', null, high);
+    await flush();
+
+    check(
+        'a card dropped into another Choice row is written through the record',
+        riskMove.calls().some((call) => call.startsWith('record.setValue') && call.includes('new_risk=3')) && riskMove.calls().some((call) => call.startsWith('record.save'))
+            && updates(riskMove).length === 0,
+        riskMove.calls().join(' '),
+    );
+    check('and leaves the lane alone', !riskMove.calls().some((call) => call.startsWith('record.setValue') && call.includes('new_stage=')), riskMove.calls().join(' '));
+
+    riskMove.settle();
+    check('and the card shows in its new row before the data catches up', rowOfCard(riskMove, 'w2') === '3', String(rowOfCard(riskMove, 'w2')));
+
+    riskMove.handle.reread();
+    riskMove.settle();
+    check('with no row override left once the record agrees', riskMove.instance.pendingRows.size === 0 && rowOfCard(riskMove, 'w2') === '3', `${riskMove.instance.pendingRows.size} pending`);
+
+    // A diagonal move — lane and row — through the record: two columns, one save.
+    const diagonal = withSwimlane('new_risk');
+
+    await diagonal.props().onMove('w2', 2, diagonal.props().rows.find((row) => row.key === '3'));
+    await flush();
+
+    check(
+        'a move into another lane and row stages both and saves once',
+        diagonal.calls().filter((call) => call.startsWith('record.setValue')).length === 2
+            && diagonal.calls().filter((call) => call.startsWith('record.save')).length === 1,
+        diagonal.calls().join(' '),
+    );
+
+    // …and where the lane needs the Web API, the whole move is one update.
+    const diagonalApi = withSwimlane('new_risk', { quirks: { readOnlyColumns: ['new_stage'] } });
+
+    await diagonalApi.props().onMove('w2', 2, diagonalApi.props().rows.find((row) => row.key === '3'));
+    await flush();
+
+    check(
+        'and where the lane cannot go through the record, lane and row are one Web API update',
+        JSON.stringify(updates(diagonalApi)) === JSON.stringify([{ new_stage: 2, new_risk: 3 }])
+            && !diagonalApi.calls().some((call) => call.startsWith('record.setValue')),
+        JSON.stringify(updates(diagonalApi)),
+    );
+
+    // Owner: always the Web API, as a bind read from metadata.
+    const assign = withSwimlane('ownerid');
+    const team = assign.props().rows.find((row) => row.label === 'Ops Team');
+
+    await assign.props().onMove('w1', null, team);
+    await flush();
+    await flush();
+
+    check(
+        'a card dropped into a team\'s row is assigned through the Web API, as a bind',
+        JSON.stringify(updates(assign)) === JSON.stringify([{ 'ownerid@odata.bind': `/teams(${fixture.owners.ops.id.guid})` }])
+            && !assign.calls().some((call) => call.startsWith('record.setValue')),
+        JSON.stringify(updates(assign)) + ' ' + assign.calls().filter((call) => call.startsWith('record')).join(' '),
+    );
+
+    assign.handle.reread();
+    assign.settle();
+    check('and reads back in the team\'s row', rowOfCard(assign, 'w1') === team.key, String(rowOfCard(assign, 'w1')));
+
+    const assignDiagonal = withSwimlane('ownerid');
+
+    await assignDiagonal.props().onMove('w1', 2, assignDiagonal.props().rows.find((row) => row.label === 'Ops Team'));
+    await flush();
+    await flush();
+
+    check(
+        'a move into another lane and an Owner row is one update, the lane beside the bind',
+        JSON.stringify(updates(assignDiagonal)) === JSON.stringify([{ new_stage: 2, 'ownerid@odata.bind': `/teams(${fixture.owners.ops.id.guid})` }]),
+        JSON.stringify(updates(assignDiagonal)),
+    );
+
+    // Owner without Assign: the rows close; a Choice board is unaffected.
+    const noAssign = { hasPrivilege: (type) => type !== 5 };
+
+    check('without Assign, Owner rows take no card', withSwimlane('ownerid', noAssign).props().rowsWritable === false);
+    check('while a Choice board, under the same roles, still moves between rows', withSwimlane('new_risk', noAssign).props().rowsWritable === true);
+    check('and where the roles cannot be asked, the rows are offered', withSwimlane('ownerid', { hasPrivilege: 'throws' }).props().rowsWritable === true);
+
+    // The server's unfilled template gives way to its title.
+    const refusedAssign = withSwimlane('ownerid', {
+        webApiFails: true,
+        rejection: {
+            errorCode: 2147746457,
+            message: 'Assignee {2}(Id = {3}) is missing {0} privilege on {1} entity(OTC={4}).',
+            title: 'Assignee does not hold the required read privilege or access.',
+        },
+    });
+    const assignOutcome = await refusedAssign.props().onMove('w1', null, refusedAssign.props().rows.find((row) => row.label === 'Jo Park'));
+
+    check(
+        'a refused assignment shows the title, not the unfilled template',
+        assignOutcome.ok === false && /Assignee does not hold the required read privilege/.test(assignOutcome.message) && !/\{2\}/.test(assignOutcome.message),
+        assignOutcome.message,
+    );
+    check('and the card goes back to its row', refusedAssign.instance.pendingRows.size === 0);
+
+    // The empty row takes no card: a move into it is no write at all.
+    const intoEmpty = withSwimlane('new_risk');
+
+    await intoEmpty.props().onMove('w1', null, intoEmpty.props().rows.find((row) => row.key === null));
+    await flush();
+    check('the empty row is never written to', !intoEmpty.calls().some((call) => call.startsWith('record.') || call.startsWith('webAPI.updateRecord')), intoEmpty.calls().join(' '));
+
+    // Canvas: an unset role is a nameless column, and it is unset.
+    const canvasUnset = bind({
+        host: 'canvas',
+        unboundRoles: ['valueField'],
+        columns: fixture.columns.filter((column) => column.alias !== 'valueField'),
+    });
+
+    check(
+        'in canvas an unset role arrives as a nameless column — and is read as unset, so no totals',
+        canvasUnset.handle.dataset.columns.some((column) => column.alias === 'valueField' && column.name === null)
+            && canvasUnset.props().hasValue === false && canvasUnset.props().totalsWanted === false,
+        `hasValue ${canvasUnset.props().hasValue}, totalsWanted ${canvasUnset.props().totalsWanted}`,
+    );
+
+    // The sort.
+    check('the sort menu is off unless the maker turns it on', plain.props().showSort === false);
+
+    const sortable = bind({ inputs: { showSort: true } });
+    const offered = sortable.props().sortOptions.map((option) => option.name);
+
+    check(
+        'it offers the dataset\'s own columns, once each',
+        offered.includes('new_summary') && offered.includes('new_stage') && new Set(offered).size === offered.length && !offered.includes('createdon'),
+        offered.join(', '),
+    );
+
+    const canvasSort = bind({ host: 'canvas', unboundRoles: ['valueField'], inputs: { showSort: true } }).props().sortOptions.map((option) => option.name);
+
+    check('in canvas too — no column twice and none without a name', new Set(canvasSort).size === canvasSort.length && !canvasSort.includes(null), canvasSort.join(', '));
+
+    // Storage belongs to the host that handed out the latest context: this one, again.
+    sortable.settle();
+
+    const refreshesBefore = sortable.calls().filter((call) => call === 'refresh').length;
+
+    sortable.props().onSort({ name: 'new_summary', direction: 1 });
+    sortable.settle();
+
+    const titles = sortable.props().cards.map((card) => card.title);
+
+    check(
+        'choosing a sort mutates dataset.sorting in place and refreshes',
+        sortable.handle.dataset.sorting[0].name === 'new_summary' && sortable.handle.dataset.sorting[0].sortDirection === 1
+            && sortable.calls().filter((call) => call === 'refresh').length === refreshesBefore + 1,
+        JSON.stringify(sortable.handle.dataset.sorting),
+    );
+    check('so the cards come back in that order', titles.join('|') === titles.slice().sort((a, b) => b.localeCompare(a)).join('|'), titles.join(' | '));
+    check('and the choice is kept for this table and view', sortable.calls().some((call) => call.startsWith('localStorage.setItem') && call.includes('pcfhub-kanban-sort:new_workitem:')), sortable.calls().filter((call) => call.startsWith('localStorage')).join(' '));
+
+    // The maker's default, once — and never a column the board does not load.
+    const makerSort = bind({ inputs: { sortBy: 'new_summary desc' } });
+    const makerRefreshes = makerSort.calls().filter((call) => call === 'refresh').length;
+
+    makerSort.settle();
+    makerSort.settle();
+
+    check(
+        'Sort cards by applies once, from the first pass, and not again',
+        makerSort.handle.dataset.sorting[0] && makerSort.handle.dataset.sorting[0].name === 'new_summary'
+            && makerSort.calls().filter((call) => call === 'refresh').length === makerRefreshes && makerRefreshes === 1,
+        `${makerRefreshes} refresh(es); ${JSON.stringify(makerSort.handle.dataset.sorting)}`,
+    );
+    check(
+        'and a sort on a column the board does not load is not attempted',
+        bind({ inputs: { sortBy: 'createdon desc' } }).handle.dataset.sorting.length === 0,
+    );
+
+    // A stored choice outranks the maker's — only while the menu is on.
+    // One browser's storage, shared by the board and the same board opened again.
+    const browserStore = {};
+    const stored = bind({ storageData: browserStore, inputs: { showSort: true, sortBy: 'new_summary desc' } });
+
+    stored.props().onSort({ name: 'new_owner', direction: 0 });
+
+    const reopened = bind({ storageData: browserStore, inputs: { showSort: true, sortBy: 'new_summary desc' } });
+
+    check('a user\'s stored sort outranks the maker\'s when the menu is on', reopened.handle.dataset.sorting[0] && reopened.handle.dataset.sorting[0].name === 'new_owner', JSON.stringify(reopened.handle.dataset.sorting));
+
+    const storageRefused = bind({ storage: 'throws', inputs: { showSort: true } });
+
+    storageRefused.props().onSort({ name: 'new_summary', direction: 0 });
+    check('a browser that refuses storage still sorts', storageRefused.handle.dataset.sorting[0] && storageRefused.handle.dataset.sorting[0].name === 'new_summary');
 
     report();
 })();

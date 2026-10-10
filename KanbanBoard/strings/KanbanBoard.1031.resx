@@ -268,4 +268,40 @@
   <data name="KanbanBoard_NotAllowed" xml:space="preserve">
     <value>Die Statusgrund-Übergänge erlauben keinen Wechsel von {0} zu {1}.</value>
   </data>
+  <data name="SortBy_Name" xml:space="preserve">
+    <value>Karten sortieren nach</value>
+  </data>
+  <data name="SortBy_Desc" xml:space="preserve">
+    <value>Optional. Eine Spalte, die das Board lädt, und eine Richtung, z. B. "createdon desc" oder "cll_title". Legt die Reihenfolge der Karten in jeder Bahn fest. Leer behält die Reihenfolge der Ansicht.</value>
+  </data>
+  <data name="ShowSort_Name" xml:space="preserve">
+    <value>Sortiermenü anzeigen</value>
+  </data>
+  <data name="ShowSort_Desc" xml:space="preserve">
+    <value>Lässt Benutzer die Spalte wählen, nach der die Karten sortiert werden. Die Auswahl wird in ihrem Browser für diese Ansicht gespeichert.</value>
+  </data>
+  <data name="KanbanBoard_Sort" xml:space="preserve">
+    <value>Karten sortieren</value>
+  </data>
+  <data name="KanbanBoard_SortViewOrder" xml:space="preserve">
+    <value>Reihenfolge der Ansicht</value>
+  </data>
+  <data name="KanbanBoard_SortAscending" xml:space="preserve">
+    <value>Aufsteigend – auswählen, um absteigend zu sortieren</value>
+  </data>
+  <data name="KanbanBoard_SortDescending" xml:space="preserve">
+    <value>Absteigend – auswählen, um aufsteigend zu sortieren</value>
+  </data>
+  <data name="KanbanBoard_NoValue" xml:space="preserve">
+    <value>(leer)</value>
+  </data>
+  <data name="KanbanBoard_MoveToRow" xml:space="preserve">
+    <value>Zeile: {0}</value>
+  </data>
+  <data name="KanbanBoard_RowCount" xml:space="preserve">
+    <value>{0} Karten in {1}</value>
+  </data>
+  <data name="KanbanBoard_RowUnwritable" xml:space="preserve">
+    <value>Ihre Zeile konnte nicht geschrieben werden: Die Tabelle der Spalte konnte nicht gelesen werden.</value>
+  </data>
 </root>

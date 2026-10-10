@@ -268,4 +268,40 @@
   <data name="KanbanBoard_NotAllowed" xml:space="preserve">
     <value>Les transitions de raison du statut n'autorisent pas le passage de {0} à {1}.</value>
   </data>
+  <data name="SortBy_Name" xml:space="preserve">
+    <value>Trier les cartes par</value>
+  </data>
+  <data name="SortBy_Desc" xml:space="preserve">
+    <value>Facultatif. Une colonne chargée par le tableau et un sens, p. ex. « createdon desc » ou « cll_title ». Définit l'ordre des cartes dans chaque couloir. Vide conserve l'ordre de la vue.</value>
+  </data>
+  <data name="ShowSort_Name" xml:space="preserve">
+    <value>Afficher le menu de tri</value>
+  </data>
+  <data name="ShowSort_Desc" xml:space="preserve">
+    <value>Permet aux utilisateurs de choisir la colonne de tri des cartes. Leur choix est mémorisé dans leur navigateur pour cette vue.</value>
+  </data>
+  <data name="KanbanBoard_Sort" xml:space="preserve">
+    <value>Trier les cartes</value>
+  </data>
+  <data name="KanbanBoard_SortViewOrder" xml:space="preserve">
+    <value>Ordre de la vue</value>
+  </data>
+  <data name="KanbanBoard_SortAscending" xml:space="preserve">
+    <value>Croissant — sélectionnez pour trier par ordre décroissant</value>
+  </data>
+  <data name="KanbanBoard_SortDescending" xml:space="preserve">
+    <value>Décroissant — sélectionnez pour trier par ordre croissant</value>
+  </data>
+  <data name="KanbanBoard_NoValue" xml:space="preserve">
+    <value>(vide)</value>
+  </data>
+  <data name="KanbanBoard_MoveToRow" xml:space="preserve">
+    <value>Ligne : {0}</value>
+  </data>
+  <data name="KanbanBoard_RowCount" xml:space="preserve">
+    <value>{0} cartes dans {1}</value>
+  </data>
+  <data name="KanbanBoard_RowUnwritable" xml:space="preserve">
+    <value>Sa ligne n'a pas pu être écrite : la table de la colonne n'a pas pu être lue.</value>
+  </data>
 </root>

@@ -46,10 +46,35 @@
     var CONTOSO = 'a0000000-0000-4000-8000-00000000c0de';
     var ELSEWHERE = 'a0000000-0000-4000-8000-0000000e15e0';
 
+    /*
+     * 0.5.0: what each card carries for a swimlane — a Choice (risk), a
+     * Yes/No (urgent) and Owner. Not in the view's columns: a suite binds the
+     * Swimlane role to one of them through `swimlaneColumn`, the way a maker
+     * does. Blanks on purpose — w4 has no risk, w3 and w6 never set urgent —
+     * because a value never set is its own row, not the first option or No.
+     */
+    var SAM = { id: { guid: 'b3f1a0c2-0000-4000-8000-000000000001' }, etn: 'systemuser', name: 'Sam Vaziri' };
+    var JO = { id: { guid: 'b3f1a0c2-0000-4000-8000-000000000002' }, etn: 'systemuser', name: 'Jo Park' };
+    var OPS = { id: { guid: 'e8d840ff-0000-4000-8000-000000000001' }, etn: 'team', name: 'Ops Team' };
+    var SWIM = {
+        w1: { risk: 3, urgent: true, owner: SAM },
+        w2: { risk: 1, urgent: false, owner: JO },
+        w3: { risk: 2, urgent: null, owner: OPS },
+        w4: { risk: null, urgent: true, owner: SAM },
+        w5: { risk: 1, urgent: false, owner: OPS },
+        w6: { risk: 3, urgent: null, owner: JO },
+        w7: { risk: 2, urgent: true, owner: SAM },
+    };
+
     function card(id, title, status, assignee, badge, estimate, account) {
+        var swim = SWIM[id] || {};
+
         return {
             id: id,
             values: {
+                new_risk: swim.risk === undefined ? null : swim.risk,
+                new_urgent: swim.urgent === undefined ? null : swim.urgent,
+                ownerid: swim.owner || null,
                 // The real column names — what getValue() takes.
                 new_stage: status,
                 new_summary: title,
@@ -92,7 +117,19 @@
          */
         relationships: [
             { column: 'new_account', target: 'account', navigationProperty: 'new_account' },
+            // 0.5.0: Owner — one navigation property for both targets, measured 2026-10-10.
+            { column: 'ownerid', target: 'systemuser', navigationProperty: 'ownerid' },
+            { column: 'ownerid', target: 'team', navigationProperty: 'ownerid' },
         ],
+
+        /** The entity sets a metadata read answers — what an `@odata.bind` value is spelled with. */
+        entitySets: { systemuser: 'systemusers', team: 'teams', account: 'accounts' },
+
+        /** The rows a bind can land on; a bind to any other GUID is refused as not found. */
+        related: {
+            systemuser: { entitySet: 'systemusers', rows: [{ id: SAM.id.guid, name: SAM.name }, { id: JO.id.guid, name: JO.name }] },
+            team: { entitySet: 'teams', rows: [{ id: OPS.id.guid, name: OPS.name }] },
+        },
 
         /*
          * What `utils.getEntityMetadata('new_workitem', ['new_stage'])` carries
@@ -111,6 +148,19 @@
                     { value: 4, label: 'Blocked', color: '#c50f1f' },
                 ],
             },
+            // 0.5.0: the Choice swimlane. Critical has no card, so a board showing its row read the options.
+            new_risk: {
+                shape: 'descriptor',
+                options: [
+                    { value: 1, label: 'Low' },
+                    { value: 2, label: 'Medium' },
+                    { value: 3, label: 'High' },
+                    { value: 4, label: 'Critical' },
+                ],
+            },
+            // The Yes/No swimlane's two labels.
+            new_urgent: { options: [{ value: 0, label: 'Normal' }, { value: 1, label: 'Urgent' }] },
+            ownerid: { targets: ['systemuser', 'team'] },
         },
 
         /*
@@ -189,5 +239,19 @@
 
         /** The two accounts, for a suite that sets `contextInfo` and `relationshipFilter`. */
         accounts: { contoso: CONTOSO, elsewhere: ELSEWHERE },
+
+        /** The owners, for a suite that drops a card into an Owner row. */
+        owners: { sam: SAM, jo: JO, ops: OPS },
+
+        /**
+         * The view's columns with the Swimlane role bound to `name` — one of
+         * `new_risk` (Choice), `new_urgent` (Yes/No) or `ownerid` (Owner) —
+         * as a maker's binding brings it in: a role outside the view.
+         */
+        swimlaneColumn: function (name) {
+            var types = { new_risk: ['Risk', 'OptionSet'], new_urgent: ['Urgent', 'TwoOptions'], ownerid: ['Owner', 'Lookup.Owner'] };
+
+            return { name: name, displayName: types[name][0], dataType: types[name][1], alias: 'swimlaneField', order: -1 };
+        },
     };
 });

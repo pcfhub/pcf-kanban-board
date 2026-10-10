@@ -268,4 +268,40 @@
   <data name="KanbanBoard_NotAllowed" xml:space="preserve">
     <value>ステータス理由の遷移では {0} から {1} への移動は許可されていません。</value>
   </data>
+  <data name="SortBy_Name" xml:space="preserve">
+    <value>カードの並べ替え</value>
+  </data>
+  <data name="SortBy_Desc" xml:space="preserve">
+    <value>省略可能。ボードが読み込む列と方向 (例: "createdon desc"、"cll_title")。各レーンのカードの順序を決めます。空の場合はビューの順序のままです。</value>
+  </data>
+  <data name="ShowSort_Name" xml:space="preserve">
+    <value>並べ替えメニューを表示</value>
+  </data>
+  <data name="ShowSort_Desc" xml:space="preserve">
+    <value>カードを並べ替える列をユーザーが選べるようにします。選択はこのビューについてブラウザーに保存されます。</value>
+  </data>
+  <data name="KanbanBoard_Sort" xml:space="preserve">
+    <value>カードを並べ替え</value>
+  </data>
+  <data name="KanbanBoard_SortViewOrder" xml:space="preserve">
+    <value>ビューの順序</value>
+  </data>
+  <data name="KanbanBoard_SortAscending" xml:space="preserve">
+    <value>昇順 — 選択すると降順で並べ替えます</value>
+  </data>
+  <data name="KanbanBoard_SortDescending" xml:space="preserve">
+    <value>降順 — 選択すると昇順で並べ替えます</value>
+  </data>
+  <data name="KanbanBoard_NoValue" xml:space="preserve">
+    <value>(空)</value>
+  </data>
+  <data name="KanbanBoard_MoveToRow" xml:space="preserve">
+    <value>行: {0}</value>
+  </data>
+  <data name="KanbanBoard_RowCount" xml:space="preserve">
+    <value>{1} のカード {0} 枚</value>
+  </data>
+  <data name="KanbanBoard_RowUnwritable" xml:space="preserve">
+    <value>行を書き込めませんでした: 列のテーブルを読み取れませんでした。</value>
+  </data>
 </root>

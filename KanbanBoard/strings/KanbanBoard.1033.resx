@@ -268,4 +268,40 @@
   <data name="KanbanBoard_NotAllowed" xml:space="preserve">
     <value>The status reason transitions do not allow a move from {0} to {1}.</value>
   </data>
+  <data name="SortBy_Name" xml:space="preserve">
+    <value>Sort cards by</value>
+  </data>
+  <data name="SortBy_Desc" xml:space="preserve">
+    <value>Optional. A column the board loads and a direction, e.g. "createdon desc" or "cll_title". Sets the order of the cards in every lane. Empty keeps the view's order.</value>
+  </data>
+  <data name="ShowSort_Name" xml:space="preserve">
+    <value>Show sort menu</value>
+  </data>
+  <data name="ShowSort_Desc" xml:space="preserve">
+    <value>Lets users choose the column the cards are sorted by. Their choice is remembered in their browser for this view.</value>
+  </data>
+  <data name="KanbanBoard_Sort" xml:space="preserve">
+    <value>Sort cards</value>
+  </data>
+  <data name="KanbanBoard_SortViewOrder" xml:space="preserve">
+    <value>View order</value>
+  </data>
+  <data name="KanbanBoard_SortAscending" xml:space="preserve">
+    <value>Ascending — select to sort descending</value>
+  </data>
+  <data name="KanbanBoard_SortDescending" xml:space="preserve">
+    <value>Descending — select to sort ascending</value>
+  </data>
+  <data name="KanbanBoard_NoValue" xml:space="preserve">
+    <value>(empty)</value>
+  </data>
+  <data name="KanbanBoard_MoveToRow" xml:space="preserve">
+    <value>Row: {0}</value>
+  </data>
+  <data name="KanbanBoard_RowCount" xml:space="preserve">
+    <value>{0} cards in {1}</value>
+  </data>
+  <data name="KanbanBoard_RowUnwritable" xml:space="preserve">
+    <value>Its row could not be written: the column's table could not be read.</value>
+  </data>
 </root>

@@ -53,6 +53,12 @@ export interface Card {
     laneLabel: string;
     /** The Lane total column's value, or `null` — unbound, or blank on this record. */
     value: number | null;
+    /**
+     * 0.5.0: the card's swimlane — absent when no Swimlane column is bound.
+     * Typed by shape here rather than imported, to keep this file free of
+     * `swimlanes.ts`; the type is `Row` there.
+     */
+    row?: { key: string | null; label: string; value: number | boolean | { etn: string; id: string } | null };
 }
 
 /** The two platform columns a board can be grouped by whose writes are special. */
@@ -72,6 +78,7 @@ export const ROLES = {
     assignee: 'assigneeField',
     badge: 'badgeField',
     value: 'valueField',
+    swimlane: 'swimlaneField',
 } as const;
 
 /**
@@ -434,7 +441,7 @@ export function numberValue(raw: unknown): number | null {
  * only the content can say whether anything actually changed.
  */
 export function boardKey(cards: Card[]): string {
-    return cards.map((card) => `${card.id}:${card.lane ?? ''}`).join('|');
+    return cards.map((card) => `${card.id}:${card.lane ?? ''}:${card.row ? card.row.key ?? '' : ''}`).join('|');
 }
 
 /**

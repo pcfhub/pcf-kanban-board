@@ -24,10 +24,21 @@ import { TotalsAnswer, loadTotals } from './data/totals';
 import { Filter, filterToFetchXml } from './lib/view-aggregate/fetchXml';
 import { ParentReading, rowsConfirm } from './lib/view-aggregate/parent';
 import { WebApiReader } from './lib/view-aggregate/aggregate';
-import { Probe } from './probe';
-
-/** THE 0.4.8 PROBE — see probe.ts. Delete with it before 0.5.0. */
-const PROBE = new Probe();
+import {
+    Row,
+    RowBind,
+    RowKind,
+    SortChoice,
+    deriveRows,
+    faultText,
+    parseSort,
+    rowKind,
+    rowOf,
+    rowPayload,
+    rowsFromOptions,
+    sortOptions,
+    sortStorageKey,
+} from './components/swimlanes';
 
 type DataSet = ComponentFramework.PropertyTypes.DataSet;
 type Column = ComponentFramework.PropertyHelper.DataSetApi.Column;
@@ -274,6 +285,25 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
     private primaryId: Promise<string> | null = null;
     private parentCandidates: Promise<{ column: string; target: string }[]> | null = null;
 
+    /**
+     * 0.5.0: row changes asserted and not yet confirmed — record id to the
+     * row key asked for. Retired in `reconcile()` exactly as `pending` is.
+     */
+    private readonly pendingRows = new Map<string, string | null>();
+
+    /**
+     * The table and view the start-up sort was applied for. `applySort` is
+     * the one mutator besides `applyPageSize` called from `updateView`, and
+     * this is its guard: once per table and view, never per pass.
+     */
+    private sortAppliedFor: string | null = null;
+
+    /** Lookup binds by `table:column:target`, read once each — see `bindFor`. */
+    private readonly binds = new Map<string, Promise<RowBind | null>>();
+
+    /** Lookup rows' write half, by key — the reference a move into the row binds to. */
+    private rowRefs = new Map<string, Row>();
+
     public init(
         context: ComponentFramework.Context<IInputs>,
         notifyOutputChanged: () => void,
@@ -304,18 +334,27 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
     public updateView(context: ComponentFramework.Context<IInputs>): React.ReactElement {
         const dataset = context.parameters.records;
 
-        PROBE.observe(context);
         this.applyPageSize(context, dataset);
+        this.applySort(context, dataset);
 
         const status = this.roleColumn(dataset, ROLES.status);
         const title = this.roleColumn(dataset, ROLES.title);
 
         // Retire settled overrides before building the cards, so a confirmed
         // move is read from the data rather than from this control's memory.
-        this.reconcile(dataset, status);
-
-        const cards = this.cards(dataset, status, title);
+        const swimlane = this.roleColumn(dataset, ROLES.swimlane);
+        const kind = swimlane ? rowKind(swimlane.dataType) : null;
         const getString = (id: string): string => context.resources.getString(id);
+        const emptyRow = getString('KanbanBoard_NoValue');
+
+        this.reconcile(dataset, status, swimlane && kind ? { column: swimlane.name, kind } : null);
+
+        const cards = this.cards(dataset, status, title, swimlane && kind ? { column: swimlane, kind, emptyLabel: emptyRow } : null);
+        const rows = kind ? deriveRows(kind, cards, emptyRow) : null;
+
+        // The write half of every lookup row on the board, by key.
+        this.rowRefs = new Map((rows ?? []).filter((row) => row.key !== null).map((row) => [row.key as string, row]));
+
         const value = this.roleColumn(dataset, ROLES.value);
         const limitsSpec = (context.parameters.laneLimits?.raw ?? '').trim();
         const limits = Object.fromEntries(parseLimits(limitsSpec));
@@ -365,8 +404,16 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
             loadRules: status && status.name === STATUS_REASON
                 ? (): Promise<Record<string, number[]>> => this.rulesFor(context, dataset.getTargetEntityType(), status.name)
                 : null,
-            onMove: (recordId: string, toValue: number): Promise<MoveOutcome> =>
-                this.moveCard(context, dataset, recordId, toValue),
+            rows,
+            rowsKey: swimlane && kind ? `${dataset.getTargetEntityType()}:${swimlane.name}` : '',
+            loadRows: swimlane && kind === 'choice' ? this.rowLoader(context, dataset, swimlane.name, rows ?? []) : null,
+            rowsWritable: swimlane && kind ? this.rowsWritable(context, dataset, swimlane.name, kind) : false,
+            showSort: context.parameters.showSort?.raw === true,
+            sortOptions: sortOptions((dataset.columns ?? []) as { name: string | null; displayName?: string; disableSorting?: boolean }[]),
+            sort: this.currentSort(dataset),
+            onSort: (choice: SortChoice | null): void => this.sortBy(dataset, choice),
+            onMove: (recordId: string, toValue: number | null, toRow?: Row): Promise<MoveOutcome> =>
+                this.moveCard(context, dataset, recordId, toValue, toRow),
             onCreate: (laneValue: number): void => this.createCard(context, dataset, laneValue),
             onOpenRecord: (id: string): void => this.openRecord(dataset, id),
             onLoadMore: (): void => this.loadMore(dataset),
@@ -404,9 +451,16 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
      * view while passing any fixture whose two values happen to be equal. It is
      * the most expensive mistake available in this pattern, so it is made once,
      * here.
+     *
+     * **A role with no column is unset, even when it is there.** A form leaves
+     * an unset role out of `columns`; canvas hands it over as `{ name: null,
+     * alias: "valueField", dataType: "SingleLine.Text" }` (measured
+     * 2026-10-10). Through 0.4.x that read as bound, and every canvas board
+     * with no Lane total column printed a totals caption over nothing.
      */
     private roleColumn(dataset: DataSet, alias: string): Column | undefined {
-        return (dataset.columns ?? []).find((column) => column.alias === alias);
+        return (dataset.columns ?? []).find((column) => column.alias === alias
+            && typeof column.name === 'string' && column.name !== '');
     }
 
     /**
@@ -518,7 +572,21 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
      *
      * Reads only. Called from `updateView`, so a mutator here would loop.
      */
-    private reconcile(dataset: DataSet, status: Column | undefined): void {
+    private reconcile(
+        dataset: DataSet,
+        status: Column | undefined,
+        swimlane: { column: string; kind: RowKind } | null,
+    ): void {
+        // Rows retire the way lanes do: against data, or when the record left the view.
+        for (const [id, wanted] of [...this.pendingRows]) {
+            const record = dataset.records[id];
+
+            if (!record || !swimlane
+                || rowOf(swimlane.kind, record.getValue(swimlane.column), null, '').key === wanted) {
+                this.pendingRows.delete(id);
+            }
+        }
+
         if (this.pending.size === 0 || !status) {
             return;
         }
@@ -546,7 +614,12 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
      * `sortedRecordIds` is passed through whole and never sliced: with bare
      * `loadNextPage()` the accumulation *is* the board.
      */
-    private cards(dataset: DataSet, status: Column | undefined, title: Column | undefined): Card[] {
+    private cards(
+        dataset: DataSet,
+        status: Column | undefined,
+        title: Column | undefined,
+        swimlane: { column: Column; kind: RowKind; emptyLabel: string } | null,
+    ): Card[] {
         if (!status || !title) {
             return [];
         }
@@ -569,6 +642,14 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
             // NaN. See `laneValue` for why a numeric string counts.
             const actual = laneValue(record.getValue(status.name));
             const override = this.pending.get(id);
+            const row = swimlane
+                ? rowOf(swimlane.kind, record.getValue(swimlane.column.name), record.getFormattedValue(swimlane.column.name), swimlane.emptyLabel)
+                : undefined;
+            const rowOverride = this.pendingRows.get(id);
+            // A pending row is drawn from the row it names, while the data catches up.
+            const placedRow = row && rowOverride !== undefined && rowOverride !== row.key
+                ? this.rowRefs.get(rowOverride ?? '') ?? row
+                : row;
 
             built.push({
                 id,
@@ -578,6 +659,7 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
                 lane: override ?? actual,
                 laneLabel: record.getFormattedValue(status.name),
                 value: value ? numberValue(record.getValue(value.name)) : null,
+                ...(placedRow ? { row: placedRow } : {}),
             });
         }
 
@@ -741,10 +823,13 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
         context: ComponentFramework.Context<IInputs>,
         dataset: DataSet,
         recordId: string,
-        toValue: number,
+        toValue: number | null,
+        toRow?: Row,
     ): Promise<MoveOutcome> {
         const status = this.roleColumn(dataset, ROLES.status);
         const title = this.roleColumn(dataset, ROLES.title);
+        const swimlane = this.roleColumn(dataset, ROLES.swimlane);
+        const kind = swimlane ? rowKind(swimlane.dataType) : null;
         const record = dataset.records[recordId];
 
         // The component hides the move affordances without a writable host, so
@@ -758,8 +843,18 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
         // Dropping a card back where it started is not a write. Read as a
         // lane number — the record's own answer is the string "3".
         const current = this.pending.get(recordId) ?? laneValue(record.getValue(status.name));
+        const currentRow = swimlane && kind
+            ? (this.pendingRows.has(recordId)
+                ? this.pendingRows.get(recordId) ?? null
+                : rowOf(kind, record.getValue(swimlane.name), null, '').key)
+            : null;
+        // `null` keeps the lane: a move between rows from the Move menu.
+        const laneChanges = toValue !== null && current !== toValue;
+        // The empty row takes no drop: writing nothing into a column is not a move.
+        const rowChanges = toRow !== undefined && swimlane !== undefined && kind !== null
+            && toRow.key !== null && toRow.key !== currentRow;
 
-        if (current === toValue) {
+        if (!laneChanges && !rowChanges) {
             return Promise.resolve({ ok: true, message: null });
         }
 
@@ -768,50 +863,81 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
         // that cannot name the card is most of the way to useless.
         const label = title ? record.getFormattedValue(title.name) : recordId;
 
-        this.pending.set(recordId, toValue);
+        if (laneChanges) {
+            this.pending.set(recordId, toValue as number);
+        }
+
+        if (rowChanges) {
+            this.pendingRows.set(recordId, toRow.key);
+        }
+
         this.moving.add(recordId);
         this.moveError = null;
         this.movedRecordId = recordId;
         this.notifyOutputChanged();
 
         /*
-         * **What is sent depends on the lane column.** On a Status Reason
-         * board a move across states sends the state beside the reason — the
-         * server refuses a bare reason from the other state (measured, T4) —
-         * so the states are read first. On any other column this resolves to
-         * `[]` at once and the payload is the one column, as before.
+         * **What is sent depends on the lane column and the row.** On a
+         * Status Reason board a move across states sends the state beside
+         * the reason — the server refuses a bare reason from the other state
+         * (measured, T4) — so the states are read first. A row adds its own
+         * column; **a lookup row's is an `@odata.bind`**, whose navigation
+         * property and entity set are read before anything is sent. Lane and
+         * row go in **one** write: the state pair and an Owner bind were
+         * accepted together (P4, measured 2026-10-10).
          */
         const from = current;
+        const entity = dataset.getTargetEntityType();
+        const target = rowChanges && kind === 'lookup' ? (toRow.value as { etn: string }).etn : null;
 
         return Promise.all([
-            this.statesFor(context, dataset.getTargetEntityType(), status.name),
-            this.rulesFor(context, dataset.getTargetEntityType(), status.name),
+            this.statesFor(context, entity, status.name),
+            this.rulesFor(context, entity, status.name),
+            target && swimlane ? this.bindFor(context, entity, swimlane.name, target) : Promise.resolve(null),
         ])
-            .then(([options, rules]) => {
-                const to = options.find((lane) => lane.value === toValue)
-                    ?? { value: toValue, label: '', color: null, state: null, defaultStatus: null, next: null };
-                const source = options.find((lane) => lane.value === from);
+            .then(([options, rules, bind]) => {
+                let payload: Record<string, unknown> = {};
 
-                /*
-                 * The board draws a disallowed lane as closed and leaves it
-                 * out of the Move menu; this is the same rule, once more,
-                 * before anything is sent — so no path to `write` can send a
-                 * move the table's transitions forbid, whether or not the
-                 * server would have caught it (it catches only a change of
-                 * state, measured).
-                 */
-                if (!allowsMove(rules, typeof from === 'number' ? from : null, toValue)) {
-                    throw new Error(context.resources.getString('KanbanBoard_NotAllowed')
-                        .replace('{0}', source?.label ?? String(from))
-                        .replace('{1}', to.label || String(toValue)));
+                if (laneChanges) {
+                    const toLane = toValue as number;
+                    const to = options.find((lane) => lane.value === toLane)
+                        ?? { value: toLane, label: '', color: null, state: null, defaultStatus: null, next: null };
+                    const source = options.find((lane) => lane.value === from);
+
+                    /*
+                     * The board draws a disallowed lane as closed and leaves it
+                     * out of the Move menu; this is the same rule, once more,
+                     * before anything is sent — so no path to `write` can send a
+                     * move the table's transitions forbid, whether or not the
+                     * server would have caught it (it catches only a change of
+                     * state, measured).
+                     */
+                    if (!allowsMove(rules, typeof from === 'number' ? from : null, toLane)) {
+                        throw new Error(context.resources.getString('KanbanBoard_NotAllowed')
+                            .replace('{0}', source?.label ?? String(from))
+                            .replace('{1}', to.label || String(toLane)));
+                    }
+
+                    payload = { ...movePayload(status.name, source, to) };
                 }
 
-                return this.write(context, dataset, record, status.name, recordId, movePayload(status.name, source, to));
+                if (rowChanges && swimlane && kind) {
+                    const part = rowPayload(kind, swimlane.name, toRow, bind);
+
+                    if (!part) {
+                        throw new Error(context.resources.getString('KanbanBoard_RowUnwritable'));
+                    }
+
+                    payload = { ...payload, ...part };
+                }
+
+                return this.write(context, dataset, record, recordId, payload);
             })
             .then(
                 (): MoveOutcome => ({ ok: true, message: null }),
                 (error: unknown): MoveOutcome => {
                     this.pending.delete(recordId);
+                    this.pendingRows.delete(recordId);
                     // Before the announcement, not only in the `finally`: a
                     // host that does render on it must not draw the card as
                     // still moving.
@@ -819,7 +945,7 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
                     this.failedMoves += 1;
                     this.moveError = `${context.resources
                         .getString('KanbanBoard_MoveFailed')
-                        .replace('{0}', label)} ${this.describe(error)}`;
+                        .replace('{0}', label)} ${faultText(error)}`;
                     this.notifyOutputChanged();
 
                     return { ok: false, message: this.moveError };
@@ -833,57 +959,62 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
     /**
      * The write itself, by whichever route this record allows.
      *
-     * **Two routes, chosen per record.** `record.isEditable(column)` decides:
-     * `true` and the value goes through `setValue` + `save()` on the record —
-     * no feature, no prompt, and the only route a canvas app has; `false`, or
-     * a record with no write half at all, and it goes through
-     * `webAPI.updateRecord` where that exists. The second route is not
-     * legacy: `isEditable` answers `false` for `statuscode`, which is the
-     * column a board is most often grouped by, and a plain Web API update
-     * writes it.
+     * **Two routes, chosen per record.** Where every column in the payload
+     * answers `isEditable` `true`, the values go through `setValue` +
+     * `save()` on the record — no feature, no prompt — staged together and
+     * saved once (two columns in one save, measured 2026-10-10). Otherwise,
+     * or on a record with no write half, the whole payload is one
+     * `webAPI.updateRecord`. The second route is not legacy: `isEditable`
+     * answers `false` for `statuscode`, the column a board is most often
+     * grouped by.
+     *
+     * **A bind never goes through the record.** Owner answers `isEditable`
+     * `true`, and `setValue` with the record's own reference stages `null`;
+     * the save is then refused, "Attribute: ownerid cannot be set to NULL"
+     * (measured). A payload with an `@odata.bind` key is the Web API's.
+     *
+     * **Not on canvas at all.** A canvas record has no `isEditable`, so
+     * `editableRecord` declines it, and its Choice stages `null` in every
+     * shape (measured) — `canWrite` keeps the board read-only there.
      *
      * **`Promise.resolve().then(...)` rather than chaining off `setValue`.**
      * It returns `undefined`, so `record.setValue(...).then(...)` is `.then`
      * on nothing — a `TypeError` thrown synchronously, outside every
      * `.catch`. Starting from a resolved promise turns a synchronous throw
      * inside the callback into a rejection, which is what `moveCard` is
-     * equipped to handle. `refresh()` follows either route, from `moveCard`'s
-     * `finally`: a resolved `save()` is Dataverse accepting the write, and
-     * nothing re-reads until something asks.
+     * equipped to handle.
      */
     private write(
         context: ComponentFramework.Context<IInputs>,
         dataset: DataSet,
         record: unknown,
-        column: string,
         recordId: string,
-        payload: Record<string, number>,
+        payload: Record<string, unknown>,
     ): Promise<unknown> {
         const editable = editableRecord(record);
         const api = context.webAPI;
-        const value = payload[column];
+        const columns = Object.keys(payload);
         const viaApi = (): Promise<unknown> =>
             typeof api?.updateRecord === 'function'
                 ? api.updateRecord(dataset.getTargetEntityType(), recordId, payload)
                 : Promise.reject(new Error(context.resources.getString('KanbanBoard_ReadOnly')));
 
-        // A pair — a state beside its reason — is one Web API update. The
-        // record route stages one column, and both status columns answer
-        // `isEditable` false on a form anyway (T7).
-        if (!editable || Object.keys(payload).length !== 1) {
+        if (!editable || columns.some((column) => column.indexOf('@') !== -1)) {
             return viaApi();
         }
 
         return Promise.resolve()
             // `=== true` rather than truthiness: a host returning the Promise
             // the platform does would otherwise read as editable everywhere.
-            .then(() => editable.isEditable(column))
-            .then((allowed) => {
-                if (allowed !== true) {
+            .then(() => Promise.all(columns.map((column) => editable.isEditable(column))))
+            .then((answers) => {
+                if (answers.some((allowed) => allowed !== true)) {
                     return viaApi();
                 }
 
-                editable.setValue(column, value);
+                for (const column of columns) {
+                    editable.setValue(column, payload[column]);
+                }
 
                 return editable.save();
             });
@@ -1171,18 +1302,230 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
             });
     }
 
+    /** The sort in force — the first entry of `dataset.sorting` — or `null` for the view's own order. */
+    private currentSort(dataset: DataSet): SortChoice | null {
+        const first = (dataset.sorting ?? [])[0] as { name?: unknown; sortDirection?: unknown } | undefined;
+
+        return first && typeof first.name === 'string'
+            ? { name: first.name, direction: first.sortDirection === 1 ? 1 : 0 }
+            : null;
+    }
+
+    /** The table and view this board is on, as the key a user's sort is kept under. */
+    private sortKey(dataset: DataSet): string {
+        const viewId = (dataset as { getViewId?: () => unknown }).getViewId?.();
+
+        return sortStorageKey(dataset.getTargetEntityType(), typeof viewId === 'string' && viewId !== '' ? viewId : null);
+    }
+
+    /** A user's stored sort, or `null` — wrapped, because storage can refuse (a private window, blocked site data). */
+    private storedSort(dataset: DataSet): SortChoice | null {
+        try {
+            const raw = globalThis.localStorage.getItem(this.sortKey(dataset));
+            const parsed = raw ? (JSON.parse(raw) as { name?: unknown; direction?: unknown }) : null;
+
+            return parsed && typeof parsed.name === 'string'
+                ? { name: parsed.name, direction: parsed.direction === 1 ? 1 : 0 }
+                : null;
+        } catch {
+            return null;
+        }
+    }
+
     /**
-     * A rejected `updateRecord` is typed as `unknown` and is not reliably an
-     * `Error` — the platform rejects with its own shape. Take a message where
-     * there is one and stringify otherwise, rather than printing
-     * `[object Object]` at the user.
+     * **Mutated in place, then `refresh()`** — the one route that works on
+     * both hosts. Measured 2026-10-10: assigning `dataset.sorting = [...]` was
+     * ignored on a form (the next pass held the old array) and applied in
+     * canvas. A refresh restarts the view at its first page, so cards Load
+     * more brought in go — what the view's own column headers do too.
      */
-    private describe(error: unknown): string {
-        if (typeof error === 'object' && error !== null && 'message' in error) {
-            return String((error as { message: unknown }).message);
+    private applySortChoice(dataset: DataSet, choice: SortChoice | null): void {
+        const sorting = dataset.sorting;
+
+        if (!Array.isArray(sorting)) {
+            return;
         }
 
-        return String(error);
+        sorting.length = 0;
+
+        if (choice) {
+            sorting.push({ name: choice.name, sortDirection: choice.direction as ComponentFramework.PropertyHelper.DataSetApi.Types.SortDirection });
+        }
+
+        dataset.refresh();
+    }
+
+    /**
+     * The sort a board starts with: the user's stored choice when the menu is
+     * on, else the maker's **Sort cards by**, else the view's own order (no
+     * call at all). Applied once per table and view — this runs from
+     * `updateView`, and a mutator there unguarded is a refresh loop — and only
+     * for a column the board loads, because a form ignores a sort on any
+     * other without a word (measured).
+     */
+    private applySort(context: ComponentFramework.Context<IInputs>, dataset: DataSet): void {
+        const key = this.sortKey(dataset);
+
+        if (this.sortAppliedFor === key || dataset.loading) {
+            return;
+        }
+
+        this.sortAppliedFor = key;
+
+        const menu = context.parameters.showSort?.raw === true;
+        const wanted = (menu ? this.storedSort(dataset) : null) ?? parseSort(context.parameters.sortBy?.raw ?? '');
+        const loaded = sortOptions((dataset.columns ?? []) as { name: string | null; disableSorting?: boolean }[]);
+        const current = this.currentSort(dataset);
+
+        if (!wanted || !loaded.some((option) => option.name === wanted.name)) {
+            return;
+        }
+
+        if (current && current.name === wanted.name && current.direction === wanted.direction) {
+            return;
+        }
+
+        this.applySortChoice(dataset, wanted);
+    }
+
+    /** The sort menu's choice: kept for this table and view in this browser, then applied. `null` is the view's order. */
+    private sortBy(dataset: DataSet, choice: SortChoice | null): void {
+        try {
+            if (choice) {
+                globalThis.localStorage.setItem(this.sortKey(dataset), JSON.stringify(choice));
+            } else {
+                globalThis.localStorage.removeItem(this.sortKey(dataset));
+            }
+        } catch {
+            // A browser that refuses storage still sorts, for this visit.
+        }
+
+        this.applySortChoice(dataset, choice);
+    }
+
+    /**
+     * A Choice swimlane's rows from its option set, so a row no card is in
+     * yet still appears — the lanes' own reader, on the other column. The
+     * executor form for the reason `laneLoader` gives: canvas publishes
+     * `getEntityMetadata` and throws from the call.
+     */
+    private rowLoader(
+        context: ComponentFramework.Context<IInputs>,
+        dataset: DataSet,
+        column: string,
+        fromCards: Row[],
+    ): (() => Promise<Row[]>) | null {
+        if (typeof context.utils?.getEntityMetadata !== 'function' || !modelDrivenHost(context)) {
+            return null;
+        }
+
+        const entity = dataset.getTargetEntityType();
+
+        return (): Promise<Row[]> =>
+            new Promise<unknown>((resolve) => resolve(context.utils.getEntityMetadata(entity, [column])))
+                .then((metadata) => {
+                    const options = optionLanes(metadata, column);
+
+                    return options.length > 0 ? rowsFromOptions(options, fromCards) : [];
+                })
+                .catch(() => [] as Row[]);
+    }
+
+    /**
+     * Whether a card may be dropped into another row.
+     *
+     * **Owner needs Assign**, and the board asks before it offers the rows:
+     * `utils.hasEntityPrivilege(table, 5, depth)` at any depth — Assign is 5,
+     * Write 3, Delete 4 (callable with `Utility` declared, measured
+     * 2026-10-10). Where the question cannot be asked — a host without
+     * `Utility`, a call that throws — the rows are offered and the server is
+     * the guard, as Row Commands does. Any other column needs only the write
+     * every move does.
+     */
+    private rowsWritable(
+        context: ComponentFramework.Context<IInputs>,
+        dataset: DataSet,
+        column: string,
+        kind: RowKind,
+    ): boolean {
+        if (!this.canWrite(context, dataset)) {
+            return false;
+        }
+
+        if (kind !== 'lookup' || column !== 'ownerid') {
+            return true;
+        }
+
+        const ask = (context.utils as { hasEntityPrivilege?: (entity: string, type: number, depth: number) => unknown } | undefined)
+            ?.hasEntityPrivilege;
+
+        if (typeof ask !== 'function') {
+            return true;
+        }
+
+        try {
+            const entity = dataset.getTargetEntityType();
+
+            return [0, 1, 2, 3].some((depth) => ask.call(context.utils, entity, 5, depth) === true);
+        } catch {
+            return true;
+        }
+    }
+
+    /**
+     * What a lookup row's write binds through: the column's navigation
+     * property and the target table's entity set. Both read, never derived —
+     * the lookup-write rule `pcf-data-table` measured — through same-origin
+     * metadata reads (`context.webAPI` cannot address `EntityDefinitions`),
+     * once per table, column and target. Owner's navigation property is
+     * `ownerid` for a user and a team alike (measured 2026-10-10), so the
+     * column's own name is the fallback where the relationship read finds
+     * none. `null` where the entity set cannot be had: the move is refused
+     * before anything is sent.
+     */
+    private bindFor(
+        context: ComponentFramework.Context<IInputs>,
+        entity: string,
+        column: string,
+        target: string,
+    ): Promise<RowBind | null> {
+        const key = `${entity}:${column}:${target}`;
+        const cached = this.binds.get(key);
+
+        if (cached) {
+            return cached;
+        }
+
+        const clientUrl = clientUrlOf(context);
+
+        if (clientUrl === null) {
+            return Promise.resolve(null);
+        }
+
+        const navigation = readMetadata<{ value?: { ReferencingAttribute?: string; ReferencedEntity?: string; ReferencingEntityNavigationPropertyName?: string }[] }>(
+            clientUrl,
+            `EntityDefinitions(LogicalName='${encodeURIComponent(entity)}')/ManyToOneRelationships`
+                + '?$select=ReferencingAttribute,ReferencedEntity,ReferencingEntityNavigationPropertyName',
+        )
+            .then((body) => {
+                const matches = (body.value ?? []).filter((each) => each.ReferencingAttribute === column);
+                const exact = matches.find((each) => each.ReferencedEntity === target) ?? matches[0];
+
+                return exact?.ReferencingEntityNavigationPropertyName || column;
+            })
+            .catch(() => column);
+        const entitySet = readMetadata<{ EntitySetName?: unknown }>(
+            clientUrl,
+            `EntityDefinitions(LogicalName='${encodeURIComponent(target)}')?$select=EntitySetName`,
+        )
+            .then((body) => (typeof body.EntitySetName === 'string' && body.EntitySetName !== '' ? body.EntitySetName : null))
+            .catch(() => null);
+        const read = Promise.all([navigation, entitySet])
+            .then(([navigationProperty, set]) => (set ? { navigationProperty, entitySet: set } : null));
+
+        this.binds.set(key, read);
+
+        return read;
     }
 
     /**
