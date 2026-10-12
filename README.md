@@ -156,7 +156,7 @@ the event log names the form, since there is no form behind the demo.
 
 **Load more works**, since pcfhub/pcfhub#51 gave the harness a view that pages.
 
-Three presets:
+Six presets:
 - **Sprint board**: nine work items in the option set's lanes and colours, with
   one not yet triaged.
 - **Lanes set by hand**: the **Lanes** property filled in, the route a canvas
@@ -164,6 +164,19 @@ Three presets:
 - **Narrow lanes, read-only cards**: the shape for a form section rather than a
   full page, six cards at a time. Resolved is on the board, empty, until Load
   more brings its cards.
+- **Pipeline totals**: each lane adds up the Estimate column, and Active is
+  limited to three cards.
+- **Sorted by subject**: every lane in alphabetical order, with the sort menu
+  above the board.
+- **Swimlanes by area**: the same work items in rows by the Area column, with
+  Finance a row before any card is in it.
+
+The last has a fixture of its own, `demo/swimlanes.json`, named on the preset
+(`presets[].datasetFixture`, pcfhub/pcfhub#78): which column a role is bound to
+is the column's `alias` in the fixture, so the Swimlane role could not be bound
+in the file the other five share without splitting all of them into rows. It is
+`demo/records.json` with that one alias changed, and `npm run smoke` fails when
+the two drift apart.
 
 ## Install
 

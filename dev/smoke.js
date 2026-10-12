@@ -368,6 +368,36 @@ check('nor when the maker turned it off', bind({ inputs: { allowCreate: false } 
 
 check('passes the search switch down', bind({ inputs: { showSearch: false } }).props().showSearch === false, String(bind({ inputs: { showSearch: false } }).props().showSearch));
 
+/* ------------------------------------------------- the hub demo's two views */
+
+/*
+ * Not a decision of the control's, and here because nothing else in this
+ * repository asserts anything.
+ *
+ * The hub's Swimlanes preset is shown over `demo/swimlanes.json`
+ * (`presets[].datasetFixture`): which column a role is bound to is the
+ * column's `alias` in the fixture, so that preset needs a file of its own.
+ * It is `demo/records.json` with one difference — Area bound to the Swimlane
+ * role — and two files holding the same nine rows drift the first time a
+ * column is added to one of them. The preset would then show a board the other
+ * five do not, and every check would still pass.
+ */
+const demoFile = (name) => JSON.parse(fs.readFileSync(path.join(root, 'demo', name), 'utf8'));
+const demoRows = demoFile('records.json');
+const demoArea = demoRows.columns.find((column) => column.name === 'cr123_area');
+
+check('the demo keeps its Area column out of the Swimlane role, so five presets stay one board', demoArea !== undefined && demoArea.alias === 'cr123_area', demoArea && demoArea.alias);
+
+if (demoArea) {
+    demoArea.alias = 'swimlaneField';
+}
+
+check(
+    'demo/swimlanes.json is demo/records.json with Area bound to the Swimlane role, and nothing else',
+    JSON.stringify(demoFile('swimlanes.json')) === JSON.stringify(demoRows),
+    'edit both, or regenerate swimlanes.json from records.json',
+);
+
 /* ------------------------------------------------------------- the move */
 
 (async () => {

@@ -47,7 +47,8 @@
       "Load more works against the fixture. The board asks for its page size, and loadNextPage() adds the next page to the lanes, as on a real view, until the button goes away with every card shown. The Narrow lanes preset asks for six, so three of the nine cards wait behind Load more and the lane counts grow as they arrive — and because its lanes come from the option set, Resolved is on the board, empty, before any of its cards have loaded. The other presets ask for 50, which is all of them.",
       "Clicking a card calls dataset.openDatasetItem(). There is no form behind the demo, so the event log names the record that would have opened. The openedRecordId output still updates.",
       "Lane totals here are the cards on the board, and the line above the lanes says so. On a form the board asks Dataverse for one total per lane over the whole view — the view’s own FetchXML as an aggregate, related to the form’s record on a subgrid — and the demo’s stand-in Dataverse answers no FetchXML, so the event log shows that query refused and the board adds up its cards, exactly as on any host that cannot aggregate. The limit on Active in Pipeline totals is a warning, never a refusal: a fourth card still lands.",
-      "Swimlanes (0.5.0) are not in a preset. A preset can change the board’s properties but not which column a role is bound to, and the demo has one stand-in view for every preset, so binding the Swimlane column there would split all four boards into rows; the demo’s Area column is there for the screenshots, which show it. Sorted by subject shows the sort: the board asks the view for its order and the stand-in Dataverse sorts, so Load more and a move keep to it. The choice a user makes in the menu is kept in their browser on a form; the demo’s frame has no storage, so here it lasts until the page reloads."
+      "Swimlanes by area binds the Swimlane column to the demo’s Area column, a Choice, over a stand-in view of its own: a preset sets properties, and which column a role is bound to is the view’s to say. The rows are the column’s options, read through utils.getEntityMetadata as the lanes are, so Finance is a row before any card is in it. Drop a card into another row, or choose the row from its Move menu, and the area is written through the record’s setValue and save, as a lane is; a drop that changes lane and row writes both in one save, so a drop into Resolved is refused whole and the card returns to the lane and the row it came from. Because that view is its own, a move does not carry between it and the other presets’ view, and switching from one to the other puts the cards of both back where they started. A Yes/No column takes the same route. Owner and a lookup are written through the Web API’s @odata.bind instead, and no preset shows those.",
+      "Sorted by subject shows the sort: the board asks the view for its order and the stand-in Dataverse sorts, so Load more and a move keep to it. The choice a user makes in the menu is kept in their browser on a form; the demo’s frame has no storage, so here it lasts until the page reloads."
     ],
     "presets": [
       {
@@ -126,6 +127,21 @@
           "sortBy": "cr123_subject",
           "showSort": true
         }
+      },
+      {
+        "slug": "swimlanes",
+        "name": "Swimlanes by area",
+        "description": "The nine work items again, in rows by the Area column, a Choice: Finance has no card yet and is still a row. Drag a card into another row, or pick the row from its Move menu, and the board writes the new area.",
+        "props": {
+          "lanes": "",
+          "laneWidth": 280,
+          "laneColors": true,
+          "openOnCardClick": true,
+          "showSearch": true,
+          "allowCreate": true,
+          "pageSize": 50
+        },
+        "datasetFixture": "demo/swimlanes.json"
       }
     ]
   }
