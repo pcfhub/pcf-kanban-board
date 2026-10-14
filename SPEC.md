@@ -699,6 +699,23 @@ component.
 → The fixture limitation was promoted to the skill (`pcfhub-manifest.md`,
 *datasetFixture*). It is lifted now, and the skill should say so.
 
+## 0.5.2: a menu left open over the header
+
+pcf-lookup-search 0.3.0 was reported with its list riding up over the form's
+header after the form scrolled. A card's ⋯ menu is a Fluent `Menu`,
+portalled the same way, and pcf-calendar-view's event menu — the same
+uncontrolled `Menu` — was measured doing it on 2026-10-14. Not measured on
+this board before the change: the test record's board was empty.
+
+0.5.2 makes the card menu controlled and closes it through the shared
+`lib/close-when-hidden` once less than half its button is visible, focusing
+the button first with `preventScroll` so Fluent's focus restore does not
+scroll the form back. Walked on 0.5.2, on a record with 31 cards, at
+1100×650: a 40px scroll kept the menu; the scroll that put the button at y 230
+(the scroller starts at 286) closed it, the form stayed at scrollTop 3282,
+focus was on the button, and the record was not dirty. 0.5.1 was a test
+build, never released.
+
 ## Not verified
 
 Everything here needs a real model-driven form. None of it can be settled from

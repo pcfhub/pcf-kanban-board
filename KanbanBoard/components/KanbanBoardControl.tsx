@@ -23,6 +23,7 @@ import {
 } from './lanes';
 import { TotalsAnswer } from '../data/totals';
 import { Row, SortChoice, SortOption, cardsInCell } from './swimlanes';
+import { useCloseWhenHidden } from '../lib/close-when-hidden/useCloseWhenHidden';
 
 /**
  * How a move ended, as the entry point reports it — so the board can put a
@@ -958,6 +959,17 @@ function CardItem(props: ILaneProps & { card: Card }): React.ReactElement {
     const busy = props.moving.indexOf(card.id) >= 0;
 
     /*
+     * The move menu is portalled and follows its button, so a board or form
+     * scrolled with it open carries it out of the lane and over the form's
+     * header. Controlled so it can close once the button is out of view
+     * (lib/close-when-hidden/watch.ts).
+     */
+    const [menuOpen, setMenuOpen] = React.useState(false);
+    const [menuButton, setMenuButton] = React.useState<HTMLElement | null>(null);
+
+    useCloseWhenHidden(menuButton, menuOpen, () => setMenuOpen(false));
+
+    /*
      * Where this card could go: every lane except the unassigned one and the
      * one it is already in.
      *
@@ -1021,9 +1033,10 @@ function CardItem(props: ILaneProps & { card: Card }): React.ReactElement {
                     at all.
                 */}
                 {props.canMove && (
-                <Menu>
+                <Menu open={menuOpen} onOpenChange={(_event, data): void => setMenuOpen(data.open)}>
                     <MenuTrigger disableButtonEnhancement>
                         <Button
+                            ref={setMenuButton}
                             appearance="subtle"
                             size="small"
                             disabled={props.disabled || busy}
