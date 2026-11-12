@@ -122,7 +122,8 @@ many cards it holds.
 
 **Sort cards by** and the sort menu order the cards inside every lane by one
 column, either way — not by two, and only by a column the board loads: one in
-the view, or one bound to a role. A model-driven form ignores a sort on any
+the view, or one bound to a role. With an **Order column** bound, the board
+starts in that order and **Sort cards by** gives way to it. A model-driven form ignores a sort on any
 other column without a word, so the menu does not offer one and **Sort cards
 by** naming one is not applied. A column the view hides is not offered either.
 
@@ -133,13 +134,54 @@ browser or a cleared cache starts from **Sort cards by**. A choice column sorts
 by its label on a model-driven form and by its value in a canvas app — the
 hosts' order, not the control's.
 
-## No dragging to reorder, no selection
+## What your own order covers
 
-A drop changes a card's lane, its row, or both — never its place in the lane.
-Order comes from the sort; there is no rank column to drag against.
+Since 0.6.0 a card can be put where it belongs — with an **Order column**
+bound. What that does not reach:
 
-The control also reports no selection, which is why the subgrid's command bar is
-off: there would be nothing for its buttons to act on.
+- **It needs a whole-number column of yours.** Without one, a drop changes a
+  card's lane or row and never its place, as before. The board writes the
+  column; nothing else in Dataverse keeps it in step, so a flow or an import
+  that adds tasks leaves them with no place, at the top of their lanes, until
+  someone presses **Give them a place**.
+- **Only while the board is in its own order.** Another sort from the menu, or
+  text in the search box, hides the grips and the drop line — the order on
+  screen is then not the order. A move between lanes still works then and
+  lands at the top.
+- **Inside what is loaded.** A card's new place stays among the cards **Load
+  more** has brought, so it can never land past a card not loaded yet. At the
+  end of a lane with more to load, a drop can need room that is not there;
+  the board says so, and **Load more** makes room.
+- **A lane holding a card with no place cannot be reordered** — such a card
+  sorts above every numbered one wherever it is drawn. **Give them a place**
+  numbers them all, just above the first that has one; while they continue
+  past the cards loaded, it asks to load more first.
+- **The column's range is read from its definition.** A column narrowed to,
+  say, 0 … 1000 is kept to, so a board near an edge renumbers more cards; a
+  host that cannot read the definition keeps to 1 … 2,147,483,647, and a write
+  past a narrower range is refused and put back.
+- **The order is per lane — per cell, with swimlanes.** Two cards in different
+  lanes may share a value; nothing compares them.
+- **Two people reordering the same lane at once**: each board writes what it
+  planned, the last write wins, and each shows its own order until it reads
+  again.
+- **Canvas apps draw the order and do not change it**, as they move no card
+  (above).
+
+## What selecting several cards covers
+
+**Select several cards** is off by default. With it on:
+
+- **No command bar acts on the selection.** The subgrid's command bar is
+  switched on in the control, not on the form, so turning it on would put it
+  above every board already in use; it stays off, by decision. A form script
+  can read the selection through the subgrid's `getGrid().getSelectedRows()`.
+- **A changed search or sort clears it.** A refresh — after **+** — keeps only
+  the selected cards still on the board.
+- **Each card is written on its own.** One the server refuses goes back with
+  the reason; the others stay where they landed.
+- **The keyboard grip carries its own card.** To move several from the
+  keyboard, select them and use **Move N cards to…** above the board.
 
 ## Lane totals are sums of one column
 
