@@ -204,6 +204,22 @@ async function checkLive(chrome, preset, first) {
 }
 
 (async () => {
+    /*
+     * A preset with no slug cannot be picked (`?preset=<slug>`), and the hub
+     * refuses it at ingestion: `/demo/presets/<n>/slug is required.` Until
+     * 2026-11-12 this died on `undefined.padEnd` after running every preset
+     * before it (pcf-kanban-board 0.6.0's new preset), so say it first.
+     */
+    const unnamed = presets
+        .map((p, index) => (typeof p.slug === 'string' && p.slug.trim() !== '' ? null : `/demo/presets/${index}/slug`))
+        .filter(Boolean);
+
+    if (unnamed.length > 0) {
+        console.error(`\n  pcfhub.json: ${unnamed.join(', ')} is required — the hub picks a preset by its slug,`
+            + ' and refuses the manifest without one.\n');
+        process.exit(1);
+    }
+
     const chosen = presets.filter((p) => only.length === 0 || only.includes(p.slug));
 
     if (chosen.length === 0) {
