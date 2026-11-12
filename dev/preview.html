@@ -177,8 +177,9 @@
           and `demo/records.json` carries values already formatted the way a
           form shows them, which is what a published screenshot should be of.
         */
-        if (params.get('fixture') === 'demo') {
-            var response = await fetch('../demo/records.json');
+        // ?fixture=demo is the hub's demo; ?fixture=ordered is its Your order preset (0.6.0).
+        if (params.get('fixture') === 'demo' || params.get('fixture') === 'ordered') {
+            var response = await fetch(params.get('fixture') === 'ordered' ? '../demo/ordered.json' : '../demo/records.json');
 
             fixture = await response.json();
 

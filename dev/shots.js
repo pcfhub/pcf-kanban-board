@@ -3,6 +3,7 @@
  *
  *     npm run preview -- --no-open --port 8105     # in one shell
  *     npm run shots                                # in another
+ *     npm run shots -- screenshot-order.png        # only the ones named
  *
  * **The recipes live here, not in a person's shell history.** A stale
  * screenshot is a documented claim about a version that no longer exists, and
@@ -52,6 +53,13 @@ const SHOTS = [
         'fixture=demo&view=1&lane=212&swim=cr123_area', ''],
     ['screenshot-sort.png', '0.5.0 the sort menu: Estimate, largest first, inside every lane and row',
         'fixture=demo&view=1&lane=212&swim=cr123_area&sort=1&sortby=cr123_estimate%20desc', ''],
+    ['screenshot-order.png', '0.6.0 your own order: a grip on each card, two cards selected and the selection bar above the lanes',
+        'fixture=ordered&view=1&lane=212&sort=1&select=1',
+        "const pick = (title) => [...document.querySelectorAll('.KanbanBoard-card')].find((c) => c.querySelector('.KanbanBoard-cardTitle').textContent === title);"
+            + " pick('Rewrite the escalation runbook').querySelector('.KanbanBoard-cardSelect').click();"
+            + " await new Promise((r) => setTimeout(r, 150));"
+            + " pick('Migrate the reporting dashboard').querySelector('.KanbanBoard-cardSelect').click();"
+            + " await new Promise((r) => setTimeout(r, 300));"],
 ];
 
 if (!CHROME) {
@@ -153,7 +161,10 @@ async function evaluate(cdp, expression) {
         await cdp.send('Runtime.enable');
         await cdp.send('Emulation.setDeviceMetricsOverride', { width: WIDTH + 32, height: 1200, deviceScaleFactor: 2, mobile: false });
 
-        for (const [name, purpose, query, after] of SHOTS) {
+        // `npm run shots -- screenshot-order.png` retakes only the pictures named.
+        const only = process.argv.slice(2);
+
+        for (const [name, purpose, query, after] of SHOTS.filter(([shot]) => only.length === 0 || only.includes(shot))) {
             await cdp.send('Page.navigate', { url: `${BASE}?width=${WIDTH}&${query}` });
             // The option set, the totals and the search all arrive through effects.
             await sleep(1500);

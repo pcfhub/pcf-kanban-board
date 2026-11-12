@@ -31,7 +31,7 @@
 
   "media": {
     "logo": "media/logo.png",
-    "screenshots": ["media/screenshot-board.png", "media/screenshot-swimlanes.png", "media/screenshot-sort.png", "media/screenshot-totals.png", "media/screenshot-limits.png", "media/screenshot-search.png"]
+    "screenshots": ["media/screenshot-board.png", "media/screenshot-order.png", "media/screenshot-swimlanes.png", "media/screenshot-sort.png", "media/screenshot-totals.png", "media/screenshot-limits.png", "media/screenshot-search.png"]
   },
 
   "demo": {
