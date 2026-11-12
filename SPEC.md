@@ -2,6 +2,88 @@
 
 A Dataverse view as a drag-and-drop board, grouped by a choice column.
 
+## 0.6.0 — cards in your own order, and many at once
+
+Picked by the 12 Nov 2026 demand survey (the thirty-third run): Kanban moved
+29 → 49 hub downloads in twelve days, the largest move any snapshot has
+recorded; its own limitations page said *"No dragging to reorder, no
+selection"* ("there is no rank column to drag against"); no Dynamics 365 board
+found orders cards **within** a lane, while Inogic's commercial board moves
+many cards between lanes at once. Decided with the user the same day:
+
+- **The order lives in a whole-number column**, a seventh role,
+  `orderField`. Cards in a lane — or a cell, with swimlanes — are drawn in
+  its ascending order; a drop lands where it is dropped; the writes come from
+  `_template`'s `lib/rank-order`. Unbound, the board is exactly 0.5.x.
+- **The subgrid's command bar stays off.** It is a manifest attribute read
+  from the installed control (pcf-row-commands P2), so turning it on would put
+  it above every existing board on upgrade. Selection is for moving several
+  cards at once.
+- **Selecting several cards is a property, off by default** (`selectCards`):
+  a checkbox per card, Ctrl/⌘-click and Shift-click, and a drag or a Move of
+  one selected card takes all of them. The rule for anything new on a control
+  people already have — a board that upgrades looks the way it did.
+- **Cards with no value: a button.** As in Data Table 0.9.0 — they sort first
+  (R1 there), so a lane holding one refuses a move, and a bar says how many
+  there are and numbers only those.
+- **A Move from the ⋯ menu lands at the top of its lane** — the top is always
+  loaded, so it never renumbers other cards.
+- **Keyboard: the card's grip.** Space lifts, Up/Down move within the lane,
+  Left/Right to the neighbouring lane (closed lanes skipped), Space drops,
+  Escape cancels, every step announced. `lib/rank-order` gains the grid
+  version of its lift.
+
+### How the order is kept
+
+- **The writes are the fewest, not the most readable.** `planInsert` (new in
+  `lib/rank-order`) takes the moved cards out and puts them back as a block:
+  where the values on either side leave room, only the moved cards are
+  written; otherwise a window around them is numbered with consecutive whole
+  numbers. Data Table's `planMove` keeps reusing the passed rows' values (10,
+  20, 30 stay 10, 20, 30) — a table shows its numbers, a board does not, and a
+  drag from the bottom of a 30-card lane to the top would write 30 cards
+  that way.
+- **A board loads more, it does not turn pages**, so the loaded cards are a
+  prefix of the whole order and every lane's top is loaded: a value below the
+  lowest loaded is always safe, and a value above the highest loaded is not
+  while there is more to load. `PageEdges` gains `min`/`max` (the span of every
+  loaded card, not only the lane's) and `floor`/`ceiling` (the column's own
+  range, read from its metadata), and a block at the open top packs down
+  against the card below it rather than up from the floor.
+- **No re-read after a move**, the 0.4.1 rule: a refresh starts the view again
+  at its first page. The new value is held as an override until a fetch agrees,
+  as a lane is, and the board orders each lane itself by the value in force —
+  the platform re-sorts nothing until a re-read (Data Table R3).
+- **Grips show only when the order is the order on screen**: the sort in force
+  is the order column ascending, no search narrows the board, and the host can
+  write. Another sort, or a search, hides them; a drop between lanes still
+  works and lands at the top.
+
+### The 0.5.4 probe
+
+A throwaway build: 0.5.3 plus `probe.ts` and the `orderField` role, no
+feature code. `window.__pcfKanbanProbe.help()` lists the calls; the bundle
+carries `kanban-probe-0.5.4`. Numbered below 0.6.0 because Dataverse ignores a
+re-import at the same number.
+
+**Needs on the environment first:** a whole-number column on `cll_task`
+(*Board order*, range −1,000,000 to 1,000,000, so Q7 has a refusal to ask for),
+**not** in the subgrid's view, bound as **Order column** on the account form's
+board; some tasks numbered, some left empty; a quick create form for `cll_task`
+(Q9). The lane stays on Status Reason.
+
+| | Question | Decides | Measured |
+| --- | --- | --- | --- |
+| Q1 | An `orderField` bound to a column outside the view: in `dataset.columns`, with what `order`; `getValue` of a set and an unset value; `getFormattedValue` | the role works off-view; what a rank reads as | |
+| Q2 | `sort(order, asc)` in place + `refresh()`: cards with no value first? Does `loadNextPage()` continue in the order? | the order on screen is the order column's | |
+| Q3 | `isEditable(order)`; `setValue` + `save()` alone: persisted (Web API read-back)? `getValue` after the save and before a re-read; after `loadNextPage()`, is an already-loaded record re-read? | the record route for a rank, and when an override retires | |
+| Q4 | A Choice lane and the rank through the record in **one** save (`cll_status` + order) | a cross-lane move on a Choice board is one write | |
+| Q5 | `updateRecord` with `{ statecode, statuscode, <order> }` in one call | a cross-lane move on a Status Reason board is one write | |
+| Q6 | The order column's range: `getEntityMetadata(table, [order])`, and `EntityDefinitions…/Attributes(…)/Microsoft.Dynamics.CRM.IntegerAttributeMetadata?$select=MinValue,MaxValue` | `floor` and `ceiling` | |
+| Q7 | A value above the column's maximum, through the record and through the Web API: synchronous throw or rejection, its text; after a record-route refusal, does the record keep the staged value — and does the next save of another column send it? | how a refused move is put back (Data Table R5 wrote the old values back) | |
+| Q8 | `setSelectedRecordIds([a, b])` with no command bar: does `updateView` run; `getSelectedRecordIds()` after a `refresh()` and after `loadNextPage()`; does the form's `getGrid().getSelectedRows()` see them? | whether selection survives Load more; whether a form script can read it | |
+| Q9 | `openForm` (quick create) with `{ <lane>: n, <order>: m }`: the created task's order, with the column on the quick create form and without it | whether **+** can put the new card at the top | |
+
 ## 0.5.0 — swimlanes and a sort menu
 
 Picked by the 10 Oct 2026 demand survey (the twenty-first run): Kanban was #3
