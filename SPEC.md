@@ -885,7 +885,8 @@ this repository, and the first one is load-bearing.
 - **0.6.0, on the form:** a refused record-route move walked end to end — the
   write-back is measured (Q7) and in the suite, but no business rule on the
   test table refused a Choice lane through the record during the walk; a drag
-  of a selection (W6 moved one by the menu); the order in a **canvas** app
+  of a selection on the form (W6 moved two by the menu; the preview dragged
+  two); the order in a **canvas** app
   (drawn, not changeable — reasoned from the record route, not walked);
   dragging by touch on a phone, where **Move up**/**Move down** are the route;
   two users reordering one lane at once; a column with a narrowed range near
