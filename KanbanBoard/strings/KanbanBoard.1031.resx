@@ -238,6 +238,12 @@
   <data name="SwimlaneField_Desc" xml:space="preserve">
     <value>Optional. Eine Auswahl-, Ja/Nein-, Besitzer- oder Suchspalte, die das Board in Zeilen teilt, eine pro Wert. Wird eine Karte in eine andere Zeile gezogen, ändert sich diese Spalte. Leer lassen für ein Board ohne Zeilen.</value>
   </data>
+  <data name="OrderField_Name" xml:space="preserve">
+    <value>Reihenfolgespalte</value>
+  </data>
+  <data name="OrderField_Desc" xml:space="preserve">
+    <value>Optional. Eine Ganzzahlspalte, die den Platz jeder Karte in ihrer Bahn enthält. Karten werden in dieser Reihenfolge angezeigt, eine gezogene Karte bleibt dort, wo sie abgelegt wird, und das Board schreibt die neuen Werte. Leer lassen, um Karten nach der Ansicht oder der Sortierung zu ordnen.</value>
+  </data>
   <data name="ParentLookup_Name" xml:space="preserve">
     <value>Übergeordnetes Nachschlagefeld</value>
   </data>

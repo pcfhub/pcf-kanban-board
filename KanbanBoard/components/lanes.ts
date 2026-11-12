@@ -79,6 +79,7 @@ export const ROLES = {
     badge: 'badgeField',
     value: 'valueField',
     swimlane: 'swimlaneField',
+    order: 'orderField',
 } as const;
 
 /**

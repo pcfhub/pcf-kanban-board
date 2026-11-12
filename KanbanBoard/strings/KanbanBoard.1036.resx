@@ -238,6 +238,12 @@
   <data name="SwimlaneField_Desc" xml:space="preserve">
     <value>Facultatif. Une colonne de choix, Oui/Non, Propriétaire ou de recherche qui divise le tableau en lignes, une par valeur. Faire glisser une carte vers une autre ligne modifie cette colonne. Laissez vide pour un tableau sans lignes.</value>
   </data>
+  <data name="OrderField_Name" xml:space="preserve">
+    <value>Colonne d'ordre</value>
+  </data>
+  <data name="OrderField_Desc" xml:space="preserve">
+    <value>Facultatif. Une colonne de nombre entier qui contient la place de chaque carte dans son couloir. Les cartes sont affichées dans cet ordre, une carte glissée reste là où elle est déposée, et le tableau écrit les nouvelles valeurs. Laissez vide pour ordonner les cartes selon la vue ou le tri.</value>
+  </data>
   <data name="ParentLookup_Name" xml:space="preserve">
     <value>Recherche parente</value>
   </data>

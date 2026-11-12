@@ -238,6 +238,12 @@
   <data name="SwimlaneField_Desc" xml:space="preserve">
     <value>省略可能。ボードを値ごとの行に分ける選択肢、はい/いいえ、所有者、または検索列です。カードを別の行にドラッグすると、この列が変更されます。行のないボードにするには空のままにします。</value>
   </data>
+  <data name="OrderField_Name" xml:space="preserve">
+    <value>並び順の列</value>
+  </data>
+  <data name="OrderField_Desc" xml:space="preserve">
+    <value>省略可能。各カードのレーン内での位置を保持する整数列です。カードはこの順で表示され、ドラッグしたカードはドロップした位置に留まり、ボードが新しい値を書き込みます。ビューまたは並べ替えの順にする場合は空のままにします。</value>
+  </data>
   <data name="ParentLookup_Name" xml:space="preserve">
     <value>親レコードの参照列</value>
   </data>

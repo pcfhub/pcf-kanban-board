@@ -39,6 +39,10 @@ import {
     sortOptions,
     sortStorageKey,
 } from './components/swimlanes';
+import { Probe } from './probe';
+
+/** THE 0.5.4 PROBE — see probe.ts. Delete with it before 0.6.0. */
+const PROBE = new Probe();
 
 type DataSet = ComponentFramework.PropertyTypes.DataSet;
 type Column = ComponentFramework.PropertyHelper.DataSetApi.Column;
@@ -334,6 +338,7 @@ export class KanbanBoard implements ComponentFramework.ReactControl<IInputs, IOu
     public updateView(context: ComponentFramework.Context<IInputs>): React.ReactElement {
         const dataset = context.parameters.records;
 
+        PROBE.observe(context);
         this.applyPageSize(context, dataset);
         this.applySort(context, dataset);
 

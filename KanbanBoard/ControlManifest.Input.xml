@@ -7,7 +7,7 @@
   -->
   <control namespace="PCFHub"
            constructor="KanbanBoard"
-           version="0.5.3"
+           version="0.5.4"
            display-name-key="KanbanBoard_Name"
            description-key="KanbanBoard_Desc"
            control-type="virtual">
@@ -101,6 +101,24 @@
                     display-name-key="SwimlaneField_Name"
                     description-key="SwimlaneField_Desc"
                     of-type-group="swimlanes"
+                    usage="bound"
+                    required="false" />
+
+      <!--
+        0.6.0: the order. A seventh role, optional like the fifth and sixth —
+        unbound, the board is exactly 0.5.x. A whole number holding each
+        card's place in its lane: cards are drawn in its ascending order, a
+        drop lands where it is dropped, and the board writes the values
+        _template's lib/rank-order plans. A role rather than a text property
+        naming the column (pcf-data-table's orderColumn), because a role is
+        always in the dataset, the view's column or not — measured on this
+        board, 0.4.8 P5 and P8: an off-view role is sortable and written
+        through the record. See SPEC.md 0.6.0.
+      -->
+      <property-set name="orderField"
+                    display-name-key="OrderField_Name"
+                    description-key="OrderField_Desc"
+                    of-type="Whole.None"
                     usage="bound"
                     required="false" />
     </data-set>

@@ -238,6 +238,12 @@
   <data name="SwimlaneField_Desc" xml:space="preserve">
     <value>Optional. A choice, Yes/No, Owner or lookup column that splits the board into rows, one per value. Dragging a card into another row changes this column. Leave empty for a board without rows.</value>
   </data>
+  <data name="OrderField_Name" xml:space="preserve">
+    <value>Order column</value>
+  </data>
+  <data name="OrderField_Desc" xml:space="preserve">
+    <value>Optional. A whole-number column holding each card's place in its lane. Cards are shown in its order, a dragged card stays where it is dropped, and the board writes the new values. Leave empty to order cards by the view or the sort.</value>
+  </data>
   <data name="ParentLookup_Name" xml:space="preserve">
     <value>Parent lookup</value>
   </data>
