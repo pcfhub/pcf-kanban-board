@@ -400,6 +400,33 @@ check(
     'edit both, or regenerate swimlanes.json from records.json',
 );
 
+/*
+ * 0.6.0: the hub's *Your order* preset is shown over `demo/ordered.json` —
+ * records.json with a whole-number Board order bound to the Order role and a
+ * place on every card, and nothing else, so the presets stay one board.
+ */
+const demoOrdered = demoFile('ordered.json');
+const orderedBase = JSON.parse(JSON.stringify(demoOrdered));
+
+orderedBase.title = demoRows.title;
+orderedBase.columns = orderedBase.columns.filter((column) => column.name !== 'cr123_rank');
+orderedBase.records.forEach((record) => {
+    delete record.values.cr123_rank;
+});
+demoRows.columns.forEach((column) => {
+    if (column.name === 'cr123_area') {
+        column.alias = 'cr123_area';
+    }
+});
+
+check(
+    'demo/ordered.json is demo/records.json with a Board order bound to the Order role and a place on every card, and nothing else',
+    JSON.stringify(orderedBase) === JSON.stringify(demoRows)
+        && demoOrdered.columns.some((column) => column.name === 'cr123_rank' && column.alias === 'orderField' && column.dataType === 'Whole.None')
+        && demoOrdered.records.every((record) => typeof record.values.cr123_rank === 'number'),
+    'edit both, or regenerate ordered.json from records.json',
+);
+
 /* ------------------------------------------------------------- the move */
 
 (async () => {
