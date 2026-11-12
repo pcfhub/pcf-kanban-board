@@ -116,6 +116,53 @@ wrong way. What it decides:
 - **+ places the new card at the top**: the rank goes beside the lane in the
   quick create's parameters, whether or not the form shows the column.
 
+### What was built
+
+The probe's answers, written in: the **Order column** role (`Whole.None`),
+the board starting in its ascending order with **Sort cards by** giving way to
+it, the sort menu's first entry **Your order**; each lane — each cell — drawn
+by the value in force (stable, empty first); a drop placing cards at the slot
+under the pointer, with a line where they will land; `planInsert` writing the
+fewest places inside the loaded span and the column's range (read from its
+definition, Q6); one write per card, lane, row and place together (Q4, Q5);
+overrides held until a fetch agrees; **Give them a place** numbering only the
+cards with none; **+** passing the top of the lane (Q9); a grip per card with
+the grid lift (`liftGridKey`) and every step announced, focus kept on the
+grip; **Move up** / **Move down** in the card menu. **Select several cards**
+(off by default): a checkbox, Ctrl/⌘ and Shift, a drag or a Move carrying the
+selection in board order, each card settling on its own, `setSelectedRecordIds`
+told. **The write-back** on every refused record-route save (Q7), lane moves
+included. 151 smoke checks and 40 for the plan and the keys; the write-back
+checks kill a mutant that drops it — which also corrected what the write-back
+was claimed to fix (see Q7's decision above).
+
+Also found while building: the template's busy-button check flagged the grip
+(`disabled` while its card saved would drop the focus a keyboard drop leaves
+on it) and **Give them a place** (the bar goes when it succeeds) — the grip is
+`aria-disabled`, the button `disabledFocusable`, and the focus goes to the
+lanes when the bar does.
+
+### The walkthrough, on 0.5.5 and 0.6.0 (2026-11-12)
+
+On the test environment's account form, Adventure Works (sample), the
+`cll_task` subgrid (page size 4, swimlanes by Owner, lane Status Reason,
+**Select several cards** on through the form XML), driven from the browser
+pane with real clicks and key presses where the step is the user's; drags as
+dispatched DOM drag events with a real `DataTransfer` (the pane cannot start
+an HTML5 drag). Each write read back from the Web API.
+
+| | What | Result |
+| --- | --- | --- |
+| W1 | 0.5.5 runs, the board in its own order | **Passed** — no probe in the bundle; grips on the four loaded cards; the three tasks with no place first, then 10; the menu on **Your order**; the stylesheet the new one (its token fresh — no stale-CSS trap after the probe) |
+| W2 | **Give them a place** | **Passed** — 7, 8, 9 written (just above the 10), read back; the bar gone and the focus on the lanes, not `BODY` |
+| W3 | A drag inside a cell: 02 above 05 | **Passed** — the line at slot 0; one write, 02 = 8, read back |
+| W4 | The keyboard: 05's grip, Space, Right, Space | **Passed** — "picked up. Active, position 2 of 2" / "In Progress, position 1 of 1" / "moved…"; read back `statuscode` In Progress, its rank 9 untouched (it fitted); the focus on its grip in the new lane |
+| W5 | Load more | **Passed** — 8 cards, none twice, every cell in the server's order: the overrides retired against the re-read |
+| W6 | Tick two cards, **Move 2 cards to… Active** | **Passed after a fix** — both read back Active, ranks untouched, at the top of the cell; the form's `getGrid().getSelectedRows()` listed both. **Found:** the selection bar appeared above the lanes on the first tick and moved every card down, so the second click landed where the checkbox had been; and the menu offered the row both cards were already in. Fixed: the selection sits in the toolbar's row (a 32px floor, so it does not grow), and the rows are the ones not every card is in |
+| W7 | **+** on Active, save the quick create | **Passed** — the new task read back Active with rank 7 (one above the lane's first, 8), related to the account, at the top of its cell after the refresh |
+| W8 | Title from the menu, reload, then **Your order** | **Passed** — Title survived the reload (grips hidden, stored per table and view); **Your order** brought the grips back and cleared the stored choice |
+| W9 | 0.6.0 imported over 0.5.5 | **Passed** — `customcontrols` 0.6.0; the stylesheet the release's; two ticks left the lanes where they were (286.9 px each time), the selection in the toolbar |
+
 ## 0.5.0 — swimlanes and a sort menu
 
 Picked by the 10 Oct 2026 demand survey (the twenty-first run): Kanban was #3
@@ -834,6 +881,15 @@ build, never released.
 
 Everything here needs a real model-driven form. None of it can be settled from
 this repository, and the first one is load-bearing.
+
+- **0.6.0, on the form:** a refused record-route move walked end to end — the
+  write-back is measured (Q7) and in the suite, but no business rule on the
+  test table refused a Choice lane through the record during the walk; a drag
+  of a selection (W6 moved one by the menu); the order in a **canvas** app
+  (drawn, not changeable — reasoned from the record route, not walked);
+  dragging by touch on a phone, where **Move up**/**Move down** are the route;
+  two users reordering one lane at once; a column with a narrowed range near
+  its edge.
 
 - ~~That `column.name` on an aliased property-set column is the name
   `record.setValue` wants.~~ Measured, Q2: `cll_status` staged and saved,
