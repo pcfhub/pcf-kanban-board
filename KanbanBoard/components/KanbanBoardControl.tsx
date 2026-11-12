@@ -1022,6 +1022,25 @@ export function KanbanBoardControl(props: IProps): React.ReactElement | null {
      * ancestor clips them, and no scrollbar ever appears. A pixel ceiling from
      * the platform is outside that circle.
      */
+    /*
+     * 0.6.0: the selection. How many, Move for all of them — to a lane every
+     * one may go to — and Clear. No command bar acts on it (the manifest keeps
+     * the subgrid's off, by decision); a form script can read it from the
+     * subgrid's grid.
+     */
+    const selectionBar = selectedNow.length > 0 ? (
+        <SelectionBar
+            {...props}
+            count={selectedNow.length}
+            lanes={lanes}
+            rows={rows}
+            rules={rules}
+            cards={placed.filter((card) => selectedNow.indexOf(card.id) !== -1)}
+            onMoveTo={(toValue: number | null, toRow?: Row): void => moveCards(selectedNow, toValue, toRow, null)}
+            onClear={(): void => select([], null)}
+        />
+    ) : null;
+
     const frame = (content: React.ReactElement): React.ReactElement => (
         <FluentProvider theme={props.theme ?? webLightTheme} dir={props.isRTL ? 'rtl' : 'ltr'}>
             <div
@@ -1129,23 +1148,12 @@ export function KanbanBoardControl(props: IProps): React.ReactElement | null {
             )}
 
             {/*
-                0.6.0: the selection. How many, Move for all of them — to a
-                lane every one may go to — and Clear. No command bar acts on
-                it (the manifest keeps the subgrid's off, by decision); a form
-                script can read it from the subgrid's grid.
+                0.6.0: the selection, on a bar of its own only where there is
+                no toolbar to hold it. Measured on the form (W6): a bar that
+                appeared above the lanes on the first tick moved every card
+                down, and the next click landed where the checkbox had been.
             */}
-            {selectedNow.length > 0 && (
-                <SelectionBar
-                    {...props}
-                    count={selectedNow.length}
-                    lanes={lanes}
-                    rows={rows}
-                    rules={rules}
-                    cards={placed.filter((card) => selectedNow.indexOf(card.id) !== -1)}
-                    onMoveTo={(toValue: number | null, toRow?: Row): void => moveCards(selectedNow, toValue, toRow, null)}
-                    onClear={(): void => select([], null)}
-                />
-            )}
+            {selectionBar !== null && !(props.showSearch || props.showSort) && selectionBar}
 
             {(props.showSearch || props.showSort) && !empty && (
                 <div className="KanbanBoard-toolbar">
@@ -1181,6 +1189,9 @@ export function KanbanBoardControl(props: IProps): React.ReactElement | null {
                             </span>
                         </>
                     )}
+
+                    {/* 0.6.0: the selection, in the toolbar's own row — which does not grow, so nothing moves. */}
+                    {selectionBar}
 
                     {/*
                         0.5.0: the sort, as a native select and a direction
@@ -1417,7 +1428,10 @@ function SelectionBar(props: IProps & {
     const lanes = props.lanes.filter((lane) => lane.value !== null
         && props.cards.every((card) => allowsMove(props.rules, card.lane, lane.value))
         && props.cards.some((card) => card.lane !== lane.value));
-    const rows = props.rows && props.rowsWritable ? props.rows.filter((row) => row.key !== null) : [];
+    // A row not every selected card is in already (W6: both cards' own row was offered).
+    const rows = props.rows && props.rowsWritable
+        ? props.rows.filter((row) => row.key !== null && props.cards.some((card) => (card.row ? card.row.key : null) !== row.key))
+        : [];
 
     return (
         <div className="KanbanBoard-selection" role="group" aria-label={getString('KanbanBoard_SelectedCount').replace('{0}', String(count))}>

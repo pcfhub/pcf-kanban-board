@@ -602,3 +602,16 @@ button.KanbanBoard-cardTitle:hover {
     white-space: nowrap;
     border: 0;
 }
+
+/*
+  In the toolbar the selection sits on the toolbar's own row, no taller than
+  the search box beside it, so a tick moves nothing on the board (0.6.0, W6).
+*/
+.KanbanBoard-toolbar {
+    min-height: 32px;
+}
+
+.KanbanBoard-toolbar .KanbanBoard-selection {
+    align-self: stretch;
+    padding: 0 var(--spacingHorizontalS, 8px);
+}
