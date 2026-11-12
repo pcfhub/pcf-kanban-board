@@ -64,6 +64,8 @@ published custom page, and the board behaves correctly there.
 | Search | Yes | Yes |
 | Swimlanes | Rows drawn; no card moves between them | Rows drawn, and moves write the column |
 | Sort and sort menu | Yes | Yes |
+| Order column | Lanes drawn in its order; no card moves, so no grips | Drawn in its order; drops and the keyboard write it |
+| Select several cards | Checkboxes and the selection; nothing to move them with | Yes |
 | `movedRecordId` output | Set only if a move is offered | Set on each move |
 | `createdRecordId` output | Never set | Set when the quick create saves |
 | Opening a card | No form to open; `openedRecordId` still updates | Opens the record |

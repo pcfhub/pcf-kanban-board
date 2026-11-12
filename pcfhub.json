@@ -147,7 +147,7 @@
       {
         "slug": "your-order",
         "name": "Your order",
-        "description": "The nine work items in the order the team set, held in a whole-number Board order column. Drag a card up, down or into another lane and it stays where you drop it; Tab to a card's grip and press Space to carry it with the arrow keys. Tick two cards and drag one: both move.",
+        "description": "The work items in the order the team set, held in a Board order column. Drag a card up, down or across: it stays where dropped. Space on a card's grip carries it with the arrow keys. Tick two cards, drag one, and both move.",
         "props": {
           "lanes": "",
           "laneWidth": 280,

@@ -28,6 +28,25 @@ Note that **Assignee** and **Badge** are text columns, not `ownerid` and
 column will not appear in the picker for them — see
 [Model-driven apps](model-driven.md) for why.
 
+## A backlog in the order the team set
+
+A team that ranks its work by hand, and wants the board to keep the rank.
+
+| Property | Value |
+| --- | --- |
+| Lane column | `statuscode` |
+| Card title | `subject` |
+| Order column | `cr123_boardorder` *(a whole number, not in the view)* |
+| Show sort menu | On |
+| Select several cards | On |
+
+Add the whole-number column first; it needs no place in the view. Cards that
+had no value arrive at the top of their lanes, and the bar above the board
+offers **Give them a place** — press it once. From then on a drop lands where
+it is dropped, **+** adds a card at the top of its lane, and a user who wants
+to see the lanes by date picks it in the sort menu and comes back with **Your
+order**.
+
 ## A pipeline board with totals and a limit
 
 Opportunities by sales stage, the value of each stage under its name, and a

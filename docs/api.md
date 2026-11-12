@@ -47,6 +47,11 @@ the dataset, so a role bound to a column the view does not select arrives empty.
 card writes the option's numeric value — so a role bound to a text column leaves
 every card *Unassigned* rather than grouping by the text.
 
+**Order column** (0.6.0) must be a whole number. Each lane is drawn in its
+ascending order and the board writes it when a card is placed — see [Your own
+order](model-driven.md#your-own-order). Unbound, the board behaves as 0.5.x
+did.
+
 ## Outputs
 
 ::props-table{kind=output}
@@ -55,6 +60,7 @@ Both outputs are set **before** the platform call they describe, so a form can
 observe the intent even on a host where the call does nothing. `movedRecordId`
 is set when the move is attempted, not when it succeeds; if the write is
 refused, the card returns to its original lane and the output still names it.
+When several cards move at once it names the first — the one dragged.
 
 ## The lanes property
 

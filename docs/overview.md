@@ -26,6 +26,10 @@ chosen; the search box narrows the board to the cards that match.
   to a flow or a form script. This one writes the lane column itself — through
   the record where the platform lets it, through the Web API where it does not
   — so moving a card is the whole interaction rather than the first half of one.
+- **It keeps your order (0.6.0).** Bind a whole-number column and each lane is
+  drawn in its order; drop a card where it belongs, or carry it from the
+  keyboard, and the board writes the places — usually only the card moved.
+  Select several cards and they move together.
 - **It adds.** The **+** in a lane header opens the table's quick create form
   with that lane's option already set, and the new card appears on the board
   when the form saves. A board you can move cards across but not add to sends

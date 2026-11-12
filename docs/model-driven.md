@@ -104,6 +104,66 @@ table and view, and outranks **Sort cards by** there. It is off by default, so
 a board that upgrades looks as it did. Sorting reloads the view from its first
 page, as the grid's own column headers do.
 
+## Your own order
+
+Bind **Order column** to a whole-number column on the table, and the board
+keeps the cards in each lane — each cell, with swimlanes — in the order that
+column holds:
+
+- **It starts in that order.** The board sorts by the column, ascending, every
+  time it loads, and **Sort cards by** gives way to it. With **Show sort menu**
+  on, the menu's first entry is **Your order**; a user who picks another
+  column sees the board in that order instead, and the choice is kept in their
+  browser.
+- **A drop lands where it is dropped.** A line between the cards shows where.
+  Dropping into another lane changes the card's lane and its place in one
+  write. A **Move** from the card's menu, or the selection's, puts the card at
+  the top of the lane. On a phone, where dragging is unreliable, the menu also
+  has **Move up** and **Move down**.
+- **The keyboard has a grip.** Tab to the ⠿ before a card's title and press
+  Space: the arrow keys carry it — Up and Down within the lane, Left and Right
+  to the next lane it may go to — Space drops it and Escape puts it back. Each
+  step is announced.
+- **The board writes the places for you.** Usually only the card moved: a
+  value between its new neighbours. When the neighbours leave no room, a few
+  cards around it are renumbered with consecutive whole numbers. Values stay
+  inside the range of the cards loaded, so a card never jumps past the ones
+  **Load more** has not brought yet, and inside the column's own minimum and
+  maximum, read from its definition.
+- **Cards with no value come first**, as Dataverse sorts them, and a lane that
+  holds one cannot be reordered — there is nowhere to put a card relative to a
+  card with no place. A bar above the board says how many there are, and
+  **Give them a place** numbers only those, just above the first card that has
+  one.
+- **The order on screen has to be the order.** The grips go while another
+  sort is chosen or a search narrows the board; moving a card between lanes
+  still works, and it lands at the top.
+- **+ puts the new card at the top** of its lane: its place is passed to the
+  quick create form beside the lane, and Dataverse applies it whether or not
+  the form shows the column.
+
+The column needs no place in the view — like every role, it is fetched once it
+is bound. Give it a range that allows negative numbers (the default does): a
+card moved to the top of a lane whose first card is at 1 takes 0, then -1.
+
+## Selecting several cards
+
+**Select several cards** adds a checkbox to each card. Ctrl/⌘-click or
+Shift-click a card's title does the same — Shift picks the run from the last
+card picked, down its lane. Then:
+
+- **dragging one selected card carries all of them**, in the order they are on
+  the board, to the slot where they are dropped;
+- the bar above the board says how many are selected, offers **Move N cards
+  to…** a lane every one of them may go to, and **Clear selection** (Escape
+  does the same);
+- each card is written on its own: one that is refused goes back with the
+  reason, and the rest stay where they landed.
+
+A changed search or sort clears the selection. The board tells the platform
+which cards are selected, and a form script can read them —
+`formContext.getControl("<subgrid name>").getGrid().getSelectedRows()`.
+
 ## Where the lanes come from
 
 By default the board reads the **Lane column**'s option set through
@@ -176,9 +236,11 @@ one the totals use — every record in the view where Dataverse has answered.
 ## The command bar
 
 The subgrid's command bar, view selector and quick find are all off. The
-control does not report a selection, so the ribbon's buttons would have nothing
-to act on, and its layout depends on the four bound roles rather than on
-whatever columns a different view would bring.
+board's layout depends on its bound roles rather than on whatever columns a
+different view would bring. Since 0.6.0 the board reports a selection, and the
+command bar still stays off: it is switched on in the control itself, not on
+the form, so turning it on would put it above every board already in use. A
+form script can read the selection instead (see *Selecting several cards*).
 
 ## Adding cards
 

@@ -68,6 +68,16 @@ menu mutate `dataset.sorting` and refresh, so **Load more** keeps the order;
 only a column the board loads is offered, because a form ignores a sort on any
 other without a word.
 
+**The order is a column of yours (0.6.0).** Bind **Order column** to a whole
+number and each lane is drawn in its order: a drop lands where it is dropped,
+the keyboard carries a card with Space and the arrows, and the board writes the
+places — the fewest it can, through `_template`'s shared `lib/rank-order`,
+inside what is loaded so a card never jumps past the cards **Load more** has
+not brought yet. A move is still one write per card, its lane and its place
+together. **Select several cards** (off by default) lets a drag or a Move carry
+them all; the subgrid's command bar stays off, because that switch lives in the
+installed control and would appear above every existing board on upgrade.
+
 Every card also carries a **Move to…** menu. HTML5 drag-and-drop has no keyboard
 equivalent, so a board that only supported dragging could not be operated
 without a mouse at all.
@@ -86,6 +96,7 @@ the view selects it.
 | Badge | `badgeField` | SingleLine.Text | no | A short value shown as a chip. |
 | Lane total | `valueField` | Whole, Decimal, FP or Currency | no | Added up per lane and shown under its name, over the whole view where Dataverse can answer. |
 | Swimlane column | `swimlaneField` | OptionSet, TwoOptions, Owner or Lookup | no | 0.5.0. A row per value; a card dropped into another row writes it. |
+| Order column | `orderField` | Whole.None | no | 0.6.0. Each card's place in its lane. Cards are drawn in its order, a drop lands where it is dropped, and the board writes the new places. |
 
 The first column is what a maker sees in the property pane; the second is the
 name in the manifest, which is what a column carries in `alias` and what the
@@ -102,6 +113,7 @@ code looks it up by.
 | `laneLimits` | SingleLine.Text | — | `858010001=5,2=3` — a soft limit per lane. Over it, the count is marked; nothing is refused. |
 | `sortBy` | SingleLine.Text | — | 0.5.0. `createdon desc` — the order inside every lane, by a column the board loads. Unset, the view's. |
 | `showSort` | TwoOptions | `false` | 0.5.0. A sort menu for the user, kept per table and view in their browser. |
+| `selectCards` | TwoOptions | `false` | 0.6.0. A checkbox on each card, Ctrl/⌘- and Shift-click; a drag or a Move of one selected card takes them all. |
 
 | Output | Type | Set when |
 | --- | --- | --- |

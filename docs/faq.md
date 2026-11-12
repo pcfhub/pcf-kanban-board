@@ -74,9 +74,29 @@ bind a view that filters them in.
 
 ## Can I reorder cards inside a lane?
 
-Not by dragging: a drop changes a card's lane, its row, or both, never its
-place in the lane. Set **Sort cards by** to order every lane by a column, or
-turn on **Show sort menu** to let each user choose.
+Yes, since 0.6.0: bind **Order column** to a whole-number column and drag a
+card up or down — or carry it with the keyboard from its grip, or use **Move
+up** and **Move down** in its menu. The board writes the places into that
+column. See [Your own order](model-driven.md#your-own-order).
+
+Without an Order column, a drop changes a card's lane or row, never its place
+in the lane: set **Sort cards by** to order every lane by a column, or turn on
+**Show sort menu** to let each user choose.
+
+## Why can I not drag a card up or down?
+
+The grips and the line between cards appear only while the board is in its
+own order: another sort is chosen in the menu, or the search box holds text.
+Choose **Your order** in the menu, or clear the search. A lane holding a card
+with no place yet cannot be reordered either — use **Give them a place**
+above the board.
+
+## Can I move several cards at once?
+
+Yes, with **Select several cards** on: tick the cards, or Ctrl/⌘- and
+Shift-click their titles, then drag one of them or use **Move N cards to…**
+above the board. Each card is written on its own, so one the server refuses
+goes back and the others stay.
 
 ## Can I group by something other than a choice column?
 
@@ -90,7 +110,8 @@ it, or points it at another record. A date is neither, so it can be neither.
 The board renders, and the lanes scroll sideways. Dragging with touch is
 unreliable across mobile browsers, so the **Move to…** menu on each card is the
 dependable path there — it is the same menu that makes the board usable from a
-keyboard.
+keyboard. With an **Order column**, the same menu has **Move up** and **Move
+down**.
 
 ## Why does the control ask for Web API and Utility permission?
 
