@@ -74,15 +74,43 @@ board; some tasks numbered, some left empty; a quick create form for `cll_task`
 
 | | Question | Decides | Measured |
 | --- | --- | --- | --- |
-| Q1 | An `orderField` bound to a column outside the view: in `dataset.columns`, with what `order`; `getValue` of a set and an unset value; `getFormattedValue` | the role works off-view; what a rank reads as | |
-| Q2 | `sort(order, asc)` in place + `refresh()`: cards with no value first? Does `loadNextPage()` continue in the order? | the order on screen is the order column's | |
-| Q3 | `isEditable(order)`; `setValue` + `save()` alone: persisted (Web API read-back)? `getValue` after the save and before a re-read; after `loadNextPage()`, is an already-loaded record re-read? | the record route for a rank, and when an override retires | |
-| Q4 | A Choice lane and the rank through the record in **one** save (`cll_status` + order) | a cross-lane move on a Choice board is one write | |
-| Q5 | `updateRecord` with `{ statecode, statuscode, <order> }` in one call | a cross-lane move on a Status Reason board is one write | |
-| Q6 | The order column's range: `getEntityMetadata(table, [order])`, and `EntityDefinitions…/Attributes(…)/Microsoft.Dynamics.CRM.IntegerAttributeMetadata?$select=MinValue,MaxValue` | `floor` and `ceiling` | |
-| Q7 | A value above the column's maximum, through the record and through the Web API: synchronous throw or rejection, its text; after a record-route refusal, does the record keep the staged value — and does the next save of another column send it? | how a refused move is put back (Data Table R5 wrote the old values back) | |
-| Q8 | `setSelectedRecordIds([a, b])` with no command bar: does `updateView` run; `getSelectedRecordIds()` after a `refresh()` and after `loadNextPage()`; does the form's `getGrid().getSelectedRows()` see them? | whether selection survives Load more; whether a form script can read it | |
-| Q9 | `openForm` (quick create) with `{ <lane>: n, <order>: m }`: the created task's order, with the column on the quick create form and without it | whether **+** can put the new card at the top | |
+| Q1 | An `orderField` bound to a column outside the view: in `dataset.columns`, with what `order`; `getValue` of a set and an unset value; `getFormattedValue` | the role works off-view; what a rank reads as | **In `columns` with `order: -1`**, `dataType: "Whole.None"` and no `isHidden` key, beside the view's columns. A set value reads as the **number** `10` (formatted `"10"`); an unset one as `null` (formatted `null`) |
+| Q2 | `sort(order, asc)` in place + `refresh()`: cards with no value first? Does `loadNextPage()` continue in the order? | the order on screen is the order column's | **Yes, both.** In place + `refresh()` put the three tasks with no value first, then 10, 20 …; `loadNextPage()` brought 40, 50 … in the same order. `dataset.sorting` then reads `[{ name: "cll_boardorder", sortDirection: 0 }]` |
+| Q3 | `isEditable(order)`; `setValue` + `save()` alone: persisted (Web API read-back)? `getValue` after the save and before a re-read; after `loadNextPage()`, is an already-loaded record re-read? | the record route for a rank, and when an override retires | **`isEditable` true** for the off-view role; `setValue` returns `undefined`; `save()` resolved in 476 ms and the server read 45. **`getValue` kept the old value** after `setValue` and after the save; **`loadNextPage()` re-reads the cards already loaded** — afterwards it answered 45 |
+| Q4 | A Choice lane and the rank through the record in **one** save (`cll_status` + order) | a cross-lane move on a Choice board is one write | **One save, both written** (413 ms): `cll_status` 858010000 → 858010001 and the rank 50 → 55, read back from the Web API. Both `isEditable` true; `getValue` of both unchanged until a re-read |
+| Q5 | `updateRecord` with `{ statecode, statuscode, <order> }` in one call | a cross-lane move on a Status Reason board is one write | **One write, accepted** (999 ms): `{ statecode: 0, statuscode: 1, cll_boardorder: 65 }` took a Cancelled task (state 1) to Active with the new rank |
+| Q6 | The order column's range: `getEntityMetadata(table, [order])`, and `EntityDefinitions…/Attributes(…)/Microsoft.Dynamics.CRM.IntegerAttributeMetadata?$select=MinValue,MaxValue` | `floor` and `ceiling` | **Not in `getEntityMetadata`'s answer as the control reads it** (the attribute node carries `_attributeType`, `_attributeTypeName` and an `attributeDescriptor`); the same-origin definition read answers `{ MinValue: -1000000, MaxValue: 1000000, Format: "None" }` (200). That read is the route |
+| Q7 | A value above the column's maximum, through the record and through the Web API: synchronous throw or rejection, its text; after a record-route refusal, does the record keep the staged value — and does the next save of another column send it? | how a refused move is put back (Data Table R5 wrote the old values back) | **The record route rejects, never throws**: `save()` rejected with a `UciError`, `errorCode` 2147762991, message *"A validation error occurred. The value 2000000 of 'cll_boardorder' on record of type 'cll_task' is outside the valid range. Minimum Value: -1000000, Maximum value: 1000000"*. `getValue` and the server stayed 70 — **and the record kept the refused value staged: a second `save()` with nothing new set was refused again**, the same message. Writing the original back (`setValue(70)` + `save()`) resolved and cleared it. **The Web API** refused with *"An integer provided is outside of the allowed values."*, the same code, keys `errorCode, message, code, title, raw` |
+| Q8 | `setSelectedRecordIds([a, b])` with no command bar: does `updateView` run; `getSelectedRecordIds()` after a `refresh()` and after `loadNextPage()`; does the form's `getGrid().getSelectedRows()` see them? | whether selection survives Load more; whether a form script can read it | **One `updateView`** followed `setSelectedRecordIds`; `getSelectedRecordIds()` answered both. **Kept through `loadNextPage()`**; **a `refresh()` kept only the selected card still on its first page.** The form's grid API sees it — `getControl("Subgrid_new_4")` is a `customsubgrid:PCFHub.KanbanBoard` and `getGrid().getSelectedRows()` listed the three ids set, and none after `[]`; a refresh that dropped a card from the dataset's selection left it in the grid API's |
+| Q9 | `openForm` (quick create) with `{ <lane>: n, <order>: m }`: the created task's order, with the column on the quick create form and without it | whether **+** can put the new card at the top | **Applied without the column on the form**: `{ statuscode: "1", cll_boardorder: "5" }` on a quick create whose form carries neither; saved, the task read back `statuscode` 1 and rank 5. (With the column on the form: not asked — the answer above already decides it) |
+
+**Answered 2026-11-12** on the test environment's account form, Adventure
+Works (sample), the `cll_task` subgrid (page size 4, 16 tasks, lane Status
+Reason, swimlanes by Owner): a new whole-number column *Board order*
+(`cll_boardorder`, −1,000,000 to 1,000,000), **not** in the view, bound as
+**Order column** through the form XML; 13 tasks numbered 10 … 130, three left
+empty. Driven from the browser pane on `kanban-probe-0.5.4`. Nothing went the
+wrong way. What it decides:
+
+- **The role works off the view**, reads as a number or `null`, sorts on the
+  server with empty values first, and is written through the record — alone,
+  or in the same save as a Choice lane. A Status Reason move is one
+  `updateRecord` carrying the state pair and the rank.
+- **An override retires at the next Load more**, which re-reads every loaded
+  card; until then the board orders a lane by the value it wrote.
+- **The range comes from the attribute definition read**, `floor` and
+  `ceiling` for `PageEdges`; unread, the board keeps to 1 … 2,147,483,647.
+- **A refused record-route save is written back.** The record keeps a refused
+  value staged and sends it again with the next save — so a lane move refused
+  through the record (a Choice board under a business rule) has left that card
+  unable to move until a reload, since the record route arrived in 0.3.0.
+  0.6.0 writes the original values back on every record-route refusal, lane
+  moves included.
+- **Selection survives Load more, and the board keeps its own copy** across a
+  refresh, setting it again; a form script can read it through the subgrid's
+  `getGrid().getSelectedRows()`.
+- **+ places the new card at the top**: the rank goes beside the lane in the
+  quick create's parameters, whether or not the form shows the column.
 
 ## 0.5.0 — swimlanes and a sort menu
 
