@@ -140,8 +140,14 @@
     <!--
       No `cds-data-set-options`, following the template's own rule: a control
       with fixed roles wants the subgrid chrome off, because its layout does not
-      survive the maker picking a different view. The command bar would also
-      have nothing to act on — this control never calls setSelectedRecordIds().
+      survive the maker picking a different view.
+
+      0.6.0 selects cards and calls setSelectedRecordIds(), and the command bar
+      still stays off — the user's decision (2026-11-12). The attribute is read
+      from the installed control, not the form (pcf-row-commands P2), so turning
+      it on would put the bar above every existing board on upgrade. Selection
+      is for moving several cards at once; a form script can read it through
+      the subgrid's getGrid().getSelectedRows() (SPEC.md Q8).
     -->
 
     <!--
@@ -327,6 +333,19 @@
     <property name="showSort"
               display-name-key="ShowSort_Name"
               description-key="ShowSort_Desc"
+              of-type="TwoOptions"
+              usage="input"
+              required="false"
+              default-value="false" />
+
+    <!--
+      0.6.0. Select several cards: a checkbox on each, Ctrl/⌘-click and
+      Shift-click, and a drag or a Move of one selected card takes them all.
+      Off by default — a board that upgrades looks the way it did.
+    -->
+    <property name="selectCards"
+              display-name-key="SelectCards_Name"
+              description-key="SelectCards_Desc"
               of-type="TwoOptions"
               usage="input"
               required="false"

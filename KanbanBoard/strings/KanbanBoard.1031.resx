@@ -286,6 +286,12 @@
   <data name="ShowSort_Desc" xml:space="preserve">
     <value>Lässt Benutzer die Spalte wählen, nach der die Karten sortiert werden. Die Auswahl wird in ihrem Browser für diese Ansicht gespeichert.</value>
   </data>
+  <data name="SelectCards_Name" xml:space="preserve">
+    <value>Mehrere Karten auswählen</value>
+  </data>
+  <data name="SelectCards_Desc" xml:space="preserve">
+    <value>Optional. Zeigt auf jeder Karte ein Kontrollkästchen und lässt Karten mit Strg oder ⌘ und Umschalt auswählen. Wird eine ausgewählte Karte gezogen oder verschoben, gehen alle mit. Standardmäßig aus.</value>
+  </data>
   <data name="KanbanBoard_Sort" xml:space="preserve">
     <value>Karten sortieren</value>
   </data>
@@ -303,6 +309,63 @@
   </data>
   <data name="KanbanBoard_MoveToRow" xml:space="preserve">
     <value>Zeile: {0}</value>
+  </data>
+  <data name="KanbanBoard_MoveUp" xml:space="preserve">
+    <value>Nach oben</value>
+  </data>
+  <data name="KanbanBoard_MoveDown" xml:space="preserve">
+    <value>Nach unten</value>
+  </data>
+  <data name="KanbanBoard_SortYourOrder" xml:space="preserve">
+    <value>Ihre Reihenfolge</value>
+  </data>
+  <data name="KanbanBoard_Grip" xml:space="preserve">
+    <value>{0} verschieben</value>
+  </data>
+  <data name="KanbanBoard_GripHelp" xml:space="preserve">
+    <value>Um eine Karte zu verschieben, drücken Sie auf ihrem Griff die Leertaste, verwenden Sie die Pfeiltasten (links und rechts wechseln die Bahn) und drücken Sie erneut die Leertaste. Escape bricht ab.</value>
+  </data>
+  <data name="KanbanBoard_Position" xml:space="preserve">
+    <value>{0}, Position {1} von {2}.</value>
+  </data>
+  <data name="KanbanBoard_Lifted" xml:space="preserve">
+    <value>{0} aufgenommen. {1}</value>
+  </data>
+  <data name="KanbanBoard_Dropped" xml:space="preserve">
+    <value>{0} verschoben. {1}</value>
+  </data>
+  <data name="KanbanBoard_LiftCancelled" xml:space="preserve">
+    <value>Verschieben abgebrochen. {0} ist zurück: {1}</value>
+  </data>
+  <data name="KanbanBoard_UnnumberedCount" xml:space="preserve">
+    <value>Karten ohne Platz in Ihrer Reihenfolge: {0}.</value>
+  </data>
+  <data name="KanbanBoard_Number" xml:space="preserve">
+    <value>Platz zuweisen</value>
+  </data>
+  <data name="KanbanBoard_NumberMore" xml:space="preserve">
+    <value>Die Karten ohne Platz in Ihrer Reihenfolge gehen über die geladenen Karten hinaus. Laden Sie weitere, bis alle auf dem Board sind, und versuchen Sie es dann erneut.</value>
+  </data>
+  <data name="KanbanBoard_OrderUnnumbered" xml:space="preserve">
+    <value>Diese Bahn enthält Karten ohne Platz in Ihrer Reihenfolge. Geben Sie ihnen zuerst einen.</value>
+  </data>
+  <data name="KanbanBoard_OrderNoRoom" xml:space="preserve">
+    <value>Unter den geladenen Karten ist dort kein Platz für die Karte. Laden Sie weitere Karten und versuchen Sie es erneut.</value>
+  </data>
+  <data name="KanbanBoard_MoreRefused" xml:space="preserve">
+    <value>{0} weitere konnten ebenfalls nicht verschoben werden.</value>
+  </data>
+  <data name="KanbanBoard_Select" xml:space="preserve">
+    <value>{0} auswählen</value>
+  </data>
+  <data name="KanbanBoard_SelectedCount" xml:space="preserve">
+    <value>{0} ausgewählt</value>
+  </data>
+  <data name="KanbanBoard_ClearSelection" xml:space="preserve">
+    <value>Auswahl aufheben</value>
+  </data>
+  <data name="KanbanBoard_MoveSelected" xml:space="preserve">
+    <value>{0} Karten verschieben nach…</value>
   </data>
   <data name="KanbanBoard_RowCount" xml:space="preserve">
     <value>{0} Karten in {1}</value>

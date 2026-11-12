@@ -286,6 +286,12 @@
   <data name="ShowSort_Desc" xml:space="preserve">
     <value>カードを並べ替える列をユーザーが選べるようにします。選択はこのビューについてブラウザーに保存されます。</value>
   </data>
+  <data name="SelectCards_Name" xml:space="preserve">
+    <value>複数のカードを選択</value>
+  </data>
+  <data name="SelectCards_Desc" xml:space="preserve">
+    <value>省略可能。各カードにチェック ボックスを表示し、Ctrl または ⌘ と Shift でカードを選択できます。選択したカードを 1 枚ドラッグまたは移動すると、すべてが移動します。既定ではオフです。</value>
+  </data>
   <data name="KanbanBoard_Sort" xml:space="preserve">
     <value>カードを並べ替え</value>
   </data>
@@ -303,6 +309,63 @@
   </data>
   <data name="KanbanBoard_MoveToRow" xml:space="preserve">
     <value>行: {0}</value>
+  </data>
+  <data name="KanbanBoard_MoveUp" xml:space="preserve">
+    <value>上へ移動</value>
+  </data>
+  <data name="KanbanBoard_MoveDown" xml:space="preserve">
+    <value>下へ移動</value>
+  </data>
+  <data name="KanbanBoard_SortYourOrder" xml:space="preserve">
+    <value>並び順</value>
+  </data>
+  <data name="KanbanBoard_Grip" xml:space="preserve">
+    <value>{0} を移動</value>
+  </data>
+  <data name="KanbanBoard_GripHelp" xml:space="preserve">
+    <value>カードを移動するには、つまみで Space キーを押し、方向キーで動かしてから (左右でレーンを変更)、もう一度 Space キーを押します。Esc キーで取り消します。</value>
+  </data>
+  <data name="KanbanBoard_Position" xml:space="preserve">
+    <value>{0}、{2} 件中 {1} 番目。</value>
+  </data>
+  <data name="KanbanBoard_Lifted" xml:space="preserve">
+    <value>{0} を持ち上げました。{1}</value>
+  </data>
+  <data name="KanbanBoard_Dropped" xml:space="preserve">
+    <value>{0} を移動しました。{1}</value>
+  </data>
+  <data name="KanbanBoard_LiftCancelled" xml:space="preserve">
+    <value>移動を取り消しました。{0} は元の位置に戻りました: {1}</value>
+  </data>
+  <data name="KanbanBoard_UnnumberedCount" xml:space="preserve">
+    <value>並び順の位置がまだないカード: {0} 枚。</value>
+  </data>
+  <data name="KanbanBoard_Number" xml:space="preserve">
+    <value>位置を付ける</value>
+  </data>
+  <data name="KanbanBoard_NumberMore" xml:space="preserve">
+    <value>並び順の位置がないカードが、読み込まれたカードの先にも続いています。すべてがボードに表示されるまで読み込んでから、もう一度お試しください。</value>
+  </data>
+  <data name="KanbanBoard_OrderUnnumbered" xml:space="preserve">
+    <value>このレーンには、並び順の位置がまだないカードがあります。先に位置を付けてください。</value>
+  </data>
+  <data name="KanbanBoard_OrderNoRoom" xml:space="preserve">
+    <value>読み込まれたカードの中で、その位置にカードを置く余地がありません。さらにカードを読み込んでから、もう一度お試しください。</value>
+  </data>
+  <data name="KanbanBoard_MoreRefused" xml:space="preserve">
+    <value>ほかに {0} 枚も移動できませんでした。</value>
+  </data>
+  <data name="KanbanBoard_Select" xml:space="preserve">
+    <value>{0} を選択</value>
+  </data>
+  <data name="KanbanBoard_SelectedCount" xml:space="preserve">
+    <value>{0} 件選択</value>
+  </data>
+  <data name="KanbanBoard_ClearSelection" xml:space="preserve">
+    <value>選択を解除</value>
+  </data>
+  <data name="KanbanBoard_MoveSelected" xml:space="preserve">
+    <value>{0} 枚のカードの移動先…</value>
   </data>
   <data name="KanbanBoard_RowCount" xml:space="preserve">
     <value>{1} のカード {0} 枚</value>

@@ -231,6 +231,26 @@
         KanbanBoard_SortDescending: "Descending — select to sort ascending",
         KanbanBoard_NoValue: "(empty)",
         KanbanBoard_MoveToRow: "Row: {0}",
+        // 0.6.0
+        KanbanBoard_MoveUp: "Move up",
+        KanbanBoard_MoveDown: "Move down",
+        KanbanBoard_SortYourOrder: "Your order",
+        KanbanBoard_Grip: "Move {0}",
+        KanbanBoard_GripHelp: "To move a card, press Space on its grip, use the arrow keys — left and right change lanes — then press Space again. Escape cancels.",
+        KanbanBoard_Position: "{0}, position {1} of {2}.",
+        KanbanBoard_Lifted: "{0} picked up. {1}",
+        KanbanBoard_Dropped: "{0} moved. {1}",
+        KanbanBoard_LiftCancelled: "Move cancelled. {0} is back: {1}",
+        KanbanBoard_UnnumberedCount: "Cards with no place in your order yet: {0}.",
+        KanbanBoard_Number: "Give them a place",
+        KanbanBoard_NumberMore: "The cards with no place in your order continue past the cards loaded. Load more until all of them are on the board, then try again.",
+        KanbanBoard_OrderUnnumbered: "This lane has cards with no place in your order yet. Give them one first.",
+        KanbanBoard_OrderNoRoom: "There’s no room for the card there among the cards loaded. Load more cards and try again.",
+        KanbanBoard_MoreRefused: "{0} more could not be moved either.",
+        KanbanBoard_Select: "Select {0}",
+        KanbanBoard_SelectedCount: "{0} selected",
+        KanbanBoard_ClearSelection: "Clear selection",
+        KanbanBoard_MoveSelected: "Move {0} cards to…",
         KanbanBoard_RowCount: "{0} cards in {1}",
         KanbanBoard_RowUnwritable: "Its row could not be written: the column's table could not be read.",
         KanbanBoard_AddCard: "Add a card to {0}",
@@ -810,6 +830,14 @@
 
             /** `save()` rejects. The path a rollback exists for. */
             saveRejects: false,
+
+            /**
+             * A save the server refuses by its value: `function (name, value)`
+             * answering `true` for a write to refuse. Unlike `saveRejects`,
+             * **the refused value stays staged** and the next save sends it
+             * again (SPEC.md Q7) — what the 0.6.0 write-back exists for.
+             */
+            refuses: null,
 
             /**
              * Columns `isEditable` answers `false` for.
@@ -1659,6 +1687,25 @@
                     });
                 }
 
+                /*
+                 * A whole-number column's range — 0.6.0 reads it for the
+                 * lowest and highest value a move may write. Measured
+                 * 2026-11-12 (SPEC.md Q6): `{ MinValue, MaxValue, Format }`
+                 * from the attribute definition cast to
+                 * `IntegerAttributeMetadata`. `fixture.metadata[col].range`
+                 * answers; a column without one is not found.
+                 */
+                var integer = address.slice(prefix.length)
+                    .match(/^([a-z0-9_]+)'\)\/Attributes\(LogicalName='([a-z0-9_]+)'\)\/Microsoft\.Dynamics\.CRM\.IntegerAttributeMetadata(\?.*)?$/i);
+
+                if (integer) {
+                    var range = ((fixture.metadata || {})[integer[2]] || {}).range;
+
+                    return range
+                        ? reply(200, { MinValue: range.min, MaxValue: range.max, Format: 'None' })
+                        : reply(404, { error: { code: '0x80060888', message: "Could not find a property named '" + integer[2] + "'." } });
+                }
+
                 var definition = address.slice(prefix.length).match(/^([a-z0-9_]+)'\)(\?\$select=EntitySetName)?$/i);
 
                 if (definition) {
@@ -2482,6 +2529,30 @@
                             delete row.staged[name];
                         }
                     });
+                }
+
+                /*
+                 * A save refused by its value — `quirks.refuses(name, value)`.
+                 * **What it was refused with stays staged** (SPEC.md Q7,
+                 * 2026-11-12): a second `save()` with nothing new set was
+                 * refused again, the same message, until a `setValue` put the
+                 * original back. The columns it would have accepted go.
+                 */
+                var refused = typeof quirks.refuses === 'function'
+                    ? Object.keys(row.staged).filter(function (name) {
+                        return quirks.refuses(name, row.staged[name]);
+                    })
+                    : [];
+
+                if (refused.length > 0) {
+                    row.staged = refused.reduce(function (kept, name) {
+                        kept[name] = row.staged[name];
+                        return kept;
+                    }, {});
+
+                    return Promise.reject(webApiFault(2147762991, '', 'A validation error occurred. The value '
+                        + refused.map(function (name) { return String(row.staged[name]); }).join(', ')
+                        + " is outside the valid range."));
                 }
 
                 if (quirks.saveRejects) {
@@ -3923,6 +3994,13 @@
                                     '',
                                     'Action could not be taken for few records before of status reason transition restrictions.',
                                 ));
+                            }
+
+                            // The Web API's wording for a value out of range (SPEC.md Q7); nothing is written.
+                            if (typeof quirks.refuses === 'function' && Object.keys(data || {}).some(function (key) {
+                                return quirks.refuses(key, data[key]);
+                            })) {
+                                return Promise.reject(webApiFault(2147762991, '', 'A validation error occurred. An integer provided is outside of the allowed values.'));
                             }
 
                             var failure = null;

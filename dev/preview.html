@@ -244,6 +244,15 @@
             });
         }
 
+        /*
+          0.6.0: ?order=1 binds the Order role to new_rank, a whole number
+          outside the view, as a maker's binding brings it in; ?select=1
+          turns selection on.
+        */
+        if (params.get('order') === '1' && typeof fixture.orderColumn === 'function') {
+            fixture = Object.assign({}, fixture, { columns: fixture.columns.concat(fixture.orderColumn()) });
+        }
+
         var canvas = params.get('canvas') === '1';
         var width = Number(params.get('width')) || window.innerWidth - 32;
 
@@ -273,6 +282,8 @@
                 // 0.5.0: ?sort=1 shows the menu; ?sortby=new_summary%20desc is the maker's default.
                 showSort: params.get('sort') === '1',
                 sortBy: params.get('sortby') || '',
+                // 0.6.0: ?select=1 — a checkbox on each card.
+                selectCards: params.get('select') === '1',
             },
             // 0.5.0: ?assign=0 — a user without Assign, so Owner rows take no card.
             hasPrivilege: params.get('assign') === '0' ? function (type) { return type !== 5; } : true,

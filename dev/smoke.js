@@ -116,6 +116,8 @@ const INPUTS = {
     // 0.5.0, the manifest's own defaults: no maker sort, and the menu off.
     sortBy: '',
     showSort: false,
+    // 0.6.0, the manifest's own default: selection off.
+    selectCards: false,
 };
 
 const live = [];
@@ -1473,6 +1475,209 @@ check(
 
     storageRefused.props().onSort({ name: 'new_summary', direction: 0 });
     check('a browser that refuses storage still sorts', storageRefused.handle.dataset.sorting[0] && storageRefused.handle.dataset.sorting[0].name === 'new_summary');
+
+    /* ------------------------------------------- 0.6.0: your own order */
+
+    /*
+     * The Order role bound to a whole number outside the view — as a maker
+     * binds it (SPEC.md Q1: in `columns` with `order: -1`). The board starts
+     * in that order and the menu's first entry is it.
+     */
+    const withOrder = (more) => bind({ ...more, columns: [...fixture.columns, fixture.orderColumn(), ...((more && more.extraColumns) || [])] });
+    const ordered = withOrder({});
+
+    check(
+        'with an Order column the board starts in its own order: the column, ascending',
+        JSON.stringify(ordered.handle.dataset.sorting) === JSON.stringify([{ name: 'new_rank', sortDirection: 0 }])
+            && ordered.props().order && ordered.props().order.inOrder === true,
+        JSON.stringify([ordered.handle.dataset.sorting, ordered.props().order && ordered.props().order.inOrder]),
+    );
+    check(
+        'each card carries its place, and a card with none carries null',
+        cardOf(ordered, 'w2').rank === 10 && cardOf(ordered, 'w1').rank === 20 && cardOf(ordered, 'w4').rank === null,
+        JSON.stringify((ordered.props().cards || []).map((card) => [card.id, card.rank])),
+    );
+    check(
+        'the Order column is the sort menu\'s first entry, not a column beside the others',
+        ordered.props().sort === null && !ordered.props().sortOptions.some((option) => option.name === 'new_rank'),
+        JSON.stringify([ordered.props().sort, ordered.props().sortOptions.map((option) => option.name)]),
+    );
+    check(
+        'Sort cards by gives way to the order a maker bound',
+        withOrder({ inputs: { sortBy: 'new_summary desc' } }).handle.dataset.sorting[0].name === 'new_rank',
+    );
+
+    const orderStore = {};
+    const resorted = withOrder({ storageData: orderStore, inputs: { showSort: true } });
+
+    resorted.props().onSort({ name: 'new_summary', direction: 0 });
+    resorted.settle();
+    check(
+        'another sort from the menu takes the board out of its order — no places written then',
+        resorted.props().order.inOrder === false && resorted.props().sort && resorted.props().sort.name === 'new_summary',
+        JSON.stringify([resorted.props().order, resorted.props().sort]),
+    );
+    check(
+        'and a user\'s stored sort outranks the order on the next load, while the menu is on',
+        withOrder({ storageData: orderStore, inputs: { showSort: true } }).handle.dataset.sorting[0].name === 'new_summary',
+    );
+    resorted.props().onSort(null);
+    resorted.settle();
+    check(
+        'the menu\'s first entry goes back to the order and forgets the stored sort',
+        resorted.handle.dataset.sorting[0].name === 'new_rank' && resorted.props().order.inOrder === true
+            && withOrder({ storageData: orderStore, inputs: { showSort: true } }).handle.dataset.sorting[0].name === 'new_rank',
+        JSON.stringify(resorted.handle.dataset.sorting),
+    );
+
+    const unbound = bind({});
+
+    check(
+        'no Order column, no order: the board is 0.5.x, cards carry no place',
+        unbound.props().order === null && !('rank' in cardOf(unbound, 'w1')),
+        JSON.stringify(cardOf(unbound, 'w1')),
+    );
+    check(
+        'an Order role on a column that is not a whole number is not an order',
+        bind({ columns: [...fixture.columns, { ...fixture.orderColumn(), dataType: 'Decimal' }] }).props().order === null,
+    );
+
+    // The range, from the attribute definition (Q6) — and the floor and ceiling of a whole number where it is unread.
+    const range = await ordered.props().order.loadRange();
+    const unread = await bind({ columns: [...fixture.columns, { ...fixture.orderColumn(), name: 'new_other' }] }).props().order.loadRange();
+
+    check(
+        'the Order column\'s range comes from its definition, and 1 … 2,147,483,647 where that cannot be read',
+        range.floor === -1000000 && range.ceiling === 1000000 && unread.floor === 1 && unread.ceiling === 2147483647,
+        JSON.stringify([range, unread]),
+    );
+
+    /*
+     * A move with a place: one write per card, lane and place together — the
+     * record route here (Q4: a Choice lane and the rank in one save).
+     */
+    const placing = withOrder({});
+    const placed = await placing.props().onMoveCards([{ id: 'w1', lane: 3, rank: 35 }]);
+
+    await flush();
+
+    const stagedFor = (view) => view.calls().filter((call) => call.startsWith('record.setValue'));
+
+    check(
+        'a move with a place stages the lane and the place on the record, and saves once',
+        placed.ok === true && stagedFor(placing).some((call) => call.includes('new_stage=3'))
+            && stagedFor(placing).some((call) => call.includes('new_rank=35'))
+            && placing.calls().filter((call) => call.startsWith('record.save')).length === 1,
+        placing.calls().join(' '),
+    );
+
+    placing.settle();
+    check('the card shows its new place before the data has it', cardOf(placing, 'w1').rank === 35, String(cardOf(placing, 'w1').rank));
+    placing.handle.reread();
+    placing.settle();
+    check('and keeps it once the data does', cardOf(placing, 'w1').rank === 35 && laneOf(placing, 'w1') === 3, JSON.stringify(cardOf(placing, 'w1')));
+
+    // Where the record cannot be written, the whole move is one updateRecord (Q5: the lane and the rank together).
+    const orderViaApi = withOrder({ quirks: { editableAbsent: true } });
+
+    await orderViaApi.props().onMoveCards([{ id: 'w1', lane: 3, rank: 35 }]);
+    await flush();
+
+    const apiCalls = orderViaApi.calls().filter((call) => typeof call === 'object' || String(call).startsWith('webAPI.updateRecord'));
+
+    check(
+        'or one Web API update carrying the lane and the place',
+        apiCalls.length === 1 && /new_stage/.test(JSON.stringify(apiCalls[0])) && /new_rank/.test(JSON.stringify(apiCalls[0])),
+        JSON.stringify(apiCalls),
+    );
+
+    // A move of several cards: each written, the first named as the card that moved.
+    const many = withOrder({});
+    const both = await many.props().onMoveCards([{ id: 'w1', lane: 3, rank: 31 }, { id: 'w2', lane: 3, rank: 32 }]);
+
+    await flush();
+    check(
+        'a move of several cards writes each, and names the first as the one that moved',
+        both.ok === true && both.refused.length === 0 && many.instance.getOutputs().movedRecordId === 'w1'
+            && many.calls().filter((call) => call.startsWith('record.save')).length === 2,
+        JSON.stringify([both, many.instance.getOutputs().movedRecordId]),
+    );
+
+    // A place the server refuses: that card goes back, the others land (each settles on its own).
+    const tooFar = withOrder({ quirks: { refuses: (name, value) => name === 'new_rank' && value > 1000 } });
+    const partly = await tooFar.props().onMoveCards([{ id: 'w1', lane: 3, rank: 31 }, { id: 'w2', lane: 3, rank: 5000 }]);
+
+    await flush();
+    tooFar.settle();
+    check(
+        'a refused card goes back and is named; the rest land',
+        partly.ok === false && JSON.stringify(partly.refused) === '["w2"]' && laneOf(tooFar, 'w1') === 3 && laneOf(tooFar, 'w2') === 1
+            && /resx:KanbanBoard_MoveFailed Chase the missing invoices/.test(partly.message || ''),
+        JSON.stringify([partly, laneOf(tooFar, 'w1'), laneOf(tooFar, 'w2')]),
+    );
+
+    /*
+     * **The write-back** (Q7). The record keeps a refused value staged and
+     * sends it with every later save; without the write-back the card's next
+     * move is refused too — a lane move included, since 0.3.0.
+     */
+    check(
+        'a refused save writes the card\'s own values back before it reports the refusal',
+        stagedFor(tooFar).some((call) => call.includes('new_rank=5000')) && stagedFor(tooFar).some((call) => call.includes('new_rank=10')),
+        stagedFor(tooFar).join(' '),
+    );
+
+    const nextMove = await tooFar.props().onMoveCards([{ id: 'w2', lane: 2 }]);
+
+    await flush();
+    check('so the card\'s next move goes through', nextMove.ok === true, JSON.stringify(nextMove));
+
+    const laneRefused = withOrder({ quirks: { refuses: (name, value) => name === 'new_stage' && value === 3 } });
+    const first = await laneRefused.props().onMove('w1', 3);
+    const second = await laneRefused.props().onMoveCards([{ id: 'w1', rank: 15 }]);
+
+    await flush();
+    /*
+     * A second move of the lane stages the same column and replaces what is
+     * stuck, so it was never the lane itself that stayed refused: it is the
+     * card's next write of another column — a row, a place — that carried the
+     * refused lane with it (0.3.0–0.5.x), refused again or, once the rule
+     * allowed it, written without anyone asking.
+     */
+    check(
+        'and a refused lane no longer rides along with the card\'s next write of another column — a place, here',
+        first.ok === false && second.ok === true,
+        JSON.stringify([first, second, laneRefused.calls().filter((call) => String(call).startsWith('record.'))]),
+    );
+
+    // The quick create carries the new card's place beside its lane (Q9).
+    const creatingOrdered = withOrder({ contextInfo: { entityTypeName: 'account', entityId: 'parent-1', entityRecordName: 'Parent' } });
+
+    creatingOrdered.props().onCreate(1, 9);
+    await flush();
+
+    const orderedForm = creatingOrdered.calls().find((call) => call.startsWith('navigation.openForm'));
+    const orderedWith = orderedForm ? JSON.parse(orderedForm.slice('navigation.openForm('.length, -1)) : null;
+
+    check(
+        'adding a card in your order passes its place, as a string, beside the lane',
+        Boolean(orderedWith) && orderedWith.parameters.new_stage === '1' && orderedWith.parameters.new_rank === '9',
+        JSON.stringify(orderedWith && orderedWith.parameters),
+    );
+
+    /* -------------------------------------------- 0.6.0: the selection */
+
+    check('selecting is off unless the maker turns it on', ordered.props().selectCards === false && bind({ inputs: { selectCards: true } }).props().selectCards === true);
+
+    const selecting = withOrder({ inputs: { selectCards: true } });
+
+    selecting.props().onSelect(['w1', 'w2']);
+    check(
+        'a selection is told to the platform, which a form script can read (Q8)',
+        selecting.calls().some((call) => String(call).startsWith('setSelectedRecordIds'))
+            && JSON.stringify(selecting.handle.dataset.getSelectedRecordIds()) === '["w1","w2"]',
+        JSON.stringify(selecting.handle.dataset.getSelectedRecordIds()),
+    );
 
     report();
 })();

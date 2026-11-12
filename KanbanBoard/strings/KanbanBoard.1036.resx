@@ -286,6 +286,12 @@
   <data name="ShowSort_Desc" xml:space="preserve">
     <value>Permet aux utilisateurs de choisir la colonne de tri des cartes. Leur choix est mémorisé dans leur navigateur pour cette vue.</value>
   </data>
+  <data name="SelectCards_Name" xml:space="preserve">
+    <value>Sélectionner plusieurs cartes</value>
+  </data>
+  <data name="SelectCards_Desc" xml:space="preserve">
+    <value>Facultatif. Affiche une case à cocher sur chaque carte et permet de choisir des cartes avec Ctrl ou ⌘ et Maj. Faire glisser ou déplacer une carte sélectionnée les déplace toutes. Désactivé par défaut.</value>
+  </data>
   <data name="KanbanBoard_Sort" xml:space="preserve">
     <value>Trier les cartes</value>
   </data>
@@ -303,6 +309,63 @@
   </data>
   <data name="KanbanBoard_MoveToRow" xml:space="preserve">
     <value>Ligne : {0}</value>
+  </data>
+  <data name="KanbanBoard_MoveUp" xml:space="preserve">
+    <value>Monter</value>
+  </data>
+  <data name="KanbanBoard_MoveDown" xml:space="preserve">
+    <value>Descendre</value>
+  </data>
+  <data name="KanbanBoard_SortYourOrder" xml:space="preserve">
+    <value>Votre ordre</value>
+  </data>
+  <data name="KanbanBoard_Grip" xml:space="preserve">
+    <value>Déplacer {0}</value>
+  </data>
+  <data name="KanbanBoard_GripHelp" xml:space="preserve">
+    <value>Pour déplacer une carte, appuyez sur Espace sur sa poignée, utilisez les flèches (gauche et droite changent de couloir), puis appuyez de nouveau sur Espace. Échap annule.</value>
+  </data>
+  <data name="KanbanBoard_Position" xml:space="preserve">
+    <value>{0}, position {1} sur {2}.</value>
+  </data>
+  <data name="KanbanBoard_Lifted" xml:space="preserve">
+    <value>{0} saisie. {1}</value>
+  </data>
+  <data name="KanbanBoard_Dropped" xml:space="preserve">
+    <value>{0} déplacée. {1}</value>
+  </data>
+  <data name="KanbanBoard_LiftCancelled" xml:space="preserve">
+    <value>Déplacement annulé. {0} est de retour : {1}</value>
+  </data>
+  <data name="KanbanBoard_UnnumberedCount" xml:space="preserve">
+    <value>Cartes sans place dans votre ordre : {0}.</value>
+  </data>
+  <data name="KanbanBoard_Number" xml:space="preserve">
+    <value>Leur donner une place</value>
+  </data>
+  <data name="KanbanBoard_NumberMore" xml:space="preserve">
+    <value>Les cartes sans place dans votre ordre continuent au-delà des cartes chargées. Chargez-en plus jusqu’à ce qu’elles soient toutes sur le tableau, puis réessayez.</value>
+  </data>
+  <data name="KanbanBoard_OrderUnnumbered" xml:space="preserve">
+    <value>Ce couloir contient des cartes qui n’ont pas encore de place dans votre ordre. Donnez-leur-en une d’abord.</value>
+  </data>
+  <data name="KanbanBoard_OrderNoRoom" xml:space="preserve">
+    <value>Il n’y a pas de place pour la carte à cet endroit parmi les cartes chargées. Chargez plus de cartes et réessayez.</value>
+  </data>
+  <data name="KanbanBoard_MoreRefused" xml:space="preserve">
+    <value>{0} autres n’ont pas pu être déplacées non plus.</value>
+  </data>
+  <data name="KanbanBoard_Select" xml:space="preserve">
+    <value>Sélectionner {0}</value>
+  </data>
+  <data name="KanbanBoard_SelectedCount" xml:space="preserve">
+    <value>{0} sélectionnées</value>
+  </data>
+  <data name="KanbanBoard_ClearSelection" xml:space="preserve">
+    <value>Effacer la sélection</value>
+  </data>
+  <data name="KanbanBoard_MoveSelected" xml:space="preserve">
+    <value>Déplacer {0} cartes vers…</value>
   </data>
   <data name="KanbanBoard_RowCount" xml:space="preserve">
     <value>{0} cartes dans {1}</value>

@@ -57,13 +57,14 @@
     var JO = { id: { guid: 'b3f1a0c2-0000-4000-8000-000000000002' }, etn: 'systemuser', name: 'Jo Park' };
     var OPS = { id: { guid: 'e8d840ff-0000-4000-8000-000000000001' }, etn: 'team', name: 'Ops Team' };
     var SWIM = {
-        w1: { risk: 3, urgent: true, owner: SAM },
-        w2: { risk: 1, urgent: false, owner: JO },
-        w3: { risk: 2, urgent: null, owner: OPS },
-        w4: { risk: null, urgent: true, owner: SAM },
-        w5: { risk: 1, urgent: false, owner: OPS },
-        w6: { risk: 3, urgent: null, owner: JO },
-        w7: { risk: 2, urgent: true, owner: SAM },
+        // 0.6.0's rank, beside: w2 above w1 in lane 1; w4 never placed, so lane 2 is unnumbered; the rest spaced.
+        w1: { risk: 3, urgent: true, owner: SAM, rank: 20 },
+        w2: { risk: 1, urgent: false, owner: JO, rank: 10 },
+        w3: { risk: 2, urgent: null, owner: OPS, rank: 30 },
+        w4: { risk: null, urgent: true, owner: SAM, rank: null },
+        w5: { risk: 1, urgent: false, owner: OPS, rank: 40 },
+        w6: { risk: 3, urgent: null, owner: JO, rank: 5 },
+        w7: { risk: 2, urgent: true, owner: SAM, rank: 50 },
     };
 
     function card(id, title, status, assignee, badge, estimate, account) {
@@ -75,6 +76,7 @@
                 new_risk: swim.risk === undefined ? null : swim.risk,
                 new_urgent: swim.urgent === undefined ? null : swim.urgent,
                 ownerid: swim.owner || null,
+                new_rank: swim.rank === undefined ? null : swim.rank,
                 // The real column names — what getValue() takes.
                 new_stage: status,
                 new_summary: title,
@@ -161,6 +163,8 @@
             // The Yes/No swimlane's two labels.
             new_urgent: { options: [{ value: 0, label: 'Normal' }, { value: 1, label: 'Urgent' }] },
             ownerid: { targets: ['systemuser', 'team'] },
+            // 0.6.0: the order column's range, as the attribute definition answers it (SPEC.md Q6).
+            new_rank: { range: { min: -1000000, max: 1000000 } },
         },
 
         /*
@@ -248,6 +252,11 @@
          * `new_risk` (Choice), `new_urgent` (Yes/No) or `ownerid` (Owner) —
          * as a maker's binding brings it in: a role outside the view.
          */
+        /** 0.6.0: the Order role bound to `new_rank`, a whole number outside the view. */
+        orderColumn: function () {
+            return { name: 'new_rank', displayName: 'Board order', dataType: 'Whole.None', alias: 'orderField', order: -1 };
+        },
+
         swimlaneColumn: function (name) {
             var types = { new_risk: ['Risk', 'OptionSet'], new_urgent: ['Urgent', 'TwoOptions'], ownerid: ['Owner', 'Lookup.Owner'] };
 

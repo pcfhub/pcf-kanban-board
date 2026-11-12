@@ -498,3 +498,107 @@ button.KanbanBoard-cardTitle:hover {
         transition: none;
     }
 }
+
+/*
+  0.6.0: your own order, and many at once.
+*/
+
+/*
+  The grip: a small, quiet button before the title — the keyboard's way to
+  place a card, and the sign to a mouse that the card goes where it is
+  dropped. Drawn only while the board is in its own order.
+*/
+.KanbanBoard-cardGrip {
+    flex: 0 0 auto;
+    font: inherit;
+    line-height: 1;
+    color: var(--colorNeutralForeground3, #616161);
+    background: none;
+    border: none;
+    border-radius: var(--borderRadiusSmall, 2px);
+    padding: 2px;
+    margin-inline-start: -2px;
+    cursor: grab;
+}
+
+.KanbanBoard-cardGrip:hover {
+    color: var(--colorNeutralForeground1, #242424);
+    background-color: var(--colorNeutralBackground1Hover, #f5f5f5);
+}
+
+.KanbanBoard-cardGrip:focus-visible {
+    outline: 2px solid var(--colorStrokeFocus2, #000000);
+    outline-offset: 1px;
+}
+
+.KanbanBoard-cardSelect {
+    flex: 0 0 auto;
+    margin: 2px 0 0;
+    accent-color: var(--colorBrandBackground, #0f6cbd);
+    cursor: pointer;
+}
+
+.KanbanBoard-cardSelect:focus-visible {
+    outline: 2px solid var(--colorStrokeFocus2, #000000);
+    outline-offset: 1px;
+}
+
+/* A selected card: the brand's stroke and its lightest background, as Fluent marks a selected item. */
+.KanbanBoard-card.is-selected {
+    border-color: var(--colorBrandStroke1, #0f6cbd);
+    background-color: var(--colorBrandBackground2, #ebf3fc);
+}
+
+/* A card lifted from the keyboard sits above its neighbours while it is carried. */
+.KanbanBoard-card.is-lifted {
+    border-color: var(--colorBrandStroke1, #0f6cbd);
+    box-shadow: var(--shadow8, 0 4px 8px rgba(0, 0, 0, 0.14), 0 0 2px rgba(0, 0, 0, 0.12));
+}
+
+/* Where a drop would land: a line between cards, in the brand's colour. */
+.KanbanBoard-dropLine {
+    list-style: none;
+    height: 2px;
+    margin: -1px 0;
+    border-radius: 1px;
+    background-color: var(--colorBrandStroke1, #0f6cbd);
+}
+
+/* The bars above the lanes: cards with no place yet, and the selection. */
+.KanbanBoard-orderBar,
+.KanbanBoard-selection {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacingHorizontalS, 8px);
+    margin: 0;
+    padding: var(--spacingVerticalXS, 4px) var(--spacingHorizontalM, 12px);
+    border-radius: var(--borderRadiusMedium, 4px);
+}
+
+.KanbanBoard-orderBar {
+    color: var(--colorNeutralForeground2, #424242);
+    background-color: var(--colorNeutralBackground3, #f5f5f5);
+}
+
+.KanbanBoard-selection {
+    color: var(--colorNeutralForeground1, #242424);
+    background-color: var(--colorBrandBackground2, #ebf3fc);
+}
+
+.KanbanBoard-selectionCount {
+    font-weight: var(--fontWeightSemibold, 600);
+}
+
+/* Heard, not seen: the lift's announcements and the grip's description. */
+.KanbanBoard-live {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}

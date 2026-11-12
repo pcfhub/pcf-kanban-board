@@ -59,6 +59,52 @@ export interface Card {
      * `swimlanes.ts`; the type is `Row` there.
      */
     row?: { key: string | null; label: string; value: number | boolean | { etn: string; id: string } | null };
+    /**
+     * 0.6.0: the card's place in its lane — the Order column's value, or the
+     * one this board wrote and the data has not caught up with. `null` is a
+     * card with no place yet; absent, no Order column is bound.
+     */
+    rank?: number | null;
+}
+
+/**
+ * The Order column's raw value as a number, or `null`. A form hands a whole
+ * number over as a number (SPEC.md Q1); a numeric string is read too, for a
+ * host that formats it on the way.
+ */
+export function rankValue(raw: unknown): number | null {
+    if (typeof raw === 'number') {
+        return Number.isFinite(raw) ? raw : null;
+    }
+
+    if (typeof raw === 'string' && /^-?\d+$/.test(raw.trim())) {
+        return Number(raw.trim());
+    }
+
+    return null;
+}
+
+/**
+ * Cards in the order column's order — no value first, as the server sorts
+ * them (SPEC.md Q2), then ascending — and **stable**, so cards that tie keep
+ * the order they came in. The board orders each lane itself because the
+ * platform re-sorts nothing until a re-read: a card just moved carries the
+ * value written, not the one the dataset still reports.
+ */
+export function inRankOrder(cards: Card[]): Card[] {
+    return cards
+        .map((card, index) => ({ card, index }))
+        .sort((a, b) => {
+            const x = a.card.rank ?? null;
+            const y = b.card.rank ?? null;
+
+            if (x === null || y === null) {
+                return x === y ? a.index - b.index : x === null ? -1 : 1;
+            }
+
+            return x - y || a.index - b.index;
+        })
+        .map((each) => each.card);
 }
 
 /** The two platform columns a board can be grouped by whose writes are special. */
@@ -442,7 +488,7 @@ export function numberValue(raw: unknown): number | null {
  * only the content can say whether anything actually changed.
  */
 export function boardKey(cards: Card[]): string {
-    return cards.map((card) => `${card.id}:${card.lane ?? ''}:${card.row ? card.row.key ?? '' : ''}`).join('|');
+    return cards.map((card) => `${card.id}:${card.lane ?? ''}:${card.row ? card.row.key ?? '' : ''}:${card.rank ?? ''}`).join('|');
 }
 
 /**

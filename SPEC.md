@@ -101,11 +101,15 @@ wrong way. What it decides:
 - **The range comes from the attribute definition read**, `floor` and
   `ceiling` for `PageEdges`; unread, the board keeps to 1 … 2,147,483,647.
 - **A refused record-route save is written back.** The record keeps a refused
-  value staged and sends it again with the next save — so a lane move refused
-  through the record (a Choice board under a business rule) has left that card
-  unable to move until a reload, since the record route arrived in 0.3.0.
-  0.6.0 writes the original values back on every record-route refusal, lane
-  moves included.
+  value staged and sends it again with the next save. A second move of the
+  same lane replaces it, so the lane itself never looked stuck; but since the
+  record route arrived in 0.3.0, a lane refused through the record (a Choice
+  board under a business rule) has ridden along with the card's next write of
+  another column — a Choice row change, and now a place — refused again or,
+  once the rule allowed it, written without anyone asking. 0.6.0 writes the
+  original values back on every record-route refusal, lane moves included.
+  Found by mutating the write-back out: a lane-then-lane check still passed,
+  a lane-then-place check did not.
 - **Selection survives Load more, and the board keeps its own copy** across a
   refresh, setting it again; a form script can read it through the subgrid's
   `getGrid().getSelectedRows()`.

@@ -286,6 +286,12 @@
   <data name="ShowSort_Desc" xml:space="preserve">
     <value>Permite a los usuarios elegir la columna por la que se ordenan las tarjetas. Su elección se recuerda en su explorador para esta vista.</value>
   </data>
+  <data name="SelectCards_Name" xml:space="preserve">
+    <value>Seleccionar varias tarjetas</value>
+  </data>
+  <data name="SelectCards_Desc" xml:space="preserve">
+    <value>Opcional. Muestra una casilla en cada tarjeta y permite elegir tarjetas con Ctrl o ⌘ y Mayús. Arrastrar o mover una tarjeta seleccionada mueve todas. Desactivado de forma predeterminada.</value>
+  </data>
   <data name="KanbanBoard_Sort" xml:space="preserve">
     <value>Ordenar tarjetas</value>
   </data>
@@ -303,6 +309,63 @@
   </data>
   <data name="KanbanBoard_MoveToRow" xml:space="preserve">
     <value>Fila: {0}</value>
+  </data>
+  <data name="KanbanBoard_MoveUp" xml:space="preserve">
+    <value>Subir</value>
+  </data>
+  <data name="KanbanBoard_MoveDown" xml:space="preserve">
+    <value>Bajar</value>
+  </data>
+  <data name="KanbanBoard_SortYourOrder" xml:space="preserve">
+    <value>Su orden</value>
+  </data>
+  <data name="KanbanBoard_Grip" xml:space="preserve">
+    <value>Mover {0}</value>
+  </data>
+  <data name="KanbanBoard_GripHelp" xml:space="preserve">
+    <value>Para mover una tarjeta, pulse Espacio en su asa, use las flechas (izquierda y derecha cambian de carril) y pulse Espacio de nuevo. Escape cancela.</value>
+  </data>
+  <data name="KanbanBoard_Position" xml:space="preserve">
+    <value>{0}, posición {1} de {2}.</value>
+  </data>
+  <data name="KanbanBoard_Lifted" xml:space="preserve">
+    <value>{0} levantada. {1}</value>
+  </data>
+  <data name="KanbanBoard_Dropped" xml:space="preserve">
+    <value>{0} movida. {1}</value>
+  </data>
+  <data name="KanbanBoard_LiftCancelled" xml:space="preserve">
+    <value>Movimiento cancelado. {0} vuelve a estar en: {1}</value>
+  </data>
+  <data name="KanbanBoard_UnnumberedCount" xml:space="preserve">
+    <value>Tarjetas que aún no tienen lugar en su orden: {0}.</value>
+  </data>
+  <data name="KanbanBoard_Number" xml:space="preserve">
+    <value>Darles un lugar</value>
+  </data>
+  <data name="KanbanBoard_NumberMore" xml:space="preserve">
+    <value>Las tarjetas sin lugar en su orden continúan más allá de las cargadas. Cargue más hasta que todas estén en el tablero e inténtelo de nuevo.</value>
+  </data>
+  <data name="KanbanBoard_OrderUnnumbered" xml:space="preserve">
+    <value>Este carril tiene tarjetas que aún no tienen lugar en su orden. Deles uno primero.</value>
+  </data>
+  <data name="KanbanBoard_OrderNoRoom" xml:space="preserve">
+    <value>No hay espacio para la tarjeta ahí entre las tarjetas cargadas. Cargue más tarjetas e inténtelo de nuevo.</value>
+  </data>
+  <data name="KanbanBoard_MoreRefused" xml:space="preserve">
+    <value>Tampoco se pudieron mover {0} más.</value>
+  </data>
+  <data name="KanbanBoard_Select" xml:space="preserve">
+    <value>Seleccionar {0}</value>
+  </data>
+  <data name="KanbanBoard_SelectedCount" xml:space="preserve">
+    <value>{0} seleccionadas</value>
+  </data>
+  <data name="KanbanBoard_ClearSelection" xml:space="preserve">
+    <value>Borrar selección</value>
+  </data>
+  <data name="KanbanBoard_MoveSelected" xml:space="preserve">
+    <value>Mover {0} tarjetas a…</value>
   </data>
   <data name="KanbanBoard_RowCount" xml:space="preserve">
     <value>{0} tarjetas en {1}</value>
